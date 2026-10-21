@@ -140,5 +140,78 @@
                 <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
             </intent-filter>
         </receiver>
+
+        <!-- Long-pressing the Quick Settings tile ends up here; the app opens on its alarm list. -->
+        <activity-alias
+            android:name=".TilePreferencesAlias"
+            android:exported="true"
+            android:label="@string/tile_preferences_label"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+            </intent-filter>
+        </activity-alias>
+
+        <!--
+            Home-screen widgets. Not Direct Boot aware on purpose: no launcher shows widgets before the first unlock,
+            and Glance keeps its bookkeeping in credential-encrypted storage.
+        -->
+        <receiver
+            android:name=".widget.NextAlarmWidgetReceiver"
+            android:directBootAware="false"
+            android:exported="true"
+            android:label="@string/widget_next_alarm_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_next_alarm_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.ClockWidgetReceiver"
+            android:directBootAware="false"
+            android:exported="true"
+            android:label="@string/widget_clock_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_clock_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.AlarmListWidgetReceiver"
+            android:directBootAware="false"
+            android:exported="true"
+            android:label="@string/widget_alarm_list_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_alarm_list_info" />
+        </receiver>
+
+        <!-- Quick Settings tile: vacation-mode switch showing the next alarm. Only reads device-protected storage. -->
+        <service
+            android:name=".tile.NextAlarmTileService"
+            android:directBootAware="true"
+            android:exported="true"
+            android:icon="@drawable/ic_stat_alarm"
+            android:label="@string/tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="true" />
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
     </application>
 </manifest>

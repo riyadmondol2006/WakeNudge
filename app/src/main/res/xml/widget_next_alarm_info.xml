@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Attributes from Android 12 (targetCell*, previewLayout, maxResize*) are ignored by older launchers; the min* sizes cover them. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UnusedAttribute"
+    android:description="@string/widget_next_alarm_description"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:maxResizeHeight="180dp"
+    android:minHeight="40dp"
+    android:minResizeHeight="40dp"
+    android:minResizeWidth="110dp"
+    android:minWidth="110dp"
+    android:previewLayout="@layout/widget_preview_next_alarm"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellHeight="1"
+    android:targetCellWidth="2"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen" />

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Clock face of the "Clock and next alarm" widget. TextClock ticks inside the launcher process, so the time stays
+    live without the widget being redrawn every minute. Formats and sizes are set from code (see ClockWidget).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="start"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="bottom"
+        android:orientation="horizontal">
+
+        <TextClock
+            android:id="@+id/widget_clock_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-light"
+            android:format12Hour="h:mm"
+            android:format24Hour="HH:mm"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/widget_clock_text"
+            android:textSize="56sp" />
+
+        <TextClock
+            android:id="@+id/widget_clock_marker"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_marginBottom="8dp"
+            android:fontFamily="sans-serif-medium"
+            android:format12Hour="a"
+            android:format24Hour="a"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/widget_clock_text_variant"
+            android:textSize="18sp" />
+    </LinearLayout>
+
+    <TextClock
+        android:id="@+id/widget_clock_date"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:format12Hour="EEEE, d MMMM"
+        android:format24Hour="EEEE, d MMMM"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:textColor="@color/widget_clock_text_variant"
+        android:textSize="16sp" />
+</LinearLayout>

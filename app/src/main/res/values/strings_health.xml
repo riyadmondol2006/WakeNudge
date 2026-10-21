@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Alarm Health: check names -->
+    <string name="health_title_armed">Alarms registered with Android</string>
+    <string name="health_title_system_next">Next alarm known to Android</string>
+    <string name="health_title_notifications">Notifications</string>
+    <string name="health_title_ring_channel">Alarm notification channel</string>
+    <string name="health_title_full_screen">Full-screen alarm screen</string>
+    <string name="health_title_exact_alarms">Exact scheduling</string>
+    <string name="health_title_battery">Battery optimization</string>
+    <string name="health_title_standby">App Standby bucket</string>
+    <string name="health_title_background">Background restriction</string>
+    <string name="health_title_dnd">Do Not Disturb</string>
+    <string name="health_title_volume">Alarm volume</string>
+    <string name="health_title_ringer">Ringer mode</string>
+    <string name="health_title_audio_output">Audio output</string>
+    <string name="health_title_time">Date and time</string>
+    <string name="health_title_direct_boot">After a restart</string>
+    <string name="health_title_reschedule">Scheduler</string>
+    <string name="health_title_last_ring">Last alarm</string>
+    <string name="health_title_watchdog">Watchdog</string>
+    <string name="health_title_service_failure">Alarm sound service</string>
+    <string name="health_title_tts">Voice announcements</string>
+    <string name="health_title_vibrator">Vibration</string>
+    <string name="health_title_oem">Manufacturer battery settings</string>
+
+    <!-- Alarm Health: one-tap fixes -->
+    <string name="health_fix_notifications">Open notification settings</string>
+    <string name="health_fix_channel">Open alarm channel settings</string>
+    <string name="health_fix_exact_alarms">Allow exact alarms</string>
+    <string name="health_fix_full_screen">Allow full-screen alerts</string>
+    <string name="health_fix_battery">Open battery optimization</string>
+    <string name="health_fix_app_details">Open app settings</string>
+    <string name="health_fix_dnd">Open Do Not Disturb settings</string>
+    <string name="health_fix_date_time">Open date and time settings</string>
+    <string name="health_fix_sound">Open sound settings</string>
+    <string name="health_fix_tts">Open text-to-speech settings</string>
+
+    <string name="health_ago">%1$s ago</string>
+    <string name="health_detail_allowed">Allowed.</string>
+
+    <!-- Registered alarms -->
+    <string name="health_detail_armed_none">No alarms are switched on, so there is nothing to register.</string>
+    <string name="health_detail_armed_ok">Every alarm that should ring is registered with Android (%1$d).</string>
+    <string name="health_detail_armed_ok_paused">Every alarm that should ring is registered with Android (%1$d). Switched on but paused by vacation mode, a switched-off group or an excluded date: %2$d.</string>
+    <string name="health_detail_armed_missing">Registered with Android: %1$d of %2$d. The missing alarms will not ring. Open the app (it re-registers everything on start) or switch an alarm off and on again.</string>
+    <string name="health_detail_armed_bookkeeping">Android has every alarm, but the app\'s own record lists %1$d of %2$d. This corrects itself the next time alarms are rescheduled.</string>
+    <string name="health_detail_system_none">No alarm is due, so there is nothing for Android to know about.</string>
+    <string name="health_detail_system_ok">Android\'s next alarm clock matches yours: %1$s.</string>
+    <string name="health_detail_system_earlier">Android\'s next alarm is earlier (%1$s) than WakeNudge\'s (%2$s). It comes from another alarm app or a test alarm, which is fine.</string>
+    <string name="health_detail_system_missing">Your next alarm (%1$s) is not registered as an alarm clock with Android: the system does not know about it, so the phone may not wake up for it. Open the app to register it again, or re-save the alarm.</string>
+    <string name="health_detail_system_mismatch">WakeNudge expects its next alarm at %1$s, but Android has %2$s. The system does not know about your next alarm, so the phone may not wake up for it. Open the app to register it again, or re-save the alarm.</string>
+
+    <!-- Notifications and permissions -->
+    <string name="health_detail_notif_permission">Notification permission is denied. Alarms still sound, but the full-screen alarm screen and the notification with Snooze and Dismiss cannot appear.</string>
+    <string name="health_detail_notif_disabled">Notifications for WakeNudge are switched off in Android settings. Alarms still sound, but the full-screen alarm screen and the notification with Snooze and Dismiss cannot appear.</string>
+    <string name="health_detail_channel_missing">The alarm notification channel does not exist yet. Open the app once so it can be created.</string>
+    <string name="health_detail_channel_blocked">The alarm notification channel is blocked, so the alarm screen cannot be shown. Allow it and set its importance to Urgent.</string>
+    <string name="health_detail_channel_lowered">The alarm notification channel was set below Urgent. Android may then show a quiet notification instead of the full-screen alarm screen. The sound itself is played by WakeNudge, so this does not mute alarms.</string>
+    <string name="health_detail_channel_ok">Set to Urgent, so the alarm screen can open over the lock screen.</string>
+    <string name="health_detail_full_screen_auto">Granted automatically on this version of Android.</string>
+    <string name="health_detail_full_screen_off">Android 14 and later lets you revoke full-screen alerts. Without them the alarm screen does not open over the lock screen. The sound and the notification still appear.</string>
+    <string name="health_detail_exact_off">Exact scheduling is not allowed. Alarms use Android\'s alarm-clock channel and are not affected, but timers, the sunrise glow and \"alarm in 30 minutes\" reminders can arrive late.</string>
+
+    <!-- Power management -->
+    <string name="health_detail_battery_exempt">WakeNudge is exempt from battery optimization.</string>
+    <string name="health_detail_battery_optimized">Android may delay WakeNudge\'s background work to save battery. Alarm-clock alarms are exempt from Doze, so this rarely matters on its own, but an exemption helps timers, reminders and follow-ups.</string>
+    <string name="health_detail_battery_oem">Your phone\'s maker is known for stopping background apps. Exempt WakeNudge from battery optimization and check the manufacturer-specific advice below.</string>
+    <string name="health_detail_standby_ok">Android treats WakeNudge as an app in regular use.</string>
+    <string name="health_detail_standby_rare">Android considers WakeNudge rarely used (the \"Rare\" bucket) and limits its background work. Alarm-clock alarms are exempt, but timers and reminders can be delayed. Opening the app or exempting it from battery optimization moves it up.</string>
+    <string name="health_detail_standby_restricted">Android has put WakeNudge in its most restricted standby bucket, which sharply limits background work. Alarm-clock alarms are exempt, but timers and reminders can be delayed. Opening the app or exempting it from battery optimization moves it up.</string>
+    <string name="health_detail_background_restricted">Background activity is restricted for WakeNudge. Android may stop an alarm from starting its sound service. Under Battery in the app settings, choose Unrestricted (or at least Optimized).</string>
+    <string name="health_detail_background_ok">Not restricted.</string>
+
+    <!-- Sound -->
+    <string name="health_detail_dnd_off">Do Not Disturb is off.</string>
+    <string name="health_detail_dnd_alarms_only">Do Not Disturb is set to Alarms only, which lets alarms through.</string>
+    <string name="health_detail_dnd_priority_ok">Do Not Disturb is in Priority only mode and allows alarms.</string>
+    <string name="health_detail_dnd_priority_blocks">Do Not Disturb is on and its settings do not allow alarms, so your alarm would be silent. Turn on Alarms under its priority exceptions.</string>
+    <string name="health_detail_dnd_total_silence">Do Not Disturb is set to Total silence, which silences alarms too. Switch it to Alarms only or turn it off.</string>
+    <string name="health_detail_dnd_unknown">Android did not report the Do Not Disturb state.</string>
+    <string name="health_detail_volume_fixed">This device has a fixed volume; the system decides how loud alarms are.</string>
+    <string name="health_detail_volume_ok">The alarm volume is at %1$d%%.</string>
+    <string name="health_detail_volume_low">The alarm volume is only %1$d%%. WakeNudge raises it when an alarm rings, and alarms with their own volume level are unaffected, but alarms set to \"system volume\" would be quiet. Raise it to be safe.</string>
+    <string name="health_detail_volume_muted">The alarm volume is at zero. WakeNudge raises it itself when an alarm rings, but if Android refuses the change the alarm would be silent. Raise the alarm volume to be safe.</string>
+    <string name="health_detail_ringer_normal">The ringer is on.</string>
+    <string name="health_detail_ringer_silent">The phone is on silent or vibrate. Alarms still ring: their volume is separate from the ringer.</string>
+    <string name="health_detail_audio_none">No headphones or Bluetooth audio are connected. Alarms play from the phone speaker.</string>
+    <string name="health_detail_audio_speaker">Connected: %1$s. Your setting plays alarms through the phone speaker even then, so they can still wake you. The hearing-safety cap only applies if you route alarms to headphones.</string>
+    <string name="health_detail_audio_headset_capped">Connected: %1$s. Alarms follow the system output, so they play in the headphones, capped at %2$d%% to protect your hearing. That may be too quiet to wake you; consider routing alarms to the phone speaker.</string>
+    <string name="health_detail_audio_headset_loud">Connected: %1$s. Alarms follow the system output and the hearing-safety cap is off, so an alarm plays at full volume directly in your ears. Consider routing alarms to the phone speaker or turning the cap on.</string>
+
+    <!-- Clock and storage -->
+    <string name="health_detail_time_auto">Date, time and time zone are set automatically.</string>
+    <string name="health_detail_time_manual">Automatic date and time, or automatic time zone, is switched off. Alarms ring at wall-clock times, so a drifting clock or a wrong time zone moves them.</string>
+    <string name="health_detail_direct_boot_ok">Alarms and settings are kept in device-protected storage, so alarms ring after a restart even before you unlock the phone for the first time.</string>
+    <string name="health_detail_direct_boot_bad">Alarm data is not in device-protected storage, so alarms may not ring after a restart until you unlock the phone.</string>
+
+    <!-- Scheduler history -->
+    <string name="health_detail_reschedule_never">Alarms are switched on, but the scheduler has not registered anything yet. Open the app so it can.</string>
+    <string name="health_detail_reschedule_idle">The scheduler has not run yet, and there are no alarms to register.</string>
+    <string name="health_detail_reschedule_last">All alarms were last re-registered on %1$s (%2$s). Reason: %3$s.</string>
+    <string name="health_detail_ring_never">No alarm has rung on this device yet.</string>
+    <string name="health_detail_ring_last">The last alarm rang on %1$s (%2$s).</string>
+    <string name="health_detail_watchdog_pending">The watchdog re-registers all alarms about every six hours as a safety net. It has not had its first turn yet.</string>
+    <string name="health_detail_watchdog_ok">The watchdog last ran %1$s. It re-registers all alarms about every six hours as a safety net.</string>
+    <string name="health_detail_watchdog_stale">The watchdog last ran %1$s, but it should run about every six hours. Android or the phone maker may be stopping WakeNudge\'s background work.</string>
+    <string name="health_detail_watchdog_stale_never">The watchdog has never run although alarms were registered long ago. Android or the phone maker may be stopping WakeNudge\'s background work.</string>
+    <string name="health_detail_service_ok">The alarm sound service has started whenever it was needed.</string>
+    <string name="health_detail_service_failed">Android refused to start the alarm sound service: %1$s. WakeNudge then falls back to a plain notification. Check battery and background restrictions.</string>
+
+    <!-- Only shown when the feature is in use -->
+    <string name="health_detail_tts_ok">A text-to-speech engine is installed for voice announcements.</string>
+    <string name="health_detail_tts_missing">Some alarms announce the time, but no text-to-speech engine is installed, so nothing will be spoken. The alarm itself still rings.</string>
+    <string name="health_detail_vibrator_ok">The vibration motor is available.</string>
+    <string name="health_detail_vibrator_missing">Some alarms vibrate, but this device has no vibration motor, so that setting has no effect.</string>
+
+    <!-- Phone-maker advice. Menu names differ between models and versions, hence the hedging. -->
+    <string name="health_oem_xiaomi">Xiaomi, Redmi and POCO phones close background apps aggressively. Open the app info for WakeNudge and turn on Autostart, set Battery saver to \"No restrictions\", and lock the app in the recent-apps screen so it is not swiped away. Menu names vary between MIUI and HyperOS versions.</string>
+    <string name="health_oem_huawei">Huawei and Honor phones manage app launches themselves. In Battery settings open App launch, switch WakeNudge to \"Manage manually\" and allow auto-launch, secondary launch and running in the background. Menu names vary between versions.</string>
+    <string name="health_oem_oneplus">OnePlus phones can put apps to sleep. In the app info for WakeNudge allow background activity and unrestricted battery use, turn off battery optimization for it, and lock it in the recent-apps screen. Menu names vary between OxygenOS versions.</string>
+    <string name="health_oem_oppo">OPPO and realme phones can stop apps in the background. In the app info for WakeNudge allow auto-launch and background activity, set battery use to unrestricted, and lock the app in the recent-apps screen. Menu names vary between ColorOS and realme UI versions.</string>
+    <string name="health_oem_vivo">vivo phones limit background apps. Allow WakeNudge to start automatically, and under background power consumption choose \"Allow high background power consumption\" (or the nearest equivalent). Menu names vary between Funtouch OS and OriginOS versions.</string>
+    <string name="health_oem_samsung">Samsung\'s battery settings can put apps to sleep. Under Battery, then Background usage limits, make sure WakeNudge is not listed under Sleeping apps or Deep sleeping apps, and add it to Never sleeping apps. Menu names vary between One UI versions.</string>
+    <string name="health_oem_asus">ASUS phones can block background apps. In Mobile Manager allow WakeNudge to start automatically, and lock it in the recent-apps screen. Menu names vary between ZenUI versions.</string>
+    <string name="health_oem_meizu">Meizu phones restrict background apps. In Phone Manager allow WakeNudge to run in the background and to start automatically. Menu names vary between Flyme versions.</string>
+    <string name="health_oem_hmd">HMD and Nokia phones follow standard Android battery management. Exempt WakeNudge from battery optimization and, if the phone has a battery-saver or adaptive-battery option, make sure it does not restrict WakeNudge.</string>
+
+    <!-- Support report -->
+    <string name="health_report_title">WakeNudge diagnostics report</string>
+    <string name="health_report_privacy">This report contains no alarm names or labels, only counts, settings that affect reliability and engine events.</string>
+    <string name="health_report_generated">Generated: %1$s</string>
+    <string name="health_report_section_app">App</string>
+    <string name="health_report_app_version">Version: %1$s (build %2$d, %3$s)</string>
+    <string name="health_report_app_package">Package: %1$s</string>
+    <string name="health_report_section_device">Device</string>
+    <string name="health_report_device_android">Android: %1$s (API %2$d)</string>
+    <string name="health_report_device_model">Device: %1$s %2$s</string>
+    <string name="health_report_section_alarms">Alarms</string>
+    <string name="health_report_alarm_counts">Alarms: total %1$d, switched on %2$d, groups %3$d</string>
+    <string name="health_report_alarm_features">Using voice announcements: %1$d, vibration: %2$d, wake-up missions: %3$d, edit lock: %4$d</string>
+    <string name="health_report_section_settings">Settings</string>
+    <string name="health_report_settings_line">Time format: %1$s, audio route: %2$s, hearing-safety cap: %3$s (%4$d%%), vacation mode: %5$s</string>
+    <string name="health_report_section_health">Health checks</string>
+    <string name="health_report_item">[%1$s] %2$s: %3$s</string>
+    <string name="health_report_section_scheduler">Scheduler</string>
+    <string name="health_report_scheduler_counts">Registered triggers: recorded %1$d, live with Android %2$d, expected %3$d</string>
+    <string name="health_report_scheduler_reschedule">Last reschedule: %1$s (%2$s)</string>
+    <string name="health_report_scheduler_ring">Last alarm fired: %1$s</string>
+    <string name="health_report_scheduler_watchdog">Last watchdog run: %1$s</string>
+    <string name="health_report_scheduler_service">Last sound-service start failure: %1$s</string>
+    <string name="health_report_none">none</string>
+    <string name="health_report_headset">audio device</string>
+    <string name="health_report_never">never</string>
+    <string name="health_report_on">on</string>
+    <string name="health_report_off">off</string>
+    <string name="health_report_section_log">Recent engine events (newest first, %1$d)</string>
+    <string name="health_report_log_empty">No events recorded.</string>
+</resources>

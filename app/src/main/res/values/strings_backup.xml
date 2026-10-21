@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Why a backup file was refused -->
+    <string name="backup_fail_not_json">This file is not a WakeNudge backup: it is not valid JSON.</string>
+    <string name="backup_fail_wrong_app">This file was not created by WakeNudge.</string>
+    <string name="backup_fail_newer_format">This backup uses format version %1$d, but this version of WakeNudge only understands up to version %2$d. Update the app and try again.</string>
+    <string name="backup_fail_malformed">This backup file is damaged (%1$s is missing or invalid).</string>
+    <string name="backup_fail_too_large">This file is too large to be a WakeNudge backup.</string>
+    <string name="backup_fail_unreadable">The file could not be read: %1$s</string>
+    <string name="backup_fail_store">Your alarms could not be restored, and nothing was changed: %1$s</string>
+
+    <!-- Things to double-check after a successful restore -->
+    <plurals name="backup_warn_alarms_skipped">
+        <item quantity="one">%d alarm in the file could not be read and was skipped.</item>
+        <item quantity="other">%d alarms in the file could not be read and were skipped.</item>
+    </plurals>
+    <plurals name="backup_warn_groups_skipped">
+        <item quantity="one">%d group in the file could not be read and was skipped.</item>
+        <item quantity="other">%d groups in the file could not be read and were skipped.</item>
+    </plurals>
+    <plurals name="backup_warn_clocks_skipped">
+        <item quantity="one">%d world clock was skipped (unreadable, unknown or duplicate time zone).</item>
+        <item quantity="other">%d world clocks were skipped (unreadable, unknown or duplicate time zones).</item>
+    </plurals>
+    <plurals name="backup_warn_dates_skipped">
+        <item quantity="one">%d excluded date was skipped (unreadable, invalid or duplicate).</item>
+        <item quantity="other">%d excluded dates were skipped (unreadable, invalid or duplicate).</item>
+    </plurals>
+    <plurals name="backup_warn_history_skipped">
+        <item quantity="one">%d history entry could not be read and was skipped.</item>
+        <item quantity="other">%d history entries could not be read and were skipped.</item>
+    </plurals>
+    <plurals name="backup_warn_missions_unknown">
+        <item quantity="one">%d wake-up mission of a type this version does not know was removed.</item>
+        <item quantity="other">%d wake-up missions of types this version does not know were removed.</item>
+    </plurals>
+    <plurals name="backup_warn_missions_dropped">
+        <item quantity="one">%d wake-up mission beyond the limit per alarm was removed.</item>
+        <item quantity="other">%d wake-up missions beyond the limit per alarm were removed.</item>
+    </plurals>
+    <plurals name="backup_warn_unknown_group">
+        <item quantity="one">%d alarm belonged to a group that is not in the backup and was moved out of groups.</item>
+        <item quantity="other">%d alarms belonged to groups that are not in the backup and were moved out of groups.</item>
+    </plurals>
+    <plurals name="backup_warn_renumbered">
+        <item quantity="one">%d entry had a duplicate or invalid ID and was renumbered.</item>
+        <item quantity="other">%d entries had duplicate or invalid IDs and were renumbered.</item>
+    </plurals>
+    <plurals name="backup_warn_switched_off">
+        <item quantity="one">%d one-time alarm had an invalid date and was switched off.</item>
+        <item quantity="other">%d one-time alarms had invalid dates and were switched off.</item>
+    </plurals>
+    <plurals name="backup_warn_clamped">
+        <item quantity="one">%d value was out of range and was corrected to the nearest valid setting.</item>
+        <item quantity="other">%d values were out of range and were corrected to the nearest valid setting.</item>
+    </plurals>
+    <plurals name="backup_warn_device_sounds">
+        <item quantity="one">%d alarm uses a sound file or ringtone from the old device that may not exist here. If it is missing, a built-in tone plays instead.</item>
+        <item quantity="other">%d alarms use sound files or ringtones from the old device that may not exist here. Where one is missing, a built-in tone plays instead.</item>
+    </plurals>
+    <plurals name="backup_warn_too_many_alarms">
+        <item quantity="one">Only the first %d alarm was restored.</item>
+        <item quantity="other">Only the first %d alarms were restored.</item>
+    </plurals>
+    <plurals name="backup_warn_history_truncated">
+        <item quantity="one">Only the newest %d history entry was restored.</item>
+        <item quantity="other">Only the newest %d history entries were restored.</item>
+    </plurals>
+    <string name="backup_warn_settings_unreadable">The settings in the file could not be read, so the defaults were used.</string>
+    <string name="backup_warn_calendars">Holiday calendars are identified by numbers that differ between devices. Check the calendar exceptions in Settings.</string>
+    <string name="backup_warn_mission_qr">Alarm %1$s: its QR or barcode mission has no registered code. Set it up again before relying on it.</string>
+    <string name="backup_warn_mission_nfc">Alarm %1$s: its NFC mission has no registered tag. Set it up again before relying on it.</string>
+    <string name="backup_warn_mission_photo">Alarm %1$s: its photo mission has no reference photo. Set it up again before relying on it.</string>
+    <string name="backup_warn_reschedule_failed">The alarms were restored but could not be re-armed right away. Open Alarm Health to check, or re-save an alarm.</string>
+</resources>
