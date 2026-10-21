@@ -123,6 +123,7 @@ class RingController @Inject constructor(
             return@withLock null
         }
         snapshots[alarmId] = alarm
+        history.update(event.copy(snoozeUntil = 0))
         scheduleBackups(alarm, eventId, time.nowMillis())
         RingRequest(alarmId, eventId, event.scheduledAt, RingKind.SNOOZE_RETURN, snoozeCount = event.snoozeCount)
     }
@@ -133,7 +134,12 @@ class RingController @Inject constructor(
         if (event.outcome != AlarmOutcome.RINGING && event.outcome != AlarmOutcome.MISSED) return@withLock null
         val alarm = alarms.getAlarm(alarmId) ?: return@withLock null
         snapshots[alarmId] = alarm
-        history.update(event.copy(outcome = AlarmOutcome.RINGING, endedAt = null, backupFired = true))
+        history.update(
+            event.copy(
+                outcome = AlarmOutcome.RINGING, endedAt = null, backupFired = true,
+                pendingBackups = event.pendingBackups.drop(1),
+            ),
+        )
         diagnostics.warn("Ring", "backup #$index fired for alarm $alarmId — primary was not handled")
         RingRequest(alarmId, eventId, event.scheduledAt, RingKind.BACKUP, snoozeCount = event.snoozeCount)
     }
@@ -259,7 +265,9 @@ class RingController @Inject constructor(
         pending.setAlarmClock(TriggerKind.SNOOZE, s.alarm.id, until, eventId = s.eventId)
         cancelBackups(s.alarm.id)
         if (s.eventId > 0) {
-            history.get(s.eventId)?.let { history.update(it.copy(snoozeCount = s.snoozeCount + 1)) }
+            history.get(s.eventId)?.let {
+                history.update(it.copy(snoozeCount = s.snoozeCount + 1, snoozeUntil = until, pendingBackups = emptyList()))
+            }
         }
         finishSession(s)
         notifier.showSnoozed(s.alarm, until)
@@ -351,6 +359,8 @@ class RingController @Inject constructor(
                     e.copy(
                         outcome = outcome,
                         endedAt = now,
+                        snoozeUntil = 0,
+                        pendingBackups = emptyList(),
                         snoozeCount = s.snoozeCount,
                         missionsDone = if (outcome == AlarmOutcome.DISMISSED) s.alarm.missions.size else s.missionsDone,
                         missionsTotal = s.alarm.missions.size,
@@ -410,10 +420,13 @@ class RingController @Inject constructor(
         cancelBackups(alarm.id)
         val ao = alarm.antiOversleep
         if (!ao.backupEnabled || ao.backupCount <= 0) return
-        for (i in 1..ao.backupCount.coerceAtMost(RingIds.MAX_BACKUPS)) {
+        val times = (1..ao.backupCount.coerceAtMost(RingIds.MAX_BACKUPS)).map { i ->
             val at = firedAt + ao.backupDelayMinutes.coerceAtLeast(1) * 60_000L * i
             pending.setAlarmClock(TriggerKind.BACKUP, alarm.id, at, index = i, eventId = eventId)
+            at
         }
+        // Remember them: the OS drops all alarms on reboot/update and the scheduler re-arms from this list.
+        if (eventId > 0) history.get(eventId)?.let { history.update(it.copy(pendingBackups = times)) }
     }
 
     private fun cancelBackups(alarmId: Long) {

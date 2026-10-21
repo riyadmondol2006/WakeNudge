@@ -258,9 +258,13 @@ class AlarmAudioEngine @Inject constructor(
             lastNote = "Volume limited for headphones (hearing safety)"
         }
         plan.streamIndex?.let { index ->
-            if (runtime.savedAlarmVolume < 0) runtime.savedAlarmVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
-            runCatching { audioManager.setStreamVolume(AudioManager.STREAM_ALARM, index.coerceAtMost(streamMax), 0) }
-                .onFailure { diagnostics.warn("Audio", "setStreamVolume refused: ${it.message}") }
+            val current = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+            if (runtime.savedAlarmVolume < 0) runtime.savedAlarmVolume = current
+            if (current != index.coerceAtMost(streamMax)) {
+                runCatching { audioManager.setStreamVolume(AudioManager.STREAM_ALARM, index.coerceAtMost(streamMax), 0) }
+                    .onSuccess { diagnostics.info("Audio", "alarm volume $current -> $index of $streamMax (original ${runtime.savedAlarmVolume} saved)") }
+                    .onFailure { diagnostics.warn("Audio", "setStreamVolume refused: ${it.message}") }
+            }
         }
         runCatching {
             enhancer?.let { e ->
@@ -331,6 +335,7 @@ class AlarmAudioEngine @Inject constructor(
         val saved = runtime.savedAlarmVolume
         if (saved < 0) return
         runCatching { audioManager.setStreamVolume(AudioManager.STREAM_ALARM, saved, 0) }
+            .onSuccess { diagnostics.info("Audio", "alarm volume restored to $saved") }
             .onFailure { diagnostics.warn("Audio", "Could not restore alarm volume: ${it.message}") }
         runtime.savedAlarmVolume = -1
     }

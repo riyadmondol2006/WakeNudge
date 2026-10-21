@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "c3a9ee48b17e03fc37bcba168abeb7ca",
+    "identityHash": "76f9fa217ec655a60e6321adee33ffb9",
     "entities": [
       {
         "tableName": "alarms",
@@ -397,7 +397,7 @@
       },
       {
         "tableName": "alarm_events",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `alarmId` INTEGER NOT NULL, `label` TEXT NOT NULL, `scheduledAt` INTEGER NOT NULL, `firedAt` INTEGER NOT NULL, `endedAt` INTEGER, `outcome` TEXT NOT NULL, `snoozeCount` INTEGER NOT NULL, `missionsDone` INTEGER NOT NULL, `missionsTotal` INTEGER NOT NULL, `backupFired` INTEGER NOT NULL, `wakeCheck` TEXT NOT NULL, `wakeCheckReRings` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `alarmId` INTEGER NOT NULL, `label` TEXT NOT NULL, `scheduledAt` INTEGER NOT NULL, `firedAt` INTEGER NOT NULL, `endedAt` INTEGER, `outcome` TEXT NOT NULL, `snoozeCount` INTEGER NOT NULL, `missionsDone` INTEGER NOT NULL, `missionsTotal` INTEGER NOT NULL, `backupFired` INTEGER NOT NULL, `wakeCheck` TEXT NOT NULL, `wakeCheckReRings` INTEGER NOT NULL, `snoozeUntil` INTEGER NOT NULL, `pendingBackups` TEXT NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -474,6 +474,18 @@
             "fieldPath": "wakeCheckReRings",
             "columnName": "wakeCheckReRings",
             "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "snoozeUntil",
+            "columnName": "snoozeUntil",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendingBackups",
+            "columnName": "pendingBackups",
+            "affinity": "TEXT",
             "notNull": true
           }
         ],
@@ -723,7 +735,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c3a9ee48b17e03fc37bcba168abeb7ca')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '76f9fa217ec655a60e6321adee33ffb9')"
     ]
   }
 }

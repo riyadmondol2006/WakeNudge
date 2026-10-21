@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common -->
+    <string name="action_ok">OK</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_save">Save</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_clear">Clear</string>
+    <string name="action_check">Check</string>
+    <string name="state_on">On</string>
+    <string name="state_off">Off</string>
+    <string name="cd_back">Back</string>
+    <string name="cd_more_options">More options</string>
+    <string name="cd_remove">Remove</string>
+    <string name="cd_settings">Settings</string>
+    <string name="cd_sleep_planner">Sleep planner</string>
+    <string name="cd_alarm_health">Alarm health</string>
+    <string name="cd_preview_sound">Play or stop preview</string>
+
+    <!-- Units -->
+    <string name="unit_seconds">%1$d s</string>
+    <string name="unit_minutes">%1$d min</string>
+    <string name="unit_min_sec">%1$d min %2$d s</string>
+    <string name="fade_instant">Instant</string>
+    <string name="until_less_than_minute">In less than a minute</string>
+    <string name="until_minutes">In %1$d min</string>
+    <string name="until_hours_minutes">In %1$d h %2$d min</string>
+    <string name="until_days_hours">In %1$d d %2$d h</string>
+    <string name="day_today">Today</string>
+    <string name="day_tomorrow">Tomorrow</string>
+    <string name="repeat_once">Once</string>
+    <string name="repeat_every_day">Every day</string>
+    <string name="repeat_weekdays">Weekdays</string>
+    <string name="repeat_weekends">Weekends</string>
+
+    <!-- Navigation -->
+    <string name="nav_alarms">Alarms</string>
+    <string name="nav_clock">Clock</string>
+    <string name="nav_timer">Timer</string>
+    <string name="nav_stopwatch">Stopwatch</string>
+    <string name="nav_morning">Morning</string>
+
+    <!-- Alarms list -->
+    <string name="alarms_title">Alarms</string>
+    <string name="alarms_add">Add alarm</string>
+    <string name="alarms_next_title">Next alarm</string>
+    <string name="alarms_none">No upcoming alarms</string>
+    <string name="alarms_none_hint">Tap + to set one. It will ring even when your phone is locked, silent or asleep.</string>
+    <string name="alarms_pause_all">Pause all alarms</string>
+    <string name="alarms_resume">Resume alarms</string>
+    <string name="alarms_vacation_on">Vacation mode</string>
+    <string name="alarms_vacation_until">Alarms are paused until %1$s.</string>
+    <string name="alarms_vacation_indefinite">Alarms are paused until you resume them.</string>
+    <string name="empty_alarms_title">Nothing to wake you yet</string>
+    <string name="empty_alarms_body">Create an alarm and add a mission to make sure you actually get up.</string>
+    <string name="empty_group_title">This profile is empty</string>
+    <string name="empty_group_body">Assign alarms to it from the alarm editor.</string>
+    <string name="filter_all">All</string>
+    <string name="group_none">None</string>
+    <string name="group_only_this">Only this</string>
+    <string name="groups_manage">Profiles</string>
+    <string name="groups_create_hint">Group alarms into profiles like Work or Weekend</string>
+    <plurals name="group_alarm_count">
+        <item quantity="one">%1$d alarm</item>
+        <item quantity="other">%1$d alarms</item>
+    </plurals>
+    <string name="cd_alarm_summary">Alarm at %1$s, %2$s, %3$s</string>
+    <string name="cd_edit_alarm">Edit alarm</string>
+    <string name="card_locked">Protected for %1$d more min</string>
+    <string name="card_group_off">Profile “%1$s” is off</string>
+    <string name="card_skipping">Skipping %1$s</string>
+    <string name="card_holiday_skip">Holiday: skipping %1$s</string>
+    <string name="card_vacation">Paused by vacation mode</string>
+    <string name="card_never_rings">Will not ring</string>
+    <string name="menu_skip_next">Skip next ring</string>
+    <string name="menu_clear_skip">Don\'t skip</string>
+    <string name="menu_duplicate">Duplicate</string>
+    <plurals name="badge_missions">
+        <item quantity="one">%1$d mission</item>
+        <item quantity="other">%1$d missions</item>
+    </plurals>
+    <string name="badge_wake_check">Still-awake check</string>
+    <string name="badge_extra_loud">Extra loud</string>
+    <string name="badge_sunrise">Sunrise</string>
+    <string name="snackbar_locked">Edit protection is on: this alarm is locked for another %1$d min.</string>
+    <string name="snackbar_deleted">Alarm deleted</string>
+    <string name="snackbar_undo">Undo</string>
+    <string name="snackbar_skipped">The next ring will be skipped</string>
+    <string name="snackbar_switched_off">Alarm switched off</string>
+
+    <!-- Alarm editor -->
+    <string name="edit_title_new">New alarm</string>
+    <string name="edit_title">Edit alarm</string>
+    <string name="edit_label">Label</string>
+    <string name="edit_group">Profile</string>
+    <string name="edit_repeat">Repeat</string>
+    <string name="edit_date">Date</string>
+    <string name="edit_date_next">Next time it\'s that time</string>
+    <string name="edit_date_clear">No date</string>
+    <string name="edit_never_rings">This alarm will not ring</string>
+    <string name="edit_discard_title">Discard changes?</string>
+    <string name="edit_discard_body">Your edits to this alarm have not been saved.</string>
+    <string name="edit_discard">Discard</string>
+    <string name="edit_delete_title">Delete alarm?</string>
+    <string name="edit_delete_body">This alarm will be removed. You can undo this from the list right after.</string>
+    <string name="picker_hour">Hour</string>
+    <string name="picker_minute">Minute</string>
+    <string name="picker_am_pm">AM or PM</string>
+    <string name="picker_type_time">Type time</string>
+    <string name="lock_banner_title">Protected against late changes</string>
+    <string name="lock_banner_body">This alarm is about to ring, so editing is locked for %1$d more min. This stops half-asleep switch-offs.</string>
+    <string name="lock_banner_unlock">Unlock</string>
+    <string name="lock_override_title">Prove you\'re awake</string>
+    <string name="lock_override_body">Solve %2$d quick sums to unlock this alarm. Problem %1$d of %2$d:</string>
+    <string name="lock_override_wrong">Not quite — try again</string>
+
+    <string name="section_sound">Sound</string>
+    <string name="section_volume">Volume</string>
+    <string name="section_vibration">Vibration</string>
+    <string name="section_snooze">Snooze</string>
+    <string name="section_wake_check">Still-awake check</string>
+    <string name="section_anti_oversleep">Anti-oversleep</string>
+    <string name="section_sunrise">Sunrise</string>
+    <string name="section_extras">More</string>
+
+    <!-- Sound picker -->
+    <string name="sound_title">Alarm sound</string>
+    <string name="sound_mode">Choose how</string>
+    <string name="sound_mode_single">One sound</string>
+    <string name="sound_mode_random_bundled">Random tone</string>
+    <string name="sound_mode_random_custom">Random from my music</string>
+    <string name="tone_group_gentle">Gentle</string>
+    <string name="tone_group_standard">Standard</string>
+    <string name="tone_group_loud">Loud</string>
+    <string name="sound_more">More sounds</string>
+    <string name="sound_system_sounds">System alarm sounds…</string>
+    <string name="sound_system_picker_title">Alarm sound</string>
+    <string name="sound_my_audio">A file from my device…</string>
+    <string name="sound_current">Selected: %1$s</string>
+    <string name="sound_random">Random</string>
+    <string name="sound_random_bundled_summary">Random of %1$d tones</string>
+    <string name="sound_random_custom_summary">Random of %1$d songs</string>
+    <string name="sound_random_bundled_hint">A different tone each morning. Untick the ones you do not want in the rotation.</string>
+    <string name="sound_random_custom_hint">Plays your own music, picking a random track each time. Files stay on your device. If a file is unavailable the alarm falls back to a built-in tone.</string>
+    <string name="sound_add_songs">Add songs…</string>
+
+    <!-- Voice -->
+    <string name="voice_title">Announce time and label</string>
+    <string name="voice_subtitle">Speaks with your phone\'s offline voice while the alarm rings.</string>
+    <string name="voice_announce_time">Say the time</string>
+    <string name="voice_announce_label">Say the label</string>
+    <string name="voice_repeat">Repeat every</string>
+
+    <!-- Volume -->
+    <string name="volume_level">Alarm volume</string>
+    <string name="volume_level_hint">Sets the system alarm volume while ringing, then puts it back.</string>
+    <string name="volume_system">System</string>
+    <string name="volume_fade_in">Fade in</string>
+    <string name="volume_fade_in_hint">Starts quietly and rises to full volume over this time.</string>
+    <string name="volume_start">Starting volume</string>
+    <string name="volume_extra_loud">Extra loud mode</string>
+    <string name="volume_extra_loud_hint">Normalizes the sound to a high, consistent loudness. Capped on headphones.</string>
+    <string name="volume_use_max">Maximum system volume</string>
+    <string name="volume_use_max_hint">Always use the loudest volume your phone allows.</string>
+    <string name="volume_escalate">Get louder if ignored</string>
+    <string name="volume_escalate_hint">After 40 seconds without any touch, adds an intense layer and raises the volume.</string>
+    <string name="volume_safety_note">When headphones or earbuds are connected, loudness is limited to protect your hearing (change this in Settings). The alarm plays from the phone speaker by default.</string>
+
+    <!-- Vibration -->
+    <string name="vibration_title">Vibrate</string>
+    <string name="vibration_unavailable">This device has no vibration motor.</string>
+    <string name="vibration_pattern">Pattern</string>
+    <string name="vibration_strength">Strength</string>
+    <string name="vibration_no_amplitude">This motor only supports full strength.</string>
+    <string name="vibration_custom">Your rhythm</string>
+    <string name="vibration_custom_empty">Tap to record a rhythm</string>
+    <string name="vibration_custom_set">%1$d taps · tap to re-record</string>
+    <string name="vibration_try">Try this pattern</string>
+    <string name="vib_classic">Classic</string>
+    <string name="vib_pulse">Pulse</string>
+    <string name="vib_heartbeat">Heartbeat</string>
+    <string name="vib_sos">SOS</string>
+    <string name="vib_wave">Wave</string>
+    <string name="vib_strong">Continuous</string>
+    <string name="vib_escalating">Escalating</string>
+    <string name="vib_custom">My rhythm</string>
+    <string name="rhythm_title">Record a rhythm</string>
+    <string name="rhythm_hint">Tap the pad in the rhythm you want. Pauses and press lengths are copied exactly.</string>
+    <plurals name="rhythm_taps">
+        <item quantity="one">%1$d tap recorded</item>
+        <item quantity="other">%1$d taps recorded</item>
+    </plurals>
+
+    <!-- Snooze -->
+    <string name="snooze_title">Allow snooze</string>
+    <string name="snooze_length">Snooze length</string>
+    <string name="snooze_limit">Snooze limit</string>
+    <string name="snooze_limit_hint">After this many snoozes the alarm can only be dismissed.</string>
+    <string name="snooze_unlimited">Unlimited</string>
+    <string name="snooze_decreasing">Shorter each time</string>
+    <string name="snooze_decreasing_hint">Every snooze is shorter than the one before.</string>
+    <string name="snooze_decrease_step">Shorten by</string>
+
+    <!-- Still-awake check -->
+    <string name="wake_check_title">Check that I\'m really up</string>
+    <string name="wake_check_hint">After you dismiss the alarm, asks “Still awake?” and rings again if you don\'t answer.</string>
+    <string name="wake_check_delay">Ask after</string>
+    <string name="wake_check_response">Time to answer</string>
+    <string name="wake_check_response_hint">If you do not answer in time, the alarm rings again.</string>
+    <string name="wake_check_count">Number of checks</string>
+    <string name="wake_check_count_hint">How many times in a row to ask.</string>
+    <string name="wake_check_rerings">Re-ring limit</string>
+    <string name="wake_check_rerings_hint">How often the alarm may ring again before the check gives up.</string>
+
+    <!-- Anti-oversleep -->
+    <string name="ao_hold">Hold to dismiss</string>
+    <string name="ao_hold_hint">Prevents accidental dismissal: the button must be held down.</string>
+    <string name="ao_backup">Backup alarm</string>
+    <string name="ao_backup_hint">If the alarm is ignored, a second, louder alarm follows.</string>
+    <string name="ao_backup_delay">Backup after</string>
+    <string name="ao_backup_count">Number of backups</string>
+    <string name="ao_timeout">Stop ringing after</string>
+    <string name="ao_timeout_hint">The alarm silences itself if you do nothing for this long. A backup (if on) still follows.</string>
+    <string name="ao_edit_lock">Lock before it rings</string>
+    <string name="ao_edit_lock_hint">Stops you switching the alarm off or changing it in the minutes before it rings.</string>
+    <string name="ao_emergency_note">Every restriction is reversible. The alarm screen always has an Emergency stop that works without puzzles and is available to screen readers.</string>
+
+    <!-- Sunrise -->
+    <string name="sunrise_title">Sunrise wake-up</string>
+    <string name="sunrise_hint">The screen gently brightens with a sunrise glow before the alarm sounds.</string>
+    <string name="sunrise_lead">Start glowing</string>
+
+    <!-- Extras -->
+    <string name="extras_respect_exceptions">Skip holidays</string>
+    <string name="extras_respect_exceptions_hint">Does not ring on your holiday and exception dates.</string>
+    <string name="extras_ignore_vacation">Ring during vacation mode</string>
+    <string name="extras_ignore_vacation_hint">Keep this alarm even when all alarms are paused.</string>
+    <string name="extras_upcoming">Heads-up before it rings</string>
+    <string name="extras_upcoming_hint">Shows a notification with a quick skip button.</string>
+    <string name="extras_delete_after">Delete after it rings</string>
+    <string name="extras_delete_after_hint">Removes this one-time alarm once you dismiss it.</string>
+
+    <!-- World clock formatting -->
+    <string name="clock_same_time">Same time</string>
+    <string name="clock_offset_h">%1$s%2$d h</string>
+    <string name="clock_offset_hm">%1$s%2$d h %3$d min</string>
+
+    <!-- Ring screen -->
+    <string name="action_back">Back</string>
+    <string name="ring_badge_test">Test alarm</string>
+    <string name="ring_badge_backup">Backup alarm</string>
+    <string name="ring_badge_recheck">You didn\'t answer</string>
+    <plurals name="ring_badge_snoozed">
+        <item quantity="one">Snoozed %1$d time</item>
+        <item quantity="other">Snoozed %1$d times</item>
+    </plurals>
+    <string name="ring_sunrise">Sunrise</string>
+    <string name="ring_sunrise_hide">Hide</string>
+    <string name="ring_timer_done">Time\'s up</string>
+    <string name="ring_snooze_minutes">Snooze · %1$d min</string>
+    <string name="ring_solve_to_snooze">Solve to snooze</string>
+    <plurals name="ring_snoozes_left">
+        <item quantity="one">%1$d snooze left</item>
+        <item quantity="other">%1$d snoozes left</item>
+    </plurals>
+    <string name="ring_no_more_snoozes">No more snoozes — time to get up!</string>
+    <string name="ring_solve_to_dismiss">Solve to dismiss</string>
+    <string name="ring_hold_to_dismiss">Hold %1$d s to dismiss</string>
+    <string name="ring_slide_dismiss">Slide to dismiss</string>
+    <string name="ring_slide_stop">Slide to stop</string>
+    <string name="ring_dismiss_alarm">Dismiss alarm</string>
+    <string name="ring_stop_timer">Stop timer</string>
+    <string name="ring_missions_dismiss">Complete to dismiss</string>
+    <string name="ring_missions_snooze">Complete to snooze</string>
+    <string name="ring_emergency_stop">Emergency stop</string>
+    <string name="ring_emergency_hint">Hold for %1$d s to stop without a mission</string>
+    <string name="ring_emergency_title">Stop the alarm now?</string>
+    <string name="ring_emergency_body">This skips any missions. It is recorded as an emergency stop in your history.</string>
+    <string name="ring_emergency_confirm">Stop alarm</string>
+
+    <!-- Still-awake screen -->
+    <string name="wake_check_screen_title">Still awake?</string>
+    <string name="wake_check_screen_body">Tap to confirm. Otherwise your alarm rings again when the time runs out.</string>
+</resources>

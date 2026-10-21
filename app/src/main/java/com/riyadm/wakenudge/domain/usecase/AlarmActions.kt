@@ -55,6 +55,13 @@ class AlarmActions @Inject constructor(
         return ActionResult.Done(id)
     }
 
+    /** Puts a just-deleted alarm back under its old id ("Undo"). */
+    suspend fun restore(alarm: Alarm) {
+        val id = alarms.save(alarm)
+        scheduler.schedule(id)
+        surfaces.refreshAll()
+    }
+
     suspend fun setEnabled(id: Long, enabled: Boolean, overrideLock: Boolean = false): ActionResult<Unit> {
         val alarm = alarms.getAlarm(id) ?: return ActionResult.NotFound
         if (!enabled && !overrideLock) lockedMinutes(alarm)?.let { return ActionResult.Locked(it) }

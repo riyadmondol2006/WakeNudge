@@ -21,6 +21,11 @@ object TimeText {
     fun format(hour: Int, minute: Int, is24: Boolean, locale: Locale = Locale.getDefault()): String =
         format(LocalTime.of(hour, minute), is24, locale)
 
+    /** Splits a clock time into its digits and the AM/PM marker ("7:30", "AM"); the marker is empty on a 24-hour clock. */
+    fun parts(time: LocalTime, is24: Boolean, locale: Locale = Locale.getDefault()): Pair<String, String> =
+        if (is24) DateTimeFormatter.ofPattern("HH:mm", locale).format(time) to ""
+        else DateTimeFormatter.ofPattern("h:mm", locale).format(time) to DateTimeFormatter.ofPattern("a", locale).format(time)
+
     /** Spoken form for TTS, e.g. "7:30 AM" / "19:30". */
     fun spoken(time: LocalTime, is24: Boolean, locale: Locale = Locale.getDefault()): String = format(time, is24, locale)
 

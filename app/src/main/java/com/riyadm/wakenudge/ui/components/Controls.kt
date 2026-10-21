@@ -351,3 +351,57 @@ internal fun colorLerp(a: Color, b: Color, t: Float): Color = lerp(a, b, t)
 
 @Composable
 fun VerticalGap(height: Dp = 12.dp) = Spacer(Modifier.height(height))
+
+/** A row of single-select chips under a title, for small enumerations (vibration pattern, difficulty, theme). */
+@Composable
+fun <T> ChipChoiceRow(
+    title: String,
+    options: List<T>,
+    selected: T,
+    onSelect: (T) -> Unit,
+    optionLabel: @Composable (T) -> String,
+    shape: Shape,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    enabled: Boolean = true,
+) {
+    val haptics = LocalWakeHaptics.current
+    SettingRow(
+        title = title, subtitle = subtitle, shape = shape, enabled = enabled, modifier = modifier,
+        below = {
+            androidx.compose.foundation.layout.FlowRow(
+                Modifier.padding(top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                options.forEach { option ->
+                    androidx.compose.material3.FilterChip(
+                        selected = option == selected,
+                        enabled = enabled,
+                        onClick = { haptics.tick(); onSelect(option) },
+                        label = { Text(optionLabel(option)) },
+                    )
+                }
+            }
+        },
+    )
+}
+
+/** A tappable row that shows the current value on the right and opens something (a sheet, a dialog). */
+@Composable
+fun ValueRow(
+    title: String,
+    value: String,
+    shape: Shape,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    icon: ImageVector? = null,
+    enabled: Boolean = true,
+) {
+    SettingRow(
+        title = title, subtitle = subtitle, icon = icon, shape = shape, enabled = enabled, onClick = onClick, modifier = modifier,
+        trailing = {
+            Text(value, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, maxLines = 1)
+        },
+    )
+}
