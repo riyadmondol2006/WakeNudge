@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.room.Room
 import com.riyadm.wakenudge.core.SystemTimeSource
 import com.riyadm.wakenudge.core.TimeSource
+import com.riyadm.wakenudge.data.db.Migrations
 import com.riyadm.wakenudge.data.db.WakeNudgeDatabase
 import dagger.Binds
 import dagger.Module
@@ -53,7 +54,9 @@ object DataModule {
     @Provides
     @Singleton
     fun database(@DeviceProtected context: Context): WakeNudgeDatabase =
-        Room.databaseBuilder(context, WakeNudgeDatabase::class.java, WakeNudgeDatabase.NAME).build()
+        Room.databaseBuilder(context, WakeNudgeDatabase::class.java, WakeNudgeDatabase.NAME)
+            .addMigrations(*Migrations.ALL)
+            .build()
 
     @Provides fun alarmDao(db: WakeNudgeDatabase) = db.alarmDao()
     @Provides fun groupDao(db: WakeNudgeDatabase) = db.groupDao()

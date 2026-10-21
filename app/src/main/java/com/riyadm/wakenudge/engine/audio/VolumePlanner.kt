@@ -25,6 +25,12 @@ object VolumePlanner {
     private const val ESCALATION_BOOST_MB = 300
     private const val CUSTOM_AUDIO_FALLBACK_BOOST_MB = 600
 
+    /**
+     * What the Extra Loud slider's 100 % means even for a tone that is already loud, so the control always does
+     * something audible. Quieter tones get more, up to [MAX_ENHANCER_MB].
+     */
+    private const val MIN_FULL_BOOST_MB = 300
+
     /** Never let an alarm stay silent just because the alarm stream was muted. */
     const val MIN_AUDIBLE_PERCENT = 60
 
@@ -61,9 +67,12 @@ object VolumePlanner {
 
         var boost = 0
         if (!(headsetRoute && hearingCapEnabled)) {
-            if (volume.extraLoud) {
-                boost += sourceLufs?.let { dbToMillibels((EXTRA_LOUD_TARGET_LUFS - it).coerceAtLeast(0.0)) }
+            val strength = volume.extraLoudStrength
+            if (strength > 0) {
+                // The full boost brings the tone up to the target loudness; the slider takes a proportion of it.
+                val full = sourceLufs?.let { dbToMillibels((EXTRA_LOUD_TARGET_LUFS - it).coerceAtLeast(0.0)).coerceIn(MIN_FULL_BOOST_MB, MAX_ENHANCER_MB) }
                     ?: CUSTOM_AUDIO_FALLBACK_BOOST_MB
+                boost += (full * strength / 100.0).roundToInt()
             }
             if (escalated && volume.escalateWhenIgnored) boost += ESCALATION_BOOST_MB
         }

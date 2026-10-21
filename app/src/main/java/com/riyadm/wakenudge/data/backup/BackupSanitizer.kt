@@ -236,6 +236,7 @@ object BackupSanitizer {
             level = int(v.level, 0..100),
             rampSeconds = int(v.rampSeconds, 0..VolumeSettings.MAX_RAMP_SECONDS),
             rampStartPercent = int(v.rampStartPercent, 0..100),
+            extraLoudPercent = int(v.extraLoudPercent, 1..100),
         )
 
         private fun vibration(v: VibrationSettings): VibrationSettings {

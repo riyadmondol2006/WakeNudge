@@ -72,11 +72,41 @@ class VolumePlannerTest {
     @Test fun `extra loud boosts quiet bundled tones towards the target but never past the ceiling`() {
         // -16 LUFS tone -> +6 dB to reach -10 LUFS.
         assertEquals(600, plan(VolumeSettings(extraLoud = true), lufs = -16.0).enhancerMillibels)
-        // Already loud tone gets no boost.
-        assertEquals(0, plan(VolumeSettings(extraLoud = true), lufs = -9.0).enhancerMillibels)
+        // An already loud tone still gets a modest, audible boost at 100 %.
+        assertEquals(300, plan(VolumeSettings(extraLoud = true), lufs = -9.0).enhancerMillibels)
         // Unknown custom audio uses the conservative fixed boost.
         assertEquals(600, plan(VolumeSettings(extraLoud = true), lufs = null).enhancerMillibels)
         assertTrue(plan(VolumeSettings(extraLoud = true), lufs = -30.0, escalated = true).enhancerMillibels <= VolumePlanner.MAX_ENHANCER_MB)
+    }
+
+    @Test fun `extra loud strength scales the boost proportionally`() {
+        fun boost(percent: Int, lufs: Double? = -16.0) = plan(VolumeSettings(extraLoud = true, extraLoudPercent = percent), lufs = lufs).enhancerMillibels
+        assertEquals(600, boost(100))
+        assertEquals(300, boost(50))
+        assertEquals(60, boost(10))
+        assertEquals(0, plan(VolumeSettings(extraLoud = false, extraLoudPercent = 100)).enhancerMillibels)
+        // Unknown custom audio scales its fixed boost too.
+        assertEquals(300, boost(50, lufs = null))
+        // Never decreasing as the slider moves up, never above the ceiling.
+        var last = -1
+        for (p in 1..100) {
+            val b = boost(p, lufs = -30.0)
+            assertTrue("boost must not shrink as strength grows (at $p)", b >= last)
+            assertTrue(b <= VolumePlanner.MAX_ENHANCER_MB)
+            last = b
+        }
+    }
+
+    @Test fun `the strength an alarm gets is zero when off and clamped when on`() {
+        assertEquals(0, VolumeSettings(extraLoud = false, extraLoudPercent = 80).extraLoudStrength)
+        assertEquals(100, VolumeSettings(extraLoud = true, extraLoudPercent = 100).extraLoudStrength)
+        assertEquals(100, VolumeSettings(extraLoud = true, extraLoudPercent = 500).extraLoudStrength)
+        assertEquals(1, VolumeSettings(extraLoud = true, extraLoudPercent = -9).extraLoudStrength)
+    }
+
+    @Test fun `extra loud stays off on headphones whatever the strength`() {
+        val p = plan(VolumeSettings(level = 100, extraLoud = true, extraLoudPercent = 100), headset = true, cap = true)
+        assertEquals(0, p.enhancerMillibels)
     }
 
     @Test fun `no boost without extra loud or escalation`() {

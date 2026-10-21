@@ -150,7 +150,7 @@ class AbuseFuzzTest {
         val r = Random(99)
         repeat(20_000) {
             val v = VolumeSettings(
-                level = r.nextInt(0, 101), extraLoud = r.nextBoolean(), useMaxSystemVolume = r.nextBoolean(), escalateWhenIgnored = r.nextBoolean(),
+                level = r.nextInt(0, 101), extraLoud = r.nextBoolean(), extraLoudPercent = r.nextInt(-50, 500), useMaxSystemVolume = r.nextBoolean(), escalateWhenIgnored = r.nextBoolean(),
                 rampSeconds = r.nextInt(0, 700), rampStartPercent = r.nextInt(0, 101),
             )
             val max = r.nextInt(1, 31)
@@ -163,7 +163,7 @@ class AbuseFuzzTest {
         repeat(5_000) {
             val max = r.nextInt(2, 31)
             val cap = r.nextInt(10, 101)
-            val v = VolumeSettings(level = r.nextInt(0, 101), extraLoud = true, useMaxSystemVolume = r.nextBoolean(), escalateWhenIgnored = true)
+            val v = VolumeSettings(level = r.nextInt(0, 101), extraLoud = true, extraLoudPercent = r.nextInt(-50, 500), useMaxSystemVolume = r.nextBoolean(), escalateWhenIgnored = true)
             val plan = VolumePlanner.plan(v, max, r.nextInt(0, max + 1), headsetRoute = true, hearingCapEnabled = true, capPercent = cap, escalated = r.nextBoolean(), sourceLufs = -20.0)
             val ceiling = VolumePlanner.percentToIndex(cap.coerceIn(10, 100), max)
             plan.streamIndex?.let { assertTrue("capped at $ceiling: $plan (cap $cap, max $max)", it <= ceiling) }

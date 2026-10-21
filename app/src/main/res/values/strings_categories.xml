@@ -25,6 +25,7 @@
     <string name="cat_sunrise">Sunrise</string>
     <string name="cat_fade_in">%1$s fade-in</string>
     <string name="cat_system_volume">System volume</string>
+    <string name="cat_extra_loud">Extra loud %1$d%%</string>
     <string name="cat_vibration_off">No vibration</string>
     <plurals name="cat_snooze_limit">
         <item quantity="one">up to %d time</item>

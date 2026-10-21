@@ -158,8 +158,8 @@
     <string name="volume_fade_in">Fade in</string>
     <string name="volume_fade_in_hint">Starts quietly and rises to full volume over this time.</string>
     <string name="volume_start">Starting volume</string>
-    <string name="volume_extra_loud">Extra loud mode</string>
-    <string name="volume_extra_loud_hint">Normalizes the sound to a high, consistent loudness. Capped on headphones.</string>
+    <string name="volume_extra_loud">Extra loud</string>
+    <string name="volume_extra_loud_hint">How much extra punch to add on top of the volume. Drag to Off to switch it off. Never applied on headphones while hearing protection is on.</string>
     <string name="volume_use_max">Maximum system volume</string>
     <string name="volume_use_max_hint">Always use the loudest volume your phone allows.</string>
     <string name="volume_escalate">Get louder if ignored</string>
