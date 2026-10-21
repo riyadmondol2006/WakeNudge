@@ -5,8 +5,8 @@
 #
 #   PADB=/path/to/pinned-adb-wrapper tools/battery/measure.sh <command> ...
 #
-#   build OUTDIR           build the play-debug app + test APK of this checkout under the private id (needs JAVA_HOME;
-#                          wrap in your own gradle lock if you share the machine)
+#   build OUTDIR           build the play-debug app + test APK of this checkout (or $WAKENUDGE_ROOT) under the private id
+#                          (needs JAVA_HOME; wrap in your own gradle lock if you share the machine)
 #   setup APK TESTAPK      install both, clear data, bind the three widgets to a throw-away host, seed 4 alarms + a timer
 #   snap LABEL             read-only snapshot (alarms, jobs, broadcasts, process starts, battery) into $OUT/LABEL
 #   cold N                 N cold starts of the process by a no-op broadcast; prints CPU ticks (10 ms) at +4 s and +12 s
@@ -22,7 +22,7 @@ PKG=com.riyadm.wakenudge.batmeasure
 : "${PADB:?set PADB to the adb wrapper pinned to the phone under test}"
 OUT=${OUT:-$HOME/.cache/wakenudge-battery/dumps}
 HERE=$(cd "$(dirname "$0")" && pwd)
-ROOT=$(cd "$HERE/../.." && pwd)
+ROOT=${WAKENUDGE_ROOT:-$(cd "$HERE/../.." && pwd)}   # build another checkout (e.g. a baseline worktree) by pointing this at it
 
 cmd=${1:-}; shift || true
 case "$cmd" in
