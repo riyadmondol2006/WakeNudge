@@ -207,6 +207,19 @@
                 android:resource="@xml/widget_alarm_list_info" />
         </receiver>
 
+        <!--
+            Date rollover and language changes make a widget stale without any alarm changing; both ask for one redraw.
+            The widgets themselves declare no periodic update, so nothing else wakes the app for them.
+        -->
+        <receiver
+            android:name=".widget.SurfaceEventsReceiver"
+            android:directBootAware="false"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Quick Settings tile: vacation-mode switch showing the next alarm. Only reads device-protected storage. -->
         <service
             android:name=".tile.NextAlarmTileService"
