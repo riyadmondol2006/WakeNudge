@@ -91,6 +91,7 @@ fun AlarmsScreen(
     onOpenGroups: () -> Unit,
     modifier: Modifier = Modifier,
     healthBadge: @Composable () -> Unit = {},
+    healthBanner: @Composable () -> Unit = {},
     viewModel: AlarmsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -160,6 +161,7 @@ fun AlarmsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            item(key = "health-banner") { healthBanner() }
             item(key = "hero") {
                 NextAlarmHero(
                     state = state,
@@ -213,7 +215,8 @@ private fun NextAlarmHero(state: AlarmsUiState, onResume: () -> Unit, onStartVac
     val context = LocalContext.current
     val resources = LocalResources.current
     val scheme = MaterialTheme.colorScheme
-    val vacation = state.settings.vacation
+    // A vacation whose resume day has arrived no longer pauses anything, whatever the stored flag still says.
+    val vacation = state.settings.vacation.let { it.copy(enabled = it.activeOn(state.now.toLocalDate().toEpochDay())) }
     val is24 = rememberIs24Hour(state.settings.timeFormat)
     val reduce = rememberReduceMotion()
     val spin by rememberInfiniteTransition(label = "hero-spin").animateFloat(

@@ -23,7 +23,10 @@ data class VacationMode(
     val enabled: Boolean = false,
     /** Alarms resume on this day (inclusive). Null means "until I switch it off". */
     val resumeEpochDay: Long? = null,
-)
+) {
+    /** Whether alarms are still paused on [epochDay]; false once the resume day has arrived. */
+    fun activeOn(epochDay: Long): Boolean = enabled && (resumeEpochDay == null || epochDay < resumeEpochDay)
+}
 
 @Serializable
 data class CalendarExceptions(

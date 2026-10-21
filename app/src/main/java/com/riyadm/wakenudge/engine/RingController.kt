@@ -172,6 +172,15 @@ class RingController @Inject constructor(
         notifier.showUpcoming(alarm, scheduledAt, canSkip = alarm.isRepeating && !locked)
     }
 
+    /**
+     * Rings that arrived while another alarm was already on screen. Two alarms in the same minute (or a timer ending
+     * mid-alarm) must each get their turn instead of the newcomer hijacking the one the user is dealing with.
+     */
+    private val queued = java.util.concurrent.ConcurrentLinkedQueue<RingRequest>()
+
+    /** The next ring waiting for its turn; the service asks for it when the current session ends. */
+    fun takeQueued(): RingRequest? = queued.poll()
+
     // ---- session lifecycle (from the service) --------------------------------------------------------------
 
     suspend fun begin(request: RingRequest): RingSession? = mutex.withLock {
@@ -180,22 +189,41 @@ class RingController @Inject constructor(
         val alarm = loadForRing(request, appSettings) ?: return@withLock null
 
         val existing = store.current
-        if (existing != null && existing.alarm.id == alarm.id && !existing.isTimer) {
+        if (existing != null && existing.alarm.id != alarm.id) {
+            when {
+                // A sunrise glow is only a lead-in; a real ring simply takes over.
+                existing.phase == RingPhase.SUNRISE && request.phase == RingPhase.RINGING -> releaseSession(existing)
+                // An alarm outranks a timer: silence the timer and make sure it is not left "ringing" forever.
+                existing.isTimer && request.kind != RingKind.TIMER -> {
+                    timers.getTimer(existing.timerId)?.let { timers.save(it.copy(state = TimerState.IDLE, remainingMs = it.durationMs)) }
+                    releaseSession(existing)
+                }
+                // Otherwise whoever is ringing keeps the screen; the newcomer waits its turn.
+                request.phase == RingPhase.RINGING -> {
+                    if (queued.none { it.alarmId == request.alarmId && it.eventId == request.eventId }) queued.add(request)
+                    diagnostics.info("Ring", "alarm ${alarm.id} queued behind ${existing.alarm.id}")
+                    return@withLock existing
+                }
+                else -> return@withLock existing
+            }
+        }
+        val current = store.current
+        if (current != null && current.alarm.id == alarm.id && !current.isTimer) {
             // Same alarm already on screen: sunrise turning into the ring, or a backup upgrading a live ring.
-            val ringing = existing.phase == RingPhase.RINGING || request.phase == RingPhase.RINGING
-            val upgraded = existing.copy(
+            val ringing = current.phase == RingPhase.RINGING || request.phase == RingPhase.RINGING
+            val upgraded = current.copy(
                 phase = if (ringing) RingPhase.RINGING else RingPhase.SUNRISE,
-                kind = if (request.kind == RingKind.BACKUP) RingKind.BACKUP else existing.kind,
-                intensified = existing.intensified || request.kind == RingKind.BACKUP,
-                eventId = if (request.eventId > 0) request.eventId else existing.eventId,
-                scheduledAt = if (request.phase == RingPhase.RINGING) request.scheduledAt else existing.scheduledAt,
-                startedAt = if (existing.phase == RingPhase.SUNRISE && ringing) now else existing.startedAt,
+                kind = if (request.kind == RingKind.BACKUP) RingKind.BACKUP else current.kind,
+                intensified = current.intensified || request.kind == RingKind.BACKUP,
+                eventId = if (request.eventId > 0) request.eventId else current.eventId,
+                scheduledAt = if (request.phase == RingPhase.RINGING) request.scheduledAt else current.scheduledAt,
+                startedAt = if (current.phase == RingPhase.SUNRISE && ringing) now else current.startedAt,
                 lastInteractionAt = now,
             )
             store.set(upgraded)
             return@withLock upgraded
         }
-        if (existing != null) endAsMissed(existing, now)
+        store.current?.let { endAsMissed(it, now) }
 
         val session = RingSession(
             alarm = alarm,
@@ -395,6 +423,15 @@ class RingController @Inject constructor(
 
     private suspend fun endSilently(s: RingSession) = finishSession(s)
 
+    /**
+     * Cleans up after a session that is being *replaced* by another. The store is deliberately not set to null: a
+     * momentary "nothing ringing" would let the service shut itself down just as the next ring starts.
+     */
+    private fun releaseSession(s: RingSession) {
+        snapshots.remove(s.alarm.id)
+        notifier.cancelRing()
+    }
+
     private fun finishSession(s: RingSession) {
         snapshots.remove(s.alarm.id)
         store.set(null)
@@ -410,8 +447,9 @@ class RingController @Inject constructor(
         if (alarm.isRepeating) {
             scheduler.schedule(alarm.id, afterMillis = scheduledAt + 1_000)
         } else {
+            // A one-time alarm switches itself off; scheduling a now-disabled alarm just removes its main trigger.
             alarms.setEnabled(alarm.id, false)
-            scheduler.cancel(alarm.id)
+            scheduler.schedule(alarm.id)
         }
         surfaces.refreshAll()
     }
@@ -470,6 +508,10 @@ class RingController @Inject constructor(
             if (e.firedAt < staleBefore && !hasFollowUp) {
                 history.update(e.copy(outcome = AlarmOutcome.MISSED, endedAt = e.endedAt ?: now))
             }
+        }
+        // A timer can only be "ringing" while a session says so; after a crash nothing is, so reset it.
+        timers.getTimers().filter { it.state == TimerState.RINGING }.forEach {
+            timers.save(it.copy(state = TimerState.IDLE, remainingMs = it.durationMs, endsAtMillis = 0))
         }
         if (runtime.activeAlarmId != -1L) {
             diagnostics.warn("Ring", "recovering from a ring session that did not end cleanly")

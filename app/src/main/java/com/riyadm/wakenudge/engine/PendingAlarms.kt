@@ -60,7 +60,7 @@ class PendingAlarms @Inject constructor(
         Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
 
     /** A user-visible alarm: shows in the system's "next alarm" UI and is exempt from Doze and exact-alarm limits. */
-    fun setAlarmClock(kind: TriggerKind, id: Long, atMillis: Long, index: Int = 0, eventId: Long = -1, payloadAt: Long = atMillis) {
+    fun setAlarmClock(kind: TriggerKind, id: Long, atMillis: Long, index: Int = 0, eventId: Long = -1, payloadAt: Long = atMillis): Boolean = guarded {
         val show = PendingIntent.getActivity(
             context, 0,
             Intent(context, MainActivity::class.java).setAction(MainActivity.ACTION_SHOW_ALARMS).putExtra(Triggers.EXTRA_ID, id),
@@ -70,7 +70,7 @@ class PendingAlarms @Inject constructor(
     }
 
     /** An internal trigger (follow-ups, reminders): exact when permitted, otherwise the closest Doze-safe fallback. */
-    fun setExact(kind: TriggerKind, id: Long, atMillis: Long, index: Int = 0, eventId: Long = -1, payloadAt: Long = atMillis) {
+    fun setExact(kind: TriggerKind, id: Long, atMillis: Long, index: Int = 0, eventId: Long = -1, payloadAt: Long = atMillis): Boolean = guarded {
         val op = operation(kind, id, index, payloadAt, eventId)
         if (canScheduleExact()) {
             AlarmManagerCompat.setExactAndAllowWhileIdle(alarmManager, AlarmManager.RTC_WAKEUP, atMillis, op)
@@ -80,9 +80,25 @@ class PendingAlarms @Inject constructor(
     }
 
     /** Inexact, battery-friendly trigger used by the watchdog. */
-    fun setInexact(kind: TriggerKind, id: Long, atMillis: Long) {
+    fun setInexact(kind: TriggerKind, id: Long, atMillis: Long): Boolean = guarded {
         AlarmManagerCompat.setAndAllowWhileIdle(alarmManager, AlarmManager.RTC_WAKEUP, atMillis, operation(kind, id, 0, atMillis, -1))
     }
+
+    /**
+     * The OS allows 500 concurrent alarms per app and throws beyond that (and a revoked permission throws too). A
+     * registration failure must never take the rest of the schedule down with it, so it is reported, not thrown.
+     */
+    private inline fun guarded(block: () -> Unit): Boolean = try {
+        block()
+        true
+    } catch (t: RuntimeException) {
+        lastFailure = "${t.javaClass.simpleName}: ${t.message}"
+        false
+    }
+
+    /** The most recent registration failure, for Alarm Health. */
+    @Volatile var lastFailure: String? = null
+        private set
 
     fun cancel(kind: TriggerKind, id: Long, index: Int = 0) {
         val op = existing(kind, id, index) ?: return

@@ -16,6 +16,10 @@ import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
 import com.riyadm.wakenudge.domain.scheduling.NextAlarm
 import com.riyadm.wakenudge.domain.scheduling.NextTriggerCalculator
 import com.riyadm.wakenudge.domain.scheduling.SurfaceRefresher
+import com.riyadm.wakenudge.engine.notify.Notifier
+import com.riyadm.wakenudge.domain.model.AlarmOutcome
+import com.riyadm.wakenudge.domain.model.VacationMode
+import com.riyadm.wakenudge.domain.model.WakeCheckStatus
 import java.time.Duration
 import java.time.ZonedDateTime
 import javax.inject.Inject
@@ -41,34 +45,82 @@ class AlarmSchedulerImpl @Inject constructor(
     private val runtime: RuntimeState,
     private val surfaces: SurfaceRefresher,
     private val diagnostics: DiagnosticsLog,
+    private val wakeCheckController: WakeCheckController,
+    private val sessions: RingSessionStore,
+    private val notifier: Notifier,
 ) : AlarmScheduler {
 
     private val lock = Mutex()
 
+    /** The global heads-up lead time, read once per scheduling pass so the hot loop never suspends on settings. */
+    private var noticeDefault = 0
+
     override suspend fun rescheduleAll(reason: String) = lock.withLock {
-        val ctx = contextProvider.load()
         val now = time.now()
+        val nowMs = now.toInstant().toEpochMilli()
+        val today = now.toLocalDate().toEpochDay()
+        expireVacation(today)
+        noticeDefault = settings.current().upcomingNoticeMinutes
+
+        val ctx = contextProvider.load()
         val all = alarms.getAlarms()
 
-        // Anything we registered for an alarm that no longer exists must go.
+        // Anything we registered for an alarm that no longer exists must go, follow-ups included.
         val known = all.map { it.id }.toSet()
-        runtime.registeredTriggers().keys.filter { it !in known }.forEach { cancelAlarmTriggers(it) }
+        for (gone in runtime.registeredTriggers().keys.filter { it !in known }) {
+            cancelAlarmTriggers(gone)
+            cancelFollowUpsLocked(gone)
+        }
+
+        // Plan first, register second: one broken alarm must not stop the others, and when the OS's 500-alarm cap
+        // is near, the soonest alarms are the ones that must win.
+        val plans = ArrayList<Pair<Alarm, ZonedDateTime>>()
+        var failures = 0
+        for (alarm in all) {
+            try {
+                cancelAlarmTriggers(alarm.id)
+                val live = alarm.copy(skipEpochDay = alarm.skipEpochDay?.takeIf { it >= today })
+                if (alarm.skipEpochDay != null && live.skipEpochDay == null) alarms.setSkipDay(alarm.id, null)
+                calculator.next(live, now, ctx.forAlarm(alarm))?.let { plans += alarm to it }
+            } catch (t: Throwable) {
+                failures++
+                diagnostics.error("Scheduler", "alarm ${alarm.id} could not be planned and was skipped", t)
+            }
+        }
+        plans.sortBy { it.second.toInstant() }
 
         val registered = HashMap<Long, Long>()
-        for (alarm in all) {
-            scheduleOne(alarm, ctx, now)?.let { registered[alarm.id] = it }
+        var used = 0
+        var overflow = 0
+        for ((alarm, next) in plans) {
+            if (used >= MAX_ARMED_ALARMS) { overflow++; continue }
+            val at = next.toInstant().toEpochMilli()
+            if (pending.setAlarmClock(TriggerKind.ALARM, alarm.id, at)) {
+                registered[alarm.id] = at
+                used++
+            } else {
+                failures++
+                diagnostics.error("Scheduler", "OS refused alarm ${alarm.id}: ${pending.lastFailure}")
+            }
         }
+        // Lead-in and heads-up triggers are a bonus: only for alarms in the next day and a half, budget permitting.
+        for ((alarm, _) in plans) {
+            val at = registered[alarm.id] ?: continue
+            if (at - nowMs > AUX_WINDOW_MS || used >= AUX_BUDGET) break
+            used += registerAuxiliary(alarm, at, nowMs)
+        }
+        if (overflow > 0) diagnostics.warn("Scheduler", "$overflow alarms are beyond the OS limit of concurrent alarms and not armed")
         runtime.setRegisteredTriggers(registered)
 
-        restoreFollowUps(now.toInstant().toEpochMilli())
-        restoreWakeChecks(now.toInstant().toEpochMilli())
-        restoreTimers(now.toInstant().toEpochMilli())
+        restoreFollowUps(nowMs)
+        restoreWakeChecks(nowMs)
+        restoreTimers(nowMs)
         scheduleBedtime(settings.current().bedtime, now)
-        scheduleWatchdog(now.toInstant().toEpochMilli())
+        scheduleWatchdog(nowMs)
 
-        runtime.lastRescheduleAt = now.toInstant().toEpochMilli()
+        runtime.lastRescheduleAt = nowMs
         runtime.lastRescheduleReason = reason
-        diagnostics.info("Scheduler", "rescheduleAll($reason): ${all.size} alarms, ${registered.size} armed")
+        diagnostics.info("Scheduler", "rescheduleAll($reason): ${all.size} alarms, ${registered.size} armed" + if (failures > 0) ", $failures problems" else "")
         surfaces.refreshAll()
     }
 
@@ -83,7 +135,12 @@ class AlarmSchedulerImpl @Inject constructor(
             } else {
                 now
             }
-            val at = scheduleOne(alarm, contextProvider.load(), from)
+            val at = try {
+                scheduleOne(alarm, contextProvider.load(), from)
+            } catch (t: Throwable) {
+                diagnostics.error("Scheduler", "alarm ${alarm.id} could not be scheduled", t)
+                null
+            }
             val map = runtime.registeredTriggers().toMutableMap()
             if (at == null) map.remove(alarmId) else map[alarmId] = at
             runtime.setRegisteredTriggers(map)
@@ -93,8 +150,60 @@ class AlarmSchedulerImpl @Inject constructor(
 
     override suspend fun cancel(alarmId: Long) = lock.withLock {
         cancelAlarmTriggers(alarmId)
+        cancelFollowUpsLocked(alarmId)
         runtime.setRegisteredTriggers(runtime.registeredTriggers() - alarmId)
         surfaces.refreshAll()
+    }
+
+    override suspend fun cancelFollowUps(alarmId: Long) = lock.withLock {
+        cancelFollowUpsLocked(alarmId)
+        surfaces.refreshAll()
+    }
+
+    /** Snooze, backups, still-awake check and their notifications; closes the events they belonged to. */
+    private suspend fun cancelFollowUpsLocked(alarmId: Long) {
+        pending.cancel(TriggerKind.SNOOZE, alarmId)
+        for (i in 1..RingIds.MAX_BACKUPS) pending.cancel(TriggerKind.BACKUP, alarmId, i)
+        wakeCheckController.abandon(alarmId, WakeCheckStatus.CANCELLED)
+        notifier.cancelSnoozed(alarmId)
+        notifier.cancelUpcoming(alarmId)
+        val ringingNow = sessions.current?.takeIf { it.alarm.id == alarmId }
+        val nowMs = time.nowMillis()
+        for (event in history.withFollowUps().filter { it.alarmId == alarmId }) {
+            val keepOpen = ringingNow != null && ringingNow.eventId == event.id
+            history.update(
+                event.copy(
+                    snoozeUntil = 0,
+                    pendingBackups = emptyList(),
+                    outcome = if (!keepOpen && event.outcome == AlarmOutcome.RINGING) AlarmOutcome.DISMISSED else event.outcome,
+                    endedAt = if (!keepOpen) event.endedAt ?: nowMs else event.endedAt,
+                ),
+            )
+        }
+    }
+
+    /** A vacation whose resume day has arrived is over; clear the flag so nothing keeps claiming alarms are paused. */
+    private suspend fun expireVacation(todayEpochDay: Long) {
+        val v = settings.current().vacation
+        if (v.enabled && v.resumeEpochDay != null && !v.activeOn(todayEpochDay)) {
+            settings.update { it.copy(vacation = VacationMode()) }
+            diagnostics.info("Scheduler", "vacation ended; alarms are back on")
+        }
+    }
+
+    /** Registers the sunrise lead-in and heads-up for [alarm]; returns how many triggers that used. */
+    private fun registerAuxiliary(alarm: Alarm, at: Long, nowMs: Long): Int {
+        var used = 0
+        if (alarm.sunrise.enabled && alarm.sunrise.leadMinutes > 0) {
+            val sunriseAt = at - alarm.sunrise.leadMinutes * 60_000L
+            if (sunriseAt > nowMs && pending.setExact(TriggerKind.SUNRISE, alarm.id, sunriseAt, payloadAt = at)) used++
+        }
+        val notice = alarm.upcomingNoticeMinutes.takeIf { it > 0 } ?: noticeDefault
+        if (notice > 0) {
+            val noticeAt = at - notice * 60_000L
+            if (noticeAt > nowMs && pending.setExact(TriggerKind.UPCOMING, alarm.id, noticeAt, payloadAt = at)) used++
+        }
+        return used
     }
 
     override suspend fun nextAlarm(): NextAlarm? {
@@ -146,19 +255,12 @@ class AlarmSchedulerImpl @Inject constructor(
         val next = calculator.next(alarm.copy(skipEpochDay = alarm.skipEpochDay?.takeIf { it >= today }), now, ctx.forAlarm(alarm))
             ?: return null
         val at = next.toInstant().toEpochMilli()
-        val nowMs = now.toInstant().toEpochMilli()
-
-        pending.setAlarmClock(TriggerKind.ALARM, alarm.id, at)
-
-        if (alarm.sunrise.enabled && alarm.sunrise.leadMinutes > 0) {
-            val sunriseAt = at - alarm.sunrise.leadMinutes * 60_000L
-            if (sunriseAt > nowMs) pending.setExact(TriggerKind.SUNRISE, alarm.id, sunriseAt, payloadAt = at)
+        if (!pending.setAlarmClock(TriggerKind.ALARM, alarm.id, at)) {
+            diagnostics.error("Scheduler", "OS refused alarm ${alarm.id}: ${pending.lastFailure}")
+            return null
         }
-        val notice = alarm.upcomingNoticeMinutes.takeIf { it > 0 } ?: settings.current().upcomingNoticeMinutes
-        if (notice > 0) {
-            val noticeAt = at - notice * 60_000L
-            if (noticeAt > nowMs) pending.setExact(TriggerKind.UPCOMING, alarm.id, noticeAt, payloadAt = at)
-        }
+        noticeDefault = settings.current().upcomingNoticeMinutes
+        registerAuxiliary(alarm, at, now.toInstant().toEpochMilli())
         return at
     }
 
@@ -174,7 +276,13 @@ class AlarmSchedulerImpl @Inject constructor(
      * right away (within an hour), since the user asked to be woken.
      */
     private suspend fun restoreFollowUps(nowMs: Long) {
+        val known = alarms.getAlarms().map { it.id }.toSet()
         for (event in history.withFollowUps()) {
+            // The alarm was deleted (or replaced by a restore) after this ring: there is nothing left to wake.
+            if (event.alarmId !in known && event.alarmId >= 0) {
+                cancelFollowUpsLocked(event.alarmId)
+                continue
+            }
             if (event.snoozeUntil > 0) {
                 val at = if (event.snoozeUntil <= nowMs) nowMs + FOLLOW_UP_DELAY_MS else event.snoozeUntil
                 if (nowMs - event.snoozeUntil <= STALE_FOLLOW_UP_MS) pending.setAlarmClock(TriggerKind.SNOOZE, event.alarmId, at, eventId = event.id)
@@ -220,6 +328,11 @@ class AlarmSchedulerImpl @Inject constructor(
 
     companion object {
         const val TEST_ALARM_ID = -1L
+
+        /** Android allows 500 concurrent alarms per app; keep headroom for snoozes, backups, timers and the watchdog. */
+        private const val MAX_ARMED_ALARMS = 440
+        private const val AUX_BUDGET = 470
+        private const val AUX_WINDOW_MS = 36 * 3_600_000L
         private const val FOLLOW_UP_DELAY_MS = 2_000L
         private const val STALE_FOLLOW_UP_MS = 60 * 60_000L
         private val WATCHDOG_INTERVAL: Duration = Duration.ofHours(6)

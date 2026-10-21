@@ -49,6 +49,7 @@ import com.riyadm.wakenudge.ui.edit.missionSlots
 import com.riyadm.wakenudge.ui.backup.BackupScreen
 import com.riyadm.wakenudge.ui.clock.WorldClockScreen
 import com.riyadm.wakenudge.ui.health.HealthBadge
+import com.riyadm.wakenudge.ui.health.HealthBanner
 import com.riyadm.wakenudge.ui.health.HealthScreen
 import com.riyadm.wakenudge.ui.morning.MorningScreen
 import com.riyadm.wakenudge.ui.onboarding.OnboardingScreen
@@ -167,6 +168,7 @@ private fun AppNavHost(nav: NavHostController) {
                 onOpenSettings = { nav.navigate(SettingsRoute) },
                 onOpenGroups = { nav.navigate(GroupsRoute) },
                 healthBadge = { HealthBadge() },
+                healthBanner = { HealthBanner() },
             )
         }
         composable<WorldClockRoute>(enterTransition = tabEnter, exitTransition = tabExit, popEnterTransition = tabEnter, popExitTransition = tabExit) { WorldClockScreen() }

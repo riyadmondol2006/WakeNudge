@@ -16,8 +16,14 @@ interface AlarmScheduler {
      */
     suspend fun schedule(alarmId: Long, afterMillis: Long = 0)
 
-    /** Removes every pending trigger belonging to the alarm. */
+    /** Removes every pending trigger belonging to the alarm, including snooze, backups and still-awake checks. */
     suspend fun cancel(alarmId: Long)
+
+    /**
+     * Silences what a ring left pending (snooze, backups, still-awake check and their notifications) without touching
+     * the alarm's next regular ring. Used when the user switches the alarm off or removes it mid-flight.
+     */
+    suspend fun cancelFollowUps(alarmId: Long)
 
     /** The soonest ring across all enabled alarms, honouring vacation, exceptions and skipped occurrences. */
     suspend fun nextAlarm(): NextAlarm?

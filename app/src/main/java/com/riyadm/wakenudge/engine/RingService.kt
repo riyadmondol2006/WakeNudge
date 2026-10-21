@@ -84,7 +84,17 @@ class RingService : Service() {
             var previous: RingSession? = null
             store.session.collect { s ->
                 if (s == null) {
-                    shutdown()
+                    // Someone else was waiting (two alarms in the same minute, a timer mid-alarm): they ring next.
+                    val next = controller.takeQueued()
+                    previous = null
+                    if (next != null) {
+                        scope.launch {
+                            val session = controller.begin(next)
+                            if (session == null) shutdown() else goForeground(notifier.ring(session))
+                        }
+                    } else {
+                        shutdown()
+                    }
                     return@collect
                 }
                 render(previous, s)
@@ -102,6 +112,13 @@ class RingService : Service() {
 
     private fun render(prev: RingSession?, s: RingSession) {
         val now = time.nowMillis()
+        // A different alarm replacing the previous one (the conflated "null" in between may never be seen).
+        if (prev != null && (prev.alarm.id != s.alarm.id || prev.eventId != s.eventId)) {
+            audio.stop(); vibrator.stop(); voiceJob?.cancel(); voice?.shutdown(); voice = null
+            ringingStarted = false
+            lastIntensified = false
+            notifier.postRing(s)
+        }
         val needsNotificationUpdate = prev == null || prev.phase != s.phase || prev.snoozeCount != s.snoozeCount || prev.kind != s.kind
         if (needsNotificationUpdate) notifier.postRing(s)
 
