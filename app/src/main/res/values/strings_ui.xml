@@ -95,7 +95,7 @@
     <string name="edit_group">Profile</string>
     <string name="edit_repeat">Repeat</string>
     <string name="edit_date">Date</string>
-    <string name="edit_date_next">Next time it\'s that time</string>
+    <string name="edit_date_next">On the next occurrence</string>
     <string name="edit_date_clear">No date</string>
     <string name="edit_never_rings">This alarm will not ring</string>
     <string name="edit_discard_title">Discard changes?</string>

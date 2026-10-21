@@ -54,6 +54,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -133,6 +134,8 @@ fun RingScreen(
         },
         tween(1200), label = "ringBottom",
     )
+    // The gradient's lower end can be light or dark depending on the wallpaper palette; pick readable text for it.
+    val onBottom = if (bottom.luminance() > 0.5f) scheme.onTertiaryContainer else scheme.onPrimaryContainer
     val pulse = rememberInfiniteTransition(label = "ring-pulse")
     val spin by pulse.animateFloat(0f, 360f, infiniteRepeatable(tween(50_000, easing = LinearEasing), RepeatMode.Restart), label = "spin")
     val breathe by pulse.animateFloat(
@@ -159,7 +162,7 @@ fun RingScreen(
                         Header(session, settings, now)
                     }
                     Column(Modifier.weight(1f).fillMaxSize(), verticalArrangement = Arrangement.Center) {
-                        Controls(session, settings, mode, { mode = it }, actions, missionContent)
+                        Controls(session, settings, mode, { mode = it }, actions, missionContent, onBottom)
                     }
                 }
             } else {
@@ -168,7 +171,7 @@ fun RingScreen(
                     // At rest the controls hug the bottom; during missions they take all the remaining height.
                     if (mode == RingMode.Home) Spacer(Modifier.weight(1f))
                     Controls(
-                        session, settings, mode, { mode = it }, actions, missionContent,
+                        session, settings, mode, { mode = it }, actions, missionContent, onBottom,
                         if (mode == RingMode.Home) Modifier else Modifier.weight(1f),
                     )
                 }
@@ -237,6 +240,7 @@ private fun Controls(
     setMode: (RingMode) -> Unit,
     actions: RingActions,
     missionContent: @Composable (List<MissionConfig>, () -> Unit, (Int) -> Unit, () -> Unit) -> Unit,
+    onBottom: Color,
     modifier: Modifier = Modifier,
 ) {
     val alarm = session.alarm
@@ -289,7 +293,7 @@ private fun Controls(
                         }
                     }
                 } else if (alarm.snooze.enabled) {
-                    Text(stringResource(R.string.ring_no_more_snoozes), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(stringResource(R.string.ring_no_more_snoozes), style = MaterialTheme.typography.bodyMedium, color = onBottom)
                 }
                 when {
                     session.hasMissions -> Button(
@@ -310,7 +314,7 @@ private fun Controls(
                         onDismiss = actions.onDismiss,
                     )
                 }
-                EmergencyStop(settings.emergencyStopHoldSeconds, actions.onEmergencyStop)
+                EmergencyStop(settings.emergencyStopHoldSeconds, actions.onEmergencyStop, onBottom)
             }
 
             RingMode.DismissMissions, RingMode.SnoozeMissions -> Column(Modifier.fillMaxSize()) {
@@ -333,7 +337,7 @@ private fun Controls(
                         { if (current == RingMode.SnoozeMissions) actions.onSnooze() else actions.onDismiss() },
                     )
                 }
-                EmergencyStop(settings.emergencyStopHoldSeconds, actions.onEmergencyStop, Modifier.padding(top = 8.dp))
+                EmergencyStop(settings.emergencyStopHoldSeconds, actions.onEmergencyStop, onBottom, Modifier.padding(top = 8.dp))
             }
         }
     }
@@ -344,7 +348,7 @@ private fun Controls(
  * dialog. It bypasses missions and is recorded honestly in the history as an emergency stop.
  */
 @Composable
-private fun EmergencyStop(holdSeconds: Int, onStop: () -> Unit, modifier: Modifier = Modifier) {
+private fun EmergencyStop(holdSeconds: Int, onStop: () -> Unit, hintColor: Color, modifier: Modifier = Modifier) {
     var confirm by remember { mutableStateOf(false) }
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         HoldButton(
@@ -361,7 +365,7 @@ private fun EmergencyStop(holdSeconds: Int, onStop: () -> Unit, modifier: Modifi
         )
         Text(
             stringResource(R.string.ring_emergency_hint, holdSeconds),
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+            style = MaterialTheme.typography.bodySmall, color = hintColor,
             modifier = Modifier.padding(top = 4.dp),
         )
     }
