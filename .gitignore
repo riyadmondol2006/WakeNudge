@@ -17,3 +17,6 @@ keystore.properties
 /.kotlin/
 # local scratch
 /tmp/
+
+# Browser-automation snapshots
+/.playwright-mcp/
