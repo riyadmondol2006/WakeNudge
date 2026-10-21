@@ -22,7 +22,6 @@ import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.AndroidRemoteViews
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.provideContent
 import androidx.glance.layout.Alignment
@@ -65,7 +64,7 @@ class ClockWidget : GlanceAppWidget() {
     }
 }
 
-class ClockWidgetReceiver : GlanceAppWidgetReceiver() {
+class ClockWidgetReceiver : SurfaceWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = ClockWidget()
 }
 
