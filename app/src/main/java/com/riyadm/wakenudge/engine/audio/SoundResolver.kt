@@ -36,6 +36,18 @@ object SoundResolver {
         return candidates.randomOrNull(random)?.let { ResolvedSound(null, it, loop = settings.playlist.size <= 1) }
     }
 
+    /**
+     * Every track of the playlist in the order they should be tried after [previousUri] finished: the others first,
+     * shuffled, then the one that just played. A track that has been deleted or cannot be opened is therefore skipped
+     * instead of ending the sound, and the caller appends its own last-resort tones.
+     */
+    fun playlistOrder(settings: SoundSettings, previousUri: String?, random: Random = Random.Default): List<ResolvedSound> {
+        val loop = settings.playlist.size <= 1
+        val others = settings.playlist.filter { it != previousUri }.shuffled(random)
+        val rest = settings.playlist.filter { it == previousUri }
+        return (others + rest).map { ResolvedSound(null, it, loop = loop) }
+    }
+
     fun fallback() = ResolvedSound(SoundSettings.DEFAULT_TONE_ID, null, loop = true)
 
     private fun single(s: SoundSettings): ResolvedSound = when (s.source) {

@@ -51,6 +51,28 @@ class RuntimeState @Inject constructor(@DeviceProtected context: Context) {
         get() = prefs.getLong(K_LAST_WATCHDOG, 0)
         set(value) = prefs.edit { putLong(K_LAST_WATCHDOG, value) }
 
+    /** Times (epoch millis) at which the app died while an alarm was ringing; only recent ones matter. */
+    fun ringCrashTimes(): List<Long> =
+        prefs.getString(K_RING_CRASHES, "").orEmpty().split(',').mapNotNull { it.toLongOrNull() }
+
+    /** Written with `commit` because the process is about to die and an asynchronous write would be lost. */
+    fun recordRingCrash(at: Long) {
+        val kept = (ringCrashTimes() + at).takeLast(MAX_CRASHES_KEPT)
+        prefs.edit(commit = true) { putString(K_RING_CRASHES, kept.joinToString(",")) }
+    }
+
+    internal fun clearRingCrashes() = prefs.edit(commit = true) { remove(K_RING_CRASHES) }
+
+    /** The last time playback needed a fallback (broken file, dead player, emergency beeper): "epoch|what happened". */
+    var lastAudioProblem: String
+        get() = prefs.getString(K_AUDIO_PROBLEM, "") ?: ""
+        set(value) = prefs.edit { putString(K_AUDIO_PROBLEM, value) }
+
+    /** Why the scheduler could not arm everything on its last pass; blank when it could. */
+    var lastSchedulingProblem: String
+        get() = prefs.getString(K_SCHEDULING_PROBLEM, "") ?: ""
+        set(value) = prefs.edit { putString(K_SCHEDULING_PROBLEM, value) }
+
     /** JSON of the throw-away alarm used by the "test alarm" feature. */
     var testAlarmJson: String?
         get() = prefs.getString(K_TEST_ALARM, null)
@@ -78,5 +100,9 @@ class RuntimeState @Inject constructor(@DeviceProtected context: Context) {
         const val K_LAST_WATCHDOG = "last_watchdog_at"
         const val K_TEST_ALARM = "test_alarm_json"
         const val K_TRIGGERS = "registered_triggers"
+        const val K_RING_CRASHES = "ring_crash_times"
+        const val K_AUDIO_PROBLEM = "last_audio_problem"
+        const val K_SCHEDULING_PROBLEM = "last_scheduling_problem"
+        const val MAX_CRASHES_KEPT = 10
     }
 }
