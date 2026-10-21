@@ -1,0 +1,104 @@
+name: Bug report
+description: An alarm did not ring, rang late, could not be dismissed, or something else is broken.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. **An alarm that did not ring (or rang late) is the most valuable bug you can report.**
+        The Alarm Health report below tells me what your phone allowed, so please include it.
+
+        Found a way to make an alarm silently fail, or to read someone's data from another app? Please do **not** post it here. Use [Report a vulnerability](https://github.com/riyadmondol2006/WakeNudge/security/policy) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you see instead? If an alarm failed, say when it was due and what the phone was doing (locked, screen off, charging, in a pocket).
+      placeholder: "The 06:45 weekday alarm did not ring. The phone was locked and charging. No notification either."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Settings that matter (missions, still-awake check, snooze, backup alarm, volume), and what you did.
+      placeholder: |
+        1. Create an alarm for 06:45 on weekdays with the Math mission
+        2. Lock the phone
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: phone
+    attributes:
+      label: Phone model
+      placeholder: "Samsung Galaxy A54, Pixel 8, Xiaomi 13T ..."
+    validations:
+      required: true
+  - type: input
+    id: android
+    attributes:
+      label: Android version
+      description: Settings, About phone, Android version.
+      placeholder: "Android 14"
+    validations:
+      required: true
+  - type: dropdown
+    id: skin
+    attributes:
+      label: Vendor skin
+      description: Manufacturers' battery managers are the most common reason an alarm app fails, so this matters.
+      options:
+        - Stock Android / Pixel
+        - Samsung One UI
+        - Xiaomi / Redmi / POCO (MIUI or HyperOS)
+        - OnePlus (OxygenOS)
+        - Oppo / Realme (ColorOS)
+        - Vivo / iQOO (Funtouch or OriginOS)
+        - Huawei / Honor
+        - Motorola
+        - Nothing OS
+        - Other (say which below)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: WakeNudge version
+      description: Settings, About.
+      placeholder: "1.0.42"
+    validations:
+      required: true
+  - type: dropdown
+    id: build
+    attributes:
+      label: Which build?
+      options:
+        - APK from GitHub Releases
+        - Google Play
+        - Built from source
+    validations:
+      required: true
+  - type: textarea
+    id: health
+    attributes:
+      label: Alarm Health report
+      description: In the app open Alarm health, then Copy (or Share), and paste the text here. For a purely visual bug you can write "not relevant".
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Screenshots, a screen recording, or whether the test alarm from Alarm Health rings on your phone.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I searched the existing issues and the [FAQ](https://github.com/riyadmondol2006/WakeNudge#faq).
+          required: true
+        - label: This is not a security vulnerability (those go through the private report link above).
+          required: true

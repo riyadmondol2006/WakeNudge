@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WakeNudge: Free Open-Source Alarm Clock for Android</title>
+<meta name="description" content="WakeNudge is a free, open-source Android alarm clock with wake-up missions (math, QR, NFC, steps, squats), a still-awake check, and no ads or tracking.">
+<link rel="canonical" href="https://riyadmondol2006.github.io/WakeNudge/">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#3d2f9e" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14112e" media="(prefers-color-scheme: dark)">
+<meta name="author" content="riyadm">
+<meta name="robots" content="index, follow, max-image-preview:large">
+
+<link rel="icon" href="assets/favicon.ico" sizes="48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="WakeNudge">
+<meta property="og:title" content="WakeNudge: Free Open-Source Alarm Clock for Android">
+<meta property="og:description" content="Wake-up missions (math, QR, NFC, steps, squats), a still-awake check and a reliable lock-screen alarm. Offline, no ads, no tracking.">
+<meta property="og:url" content="https://riyadmondol2006.github.io/WakeNudge/">
+<meta property="og:image" content="https://riyadmondol2006.github.io/WakeNudge/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="WakeNudge logo and two screenshots of the Android alarm clock app">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="WakeNudge: Free Open-Source Alarm Clock for Android">
+<meta name="twitter:description" content="Wake-up missions, a still-awake check and a reliable lock-screen alarm. Offline, no ads, no tracking.">
+<meta name="twitter:image" content="https://riyadmondol2006.github.io/WakeNudge/assets/og-image.png">
+<meta name="twitter:image:alt" content="WakeNudge logo and two screenshots of the Android alarm clock app">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "WakeNudge",
+  "alternateName": "WakeNudge: Alarm Clock",
+  "description": "A free, open-source Android alarm clock with wake-up missions (math, memory, typing, QR code, NFC, shake, steps, squats, puzzles, photo), a still-awake check, an anti-oversleep toolkit with an emergency stop, and an Alarm Health checkup. No ads, no accounts, no tracking.",
+  "url": "https://riyadmondol2006.github.io/WakeNudge/",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Android 8.0+",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "availability": "https://schema.org/InStock"
+  },
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
+  "downloadUrl": "https://github.com/riyadmondol2006/WakeNudge/releases/latest",
+  "installUrl": "https://github.com/riyadmondol2006/WakeNudge/releases/latest",
+  "softwareHelp": "https://github.com/riyadmondol2006/WakeNudge#faq",
+  "image": "https://riyadmondol2006.github.io/WakeNudge/assets/og-image.png",
+  "screenshot": [
+    "https://riyadmondol2006.github.io/WakeNudge/assets/screens/1_alarms.webp",
+    "https://riyadmondol2006.github.io/WakeNudge/assets/screens/3_missions.webp",
+    "https://riyadmondol2006.github.io/WakeNudge/assets/screens/5_ring_screen.webp",
+    "https://riyadmondol2006.github.io/WakeNudge/assets/screens/6_alarm_health.webp"
+  ],
+  "featureList": [
+    "Ten wake-up missions: math, memory, typing, QR code or barcode, NFC tag, shake, steps, squats, puzzles and photo matching",
+    "Still-awake check that rings again if you fall back asleep",
+    "Extra Loud mode, volume ramp and an alarm that intensifies if ignored, plus a backup alarm",
+    "Emergency stop so no mission can ever trap you",
+    "Alarm Health checkup and a real test alarm",
+    "Offline with no ads, no accounts and no tracking",
+    "Material You design with light, dark and AMOLED themes"
+  ],
+  "author": { "@type": "Person", "name": "riyadm", "url": "https://github.com/riyadmondol2006" },
+  "sameAs": ["https://github.com/riyadmondol2006/WakeNudge"]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is WakeNudge really free and open source?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. It is released under the Apache License 2.0, with no ads, no subscription, no in-app purchases and no account. The full source code is on GitHub." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is WakeNudge really offline?",
+      "acceptedAnswer": { "@type": "Answer", "text": "The alarm clock itself never needs the internet. The Google Play build, once it is published, declares no network permission at all, and the build fails if that ever changes. The APK on GitHub holds only the INTERNET permission, used for a small update popup that checks GitHub at most once a day to see whether a newer release exists. It sends nothing about you or your alarms, and you can switch it off in About, then Updates." }
+    },
+    {
+      "@type": "Question",
+      "name": "Will the alarm ring if my phone is switched off?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No app can ring a phone that is powered off. If the phone was off when an alarm was due, WakeNudge rings straight away on start-up if the alarm was due within the last 10 minutes. Otherwise it records the alarm as missed and shows a notification." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it work on Samsung, Xiaomi, OnePlus and other phones?",
+      "acceptedAnswer": { "@type": "Answer", "text": "WakeNudge uses Android's standard alarm-clock APIs, but it has only been tested on a Pixel 6 Pro running Android 17. Some manufacturers add battery managers that can restrict background apps. Open Alarm Health in the app, follow its fixes, ring the test alarm with your screen locked, and report what happens on your phone." }
+    },
+    {
+      "@type": "Question",
+      "name": "I am a heavy sleeper. What should I turn on?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Use a mission that gets you out of bed, such as scanning a QR code or tapping an NFC tag placed away from the bed, or walking steps. Turn on the still-awake check, Extra Loud mode and the volume ramp, limit snoozes, and keep the backup alarm on. No app can guarantee a wake-up, so also run the test alarm once." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can a mission trap me?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. Every restriction can be bypassed with the Emergency stop, a press-and-hold button on the ring screen. A mission that cannot be done on your phone, for example because there is no camera or permission was refused, offers a Continue button instead." }
+    },
+    {
+      "@type": "Question",
+      "name": "How do updates work?",
+      "acceptedAnswer": { "@type": "Answer", "text": "The GitHub APK shows a popup when a newer release exists, and you install it yourself from the release page. You can turn the check off in About, then Updates. The Google Play build has no update code, so Google Play will update it once it is published." }
+    },
+    {
+      "@type": "Question",
+      "name": "Which Android versions are supported?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Android 8.0 (API 26) and newer. It has been verified on a physical device only on Android 17, so older versions are covered by tests but not yet by hardware." }
+    }
+  ]
+}
+</script>
+
+<style>
+:root {
+  --bg: #fffaf3;
+  --surface: #ffffff;
+  --surface-2: #f5ede2;
+  --text: #1f1a3d;
+  --muted: #55506f;
+  --border: #e5dac9;
+  --accent: #3d2f9e;
+  --accent-text: #ffffff;
+  --link: #3d2f9e;
+  --peach: #f2b985;
+  --hero-from: #3d2f9e;
+  --hero-to: #1c175b;
+  --hero-text: #fff6e5;
+  --hero-muted: #d6cff7;
+  --focus: #b4530b;
+  --radius: 18px;
+  --shadow: 0 1px 2px rgba(31, 26, 61, .06), 0 8px 24px rgba(31, 26, 61, .08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14112e;
+    --surface: #1d1946;
+    --surface-2: #26215a;
+    --text: #f3efff;
+    --muted: #bdb7de;
+    --border: #36306f;
+    --accent: #f2b985;
+    --accent-text: #2b1a05;
+    --link: #ffc896;
+    --hero-from: #2c2278;
+    --hero-to: #14112e;
+    --focus: #ffd9b0;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .35);
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+img { max-width: 100%; height: auto; }
+a { color: var(--link); text-underline-offset: 3px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+.skip { position: absolute; left: 16px; top: -64px; background: var(--accent); color: var(--accent-text); padding: 10px 16px; border-radius: 10px; z-index: 10; }
+.skip:focus { top: 12px; }
+.wrap { width: 100%; max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+
+/* Header and hero share the brand gradient so the page opens in one piece. */
+.top { background: linear-gradient(135deg, var(--hero-from), var(--hero-to)); color: var(--hero-text); }
+.top a:not(.btn) { color: inherit; }
+header .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 24px; padding-top: 14px; padding-bottom: 6px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.15rem; text-decoration: none; min-height: 44px; }
+.brand img { width: 36px; height: 36px; }
+nav ul { list-style: none; display: flex; flex-wrap: wrap; gap: 0 4px; margin: 0; padding: 0; }
+nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; border-radius: 10px; text-decoration: none; font-size: .95rem; }
+nav a:hover { background: rgba(255, 246, 229, .14); }
+.hero { display: grid; gap: 32px; padding-top: 28px; padding-bottom: 56px; align-items: center; }
+.hero h1 { font-size: clamp(1.9rem, 6.4vw, 3.1rem); line-height: 1.12; margin: 0 0 16px; letter-spacing: -.02em; text-wrap: balance; }
+.hero h1 span { color: var(--peach); }
+.lead { font-size: 1.15rem; color: var(--hero-muted); margin: 0 0 24px; max-width: 34em; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 22px; border-radius: 999px; font-weight: 700; text-decoration: none; border: 2px solid transparent; }
+.btn-primary { background: var(--peach); color: #2b1a05; }
+.btn-primary:hover { background: #ffc99b; }
+.btn-ghost { border-color: rgba(255, 246, 229, .55); color: var(--hero-text); }
+.btn-ghost:hover { background: rgba(255, 246, 229, .14); }
+.top :focus-visible { outline-color: #ffd9b0; }
+.hero-note { margin: 0; font-size: .92rem; color: var(--hero-muted); }
+.pills { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 0; padding: 0; }
+.pills li { border: 1px solid rgba(255, 246, 229, .4); border-radius: 999px; padding: 4px 14px; font-size: .9rem; }
+.hero-shots { display: flex; justify-content: center; align-items: flex-start; }
+.hero-shots img { width: 44%; max-width: 230px; border-radius: 22px; box-shadow: 0 18px 40px rgba(8, 6, 40, .5); border: 1px solid rgba(255, 246, 229, .25); background: #14112e; }
+.hero-shots img + img { margin-left: -6%; margin-top: 36px; }
+@media (min-width: 860px) {
+  .hero { grid-template-columns: 1.15fr .85fr; padding-top: 44px; padding-bottom: 72px; }
+  .hero-shots img { width: 46%; }
+}
+
+section { padding: 56px 0 8px; }
+section > .wrap > h2, .section-title { font-size: clamp(1.5rem, 4.6vw, 2.1rem); line-height: 1.2; margin: 0 0 12px; letter-spacing: -.01em; text-wrap: balance; }
+.intro { color: var(--muted); max-width: 42em; margin: 0 0 28px; }
+.grid { display: grid; gap: 16px; list-style: none; margin: 0; padding: 0; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+.card h3 { margin: 0 0 6px; font-size: 1.08rem; line-height: 1.3; }
+.card p { margin: 0; color: var(--muted); font-size: .98rem; }
+.card .needs { margin-top: 10px; font-size: .85rem; font-weight: 600; color: var(--text); }
+.card .needs::before { content: "Needs: "; font-weight: 400; color: var(--muted); }
+.num { display: inline-grid; place-items: center; width: 28px; height: 28px; margin-right: 8px; border-radius: 50%; background: var(--peach); color: #2b1a05; font-size: .85rem; font-weight: 700; vertical-align: 1px; }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.checks li { position: relative; padding-left: 30px; }
+.checks li::before { content: ""; position: absolute; left: 4px; top: .55em; width: 12px; height: 7px; border-left: 3px solid var(--accent); border-bottom: 3px solid var(--accent); transform: rotate(-45deg); }
+.split { display: grid; gap: 28px; }
+@media (min-width: 860px) { .split { grid-template-columns: 1fr 1fr; align-items: start; } }
+.panel { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; }
+.panel h3 { margin-top: 0; }
+
+.shots-scroll { overflow-x: auto; padding: 4px 16px 20px; margin: 0 -16px; scroll-snap-type: x proximity; scroll-padding-inline: 16px; -webkit-overflow-scrolling: touch; }
+.shots-list { display: flex; gap: 16px; list-style: none; margin: 0; padding: 0; width: max-content; }
+.shots-list li { flex: 0 0 auto; width: min(62vw, 250px); scroll-snap-align: start; }
+.shots-list figure { margin: 0; }
+.shots-list img { display: block; width: 100%; aspect-ratio: 1 / 2; background: var(--surface-2); border-radius: 20px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+.shots-list figcaption { margin-top: 10px; font-size: .9rem; color: var(--muted); }
+
+table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; font-size: .97rem; }
+caption { text-align: left; padding: 0 0 10px; color: var(--muted); font-size: .92rem; }
+th, td { text-align: left; vertical-align: top; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+tr:last-child th, tr:last-child td { border-bottom: 0; }
+thead th { background: var(--surface-2); }
+.table-scroll { overflow-x: auto; }
+.after-table { margin-top: 16px; }
+.panel .flush { margin-top: 0; }
+.table-scroll table { min-width: 560px; }
+
+.dl { background: linear-gradient(135deg, var(--hero-from), var(--hero-to)); color: var(--hero-text); border-radius: 26px; padding: 28px 22px; }
+.dl h2 { margin-top: 0; }
+.dl p { color: var(--hero-muted); }
+.dl a:not(.btn) { color: #ffd9b0; }
+.dl code { background: rgba(255, 246, 229, .14); }
+.dl pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.dl pre code { background: none; }
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9em; }
+code { background: var(--surface-2); padding: 2px 6px; border-radius: 6px; overflow-wrap: anywhere; }
+pre { background: rgba(8, 6, 40, .55); color: #fff6e5; padding: 14px 16px; border-radius: 12px; overflow-x: auto; margin: 12px 0; }
+pre code { background: none; padding: 0; }
+
+details { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 10px; }
+summary { cursor: pointer; padding: 14px 18px; font-weight: 650; min-height: 48px; display: flex; align-items: center; list-style-position: inside; }
+details[open] summary { border-bottom: 1px solid var(--border); }
+details p { margin: 0; padding: 14px 18px 16px; color: var(--muted); }
+
+footer { margin-top: 72px; padding: 32px 0 40px; border-top: 1px solid var(--border); color: var(--muted); font-size: .95rem; }
+footer ul { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 0 0 16px; padding: 0; }
+footer a { display: inline-block; padding: 8px 0; }
+footer p { margin: 0 0 8px; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<div class="top">
+<header>
+  <div class="wrap">
+    <a class="brand" href="./"><img src="assets/icon-192.png" width="36" height="36" alt="">WakeNudge</a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="#missions">Missions</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#privacy">Privacy</a></li>
+        <li><a href="#download">Download</a></li>
+        <li><a href="#faq">FAQ</a></li>
+        <li><a href="https://github.com/riyadmondol2006/WakeNudge">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap hero">
+  <div>
+    <h1>WakeNudge: a free, open-source <span>alarm clock for Android</span> with wake-up missions</h1>
+    <p class="lead">Solve a puzzle, scan a code or take a few steps to switch it off. WakeNudge checks that you are really awake, rings again if you are not, and keeps your data on your phone.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="#download">Download the APK</a>
+      <a class="btn btn-ghost" href="https://github.com/riyadmondol2006/WakeNudge">View source on GitHub</a>
+    </div>
+    <p class="hero-note">Android 8.0 or newer. Google Play listing: in preparation.</p>
+    <ul class="pills" aria-label="At a glance">
+      <li>Offline</li>
+      <li>No ads</li>
+      <li>No accounts</li>
+      <li>No tracking</li>
+      <li>Apache-2.0</li>
+    </ul>
+  </div>
+  <div class="hero-shots">
+    <img src="assets/screens/5_ring_screen.webp" width="540" height="1080" fetchpriority="high" alt="WakeNudge lock-screen alarm showing the time, a snooze button, a slide-to-dismiss control and an emergency stop">
+    <img src="assets/screens/1_alarms.webp" width="540" height="1080" fetchpriority="high" alt="WakeNudge alarm list with a next-alarm card, alarm profiles and a still-awake check on the first alarm">
+  </div>
+</div>
+</div>
+
+<main id="main">
+
+<section aria-labelledby="why">
+  <div class="wrap">
+    <h2 id="why">An alarm clock that makes sure you are actually up</h2>
+    <p class="intro">Most alarm apps stop at a loud sound. WakeNudge adds the parts that matter for heavy sleepers, shift workers and anyone who has slept through an alarm, and keeps an exit open so it can never lock you in.</p>
+    <ul class="grid">
+      <li class="card"><h3>Rings when it should</h3><p>Exact alarms through Android's alarm-clock API, on the alarm audio stream, with a full-screen ring screen over the lock screen. Built to survive restarts, app updates, time-zone and daylight-saving changes.</p></li>
+      <li class="card"><h3>Wakes your brain, not just your ears</h3><p>Ten wake-up missions, including scanning a QR code or tapping an NFC tag placed away from your bed. Chain several, preview them first, and pick the difficulty.</p></li>
+      <li class="card"><h3>Private by design</h3><p>No ads, no accounts, no analytics, no tracking. Your alarms stay on your phone, and the Play Store build has no network permission at all.</p></li>
+    </ul>
+  </div>
+</section>
+
+<section id="missions" aria-labelledby="missions-h">
+  <div class="wrap">
+    <h2 id="missions-h">Ten wake-up missions</h2>
+    <p class="intro">Complete them in order to dismiss the alarm. Each alarm can use one or several, with its own difficulty and count. Anything a particular phone cannot do (no camera, no step sensor) shows a Continue button rather than blocking you.</p>
+    <ol class="grid">
+      <li class="card"><h3><span class="num" aria-hidden="true">1</span>Math</h3><p>Solve arithmetic problems on a big built-in keypad. Easy, medium or hard.</p></li>
+      <li class="card"><h3><span class="num" aria-hidden="true">2</span>Memory</h3><p>Watch tiles light up, then repeat the pattern as it grows.</p></li>
+      <li class="card"><h3><span class="num" aria-hidden="true">3</span>Typing</h3><p>Type a phrase exactly as shown.</p></li>
+      <li class="card"><h3><span class="num" aria-hidden="true">4</span>QR code or barcode</h3><p>Scan a code you registered somewhere away from your bed, such as in the bathroom or kitchen.</p><p class="needs">Camera</p></li>
+      <li class="card"><h3><span class="num" aria-hidden="true">5</span>NFC tag</h3><p>Tap an NFC tag you placed somewhere away from your bed.</p><p class="needs">NFC</p></li>
+      <li class="card"><h3><span class="num" aria-hidden="true">6</span>Shake</h3><p>Shake your phone until the counter is full.</p><p class="needs">Accelerometer</p></li>
+      <li class="card"><h3><span class="num" aria-hidden="true">7</span>Steps</h3><p>Walk a number of steps, counted on the phone.</p><p class="needs">Step counter or motion sensor</p></li>
+      <li class="card"><h3><span class="num" aria-hidden="true">8</span>Squats</h3><p>Do squats while holding the phone against your chest.</p><p class="needs">Accelerometer</p></li>
+      <li class="card"><h3><span class="num" aria-hidden="true">9</span>Puzzle</h3><p>Slide tiles into order, find the numbers one to N, or trace a pattern.</p></li>
+      <li class="card"><h3><span class="num" aria-hidden="true">10</span>Photo</h3><p>Go to a place you photographed the night before and point the camera at it. Matched on your phone, nothing is uploaded.</p><p class="needs">Camera</p></li>
+    </ol>
+  </div>
+</section>
+
+<section aria-labelledby="awake">
+  <div class="wrap">
+    <h2 id="awake">Built so you do not fall back asleep</h2>
+    <div class="split">
+      <div>
+        <ul class="checks">
+          <li><strong>Still-awake check.</strong> After you dismiss, WakeNudge asks "Still awake?" a few minutes later. If you do not answer in time, it rings again, up to a limit you choose. It survives restarts and you can cancel it.</li>
+          <li><strong>Loud when it needs to be.</strong> Extra Loud mode, a volume ramp of up to ten minutes, and a sound that intensifies after about 40 seconds without any interaction.</li>
+          <li><strong>Backup alarm.</strong> If nothing happens, a separate backup alarm rings again later. It is stored on the device and re-armed after a reboot or an app update.</li>
+          <li><strong>Anti-oversleep controls.</strong> Snooze limits that can shrink, hold-to-dismiss, protection against accidental dismissal, and an optional lock on last-minute edits.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>An exit that always works</h3>
+        <p>Every one of those restrictions can be bypassed with the <strong>Emergency stop</strong>, a press-and-hold button on the ring screen. A mission is never allowed to become a trap. Hearing safety is built in too: a configurable volume cap on headphones, and the system alarm volume is put back afterwards.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="shots">
+  <div class="wrap">
+    <h2 id="shots">See it in action</h2>
+    <p class="intro">Screenshots from a Pixel 6 Pro in dark theme. WakeNudge also has light and AMOLED themes and follows your wallpaper colours with Material You.</p>
+    <div class="shots-scroll" role="region" aria-label="Screenshots, scroll sideways" tabindex="0">
+      <ul class="shots-list">
+        <li><figure><img src="assets/screens/1_alarms.webp" width="540" height="1080" loading="lazy" alt="Alarm list with a next-alarm card, alarm profiles and a button to pause all alarms"><figcaption>Your alarms and profiles</figcaption></figure></li>
+        <li><figure><img src="assets/screens/2_edit_alarm.webp" width="540" height="1080" loading="lazy" alt="Alarm editor with a time picker, repeat days and a label"><figcaption>Alarm editor</figcaption></figure></li>
+        <li><figure><img src="assets/screens/3_missions.webp" width="540" height="1080" loading="lazy" alt="Wake-up missions in the alarm editor with a math mission set to hard difficulty and three problems"><figcaption>Choose and chain missions</figcaption></figure></li>
+        <li><figure><img src="assets/screens/4_mission_math.webp" width="540" height="1080" loading="lazy" alt="The math wake-up mission showing a sum and a large number keypad"><figcaption>The math mission</figcaption></figure></li>
+        <li><figure><img src="assets/screens/5_ring_screen.webp" width="540" height="1080" loading="lazy" alt="Lock-screen ring screen with snooze, slide to dismiss and emergency stop"><figcaption>Lock-screen ring screen</figcaption></figure></li>
+        <li><figure><img src="assets/screens/6_alarm_health.webp" width="540" height="1080" loading="lazy" alt="Alarm Health checkup reporting that alarms are set up to ring, with a test alarm button"><figcaption>Alarm Health and test alarm</figcaption></figure></li>
+        <li><figure><img src="assets/screens/7_sleep_planner.webp" width="540" height="1080" loading="lazy" alt="Sleep planner suggesting a bedtime based on 90-minute sleep cycles"><figcaption>Sleep planner</figcaption></figure></li>
+        <li><figure><img src="assets/screens/8_world_clock.webp" width="540" height="1080" loading="lazy" alt="World clock with local time and cities in several time zones"><figcaption>World clock</figcaption></figure></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="features" aria-labelledby="features-h">
+  <div class="wrap">
+    <h2 id="features-h">Everything else it does</h2>
+    <ul class="grid">
+      <li class="card"><h3>Alarm Health</h3><p>A built-in checkup for notifications, full-screen alerts, exact alarms, battery restrictions, Do Not Disturb and audio routing, with a shortcut to fix each, and a real test alarm.</p></li>
+      <li class="card"><h3>Flexible schedules</h3><p>Unlimited alarms with labels and repeat days, profiles such as Work and Weekend, skip next ring, vacation mode, holiday and calendar exceptions.</p></li>
+      <li class="card"><h3>Sleep planner and bedtime</h3><p>Work out a wake-up time or a bedtime from 90-minute sleep cycles, with bedtime reminders.</p></li>
+      <li class="card"><h3>Clock tools</h3><p>Timer, stopwatch with laps, world clock, a live countdown to your next alarm, three home-screen widgets and a Quick Settings tile.</p></li>
+      <li class="card"><h3>Sounds</h3><p>12 bundled tones, from gentle to loud, or your own music, strong vibration patterns (or record your own rhythm), spoken announcements with your phone's offline text-to-speech, and a sunrise mode that brightens the screen gradually.</p></li>
+      <li class="card"><h3>Backup and restore</h3><p>Save alarms and settings to a JSON file you choose, preview it, and restore it on a new phone. Nothing is uploaded.</p></li>
+      <li class="card"><h3>Material You design</h3><p>Dynamic colour, light, dark and AMOLED themes, large-text and right-to-left support, TalkBack labels, and navigation that adapts to bigger screens.</p></li>
+      <li class="card"><h3>Open source</h3><p>Kotlin, Jetpack Compose and Material 3 under the Apache License 2.0, with a large automated test suite. Read the code, build it yourself, or send a fix.</p></li>
+    </ul>
+  </div>
+</section>
+
+<section aria-labelledby="reliable">
+  <div class="wrap">
+    <h2 id="reliable">Honest about what an alarm app can and cannot do</h2>
+    <div class="split">
+      <p>WakeNudge uses the system alarm-clock APIs, a foreground service and a lock-screen ring UI. It re-arms everything after a reboot, an update, a time-zone change or a daylight-saving jump, and keeps a watchdog that re-checks your alarms every few hours.</p>
+      <div class="panel">
+        <p class="flush">It cannot override the operating system. A phone that is switched off will not ring, and some manufacturers restrict background apps aggressively. So far it has been verified on one physical device, a Pixel 6 Pro on Android 17. <a href="https://github.com/riyadmondol2006/WakeNudge/blob/main/docs/TESTING.md">The testing notes</a> list exactly what was and was not tested on hardware. Please run the test alarm on your own phone.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="privacy" aria-labelledby="privacy-h">
+  <div class="wrap">
+    <h2 id="privacy-h">Privacy: two builds, stated plainly</h2>
+    <p class="intro">No accounts, no ads, no analytics, no crash reporting, no tracking SDKs. Alarms, history and settings are stored only in the app's private storage on your phone. Permissions such as camera, step counter and calendar are requested only when you use the feature that needs them.</p>
+    <div class="table-scroll">
+      <table>
+        <caption>What each way of installing WakeNudge can do on the network</caption>
+        <thead><tr><th scope="col">Build</th><th scope="col">Network permission</th><th scope="col">What it does online</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Google Play (in preparation)</th><td>None. The build fails if one ever appears.</td><td>Nothing.</td></tr>
+          <tr><th scope="row">APK from GitHub Releases</th><td><code>INTERNET</code> only.</td><td>An update popup that checks GitHub at most once a day for a newer release. It sends nothing about you or your alarms, and you can switch it off in About, then Updates.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="after-table">Read the full <a href="privacy.html">privacy policy</a> and the <a href="https://github.com/riyadmondol2006/WakeNudge/blob/main/docs/PERMISSIONS.md">list of every permission and why it exists</a>.</p>
+  </div>
+</section>
+
+<section id="download" aria-labelledby="download-h">
+  <div class="wrap">
+    <div class="dl">
+      <h2 id="download-h">Download WakeNudge</h2>
+      <p><strong>Latest release (APK):</strong> every release on GitHub includes a signed <code>WakeNudge-&lt;version&gt;.apk</code> for direct install, the <code>.aab</code> bundle, the R8 mapping file and a <code>SHA256SUMS.txt</code> to verify your download.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="https://github.com/riyadmondol2006/WakeNudge/releases/latest">Get the latest APK from GitHub</a>
+        <a class="btn btn-ghost" href="https://github.com/riyadmondol2006/WakeNudge/releases">All releases</a>
+      </div>
+      <p>To install, open the file on your phone and allow "Install unknown apps" for your browser or file manager when Android asks. To check it first:</p>
+      <pre><code>sha256sum -c SHA256SUMS.txt --ignore-missing</code></pre>
+      <p><strong>Google Play:</strong> the listing is being prepared and is not published yet. This page will link to it when it is live. Requires Android 8.0 (API 26) or newer.</p>
+    </div>
+  </div>
+</section>
+
+<section id="faq" aria-labelledby="faq-h">
+  <div class="wrap">
+    <h2 id="faq-h">Frequently asked questions</h2>
+    <details>
+      <summary>Is WakeNudge really free and open source?</summary>
+      <p>Yes. It is released under the Apache License 2.0, with no ads, no subscription, no in-app purchases and no account. The full source code is on GitHub.</p>
+    </details>
+    <details>
+      <summary>Is WakeNudge really offline?</summary>
+      <p>The alarm clock itself never needs the internet. The Google Play build, once it is published, declares no network permission at all, and the build fails if that ever changes. The APK on GitHub holds only the INTERNET permission, used for a small update popup that checks GitHub at most once a day to see whether a newer release exists. It sends nothing about you or your alarms, and you can switch it off in About, then Updates.</p>
+    </details>
+    <details>
+      <summary>Will the alarm ring if my phone is switched off?</summary>
+      <p>No app can ring a phone that is powered off. If the phone was off when an alarm was due, WakeNudge rings straight away on start-up if the alarm was due within the last 10 minutes. Otherwise it records the alarm as missed and shows a notification.</p>
+    </details>
+    <details>
+      <summary>Does it work on Samsung, Xiaomi, OnePlus and other phones?</summary>
+      <p>WakeNudge uses Android's standard alarm-clock APIs, but it has only been tested on a Pixel 6 Pro running Android 17. Some manufacturers add battery managers that can restrict background apps. Open Alarm Health in the app, follow its fixes, ring the test alarm with your screen locked, and report what happens on your phone.</p>
+    </details>
+    <details>
+      <summary>I am a heavy sleeper. What should I turn on?</summary>
+      <p>Use a mission that gets you out of bed, such as scanning a QR code or tapping an NFC tag placed away from the bed, or walking steps. Turn on the still-awake check, Extra Loud mode and the volume ramp, limit snoozes, and keep the backup alarm on. No app can guarantee a wake-up, so also run the test alarm once.</p>
+    </details>
+    <details>
+      <summary>Can a mission trap me?</summary>
+      <p>No. Every restriction can be bypassed with the Emergency stop, a press-and-hold button on the ring screen. A mission that cannot be done on your phone, for example because there is no camera or permission was refused, offers a Continue button instead.</p>
+    </details>
+    <details>
+      <summary>How do updates work?</summary>
+      <p>The GitHub APK shows a popup when a newer release exists, and you install it yourself from the release page. You can turn the check off in About, then Updates. The Google Play build has no update code, so Google Play will update it once it is published.</p>
+    </details>
+    <details>
+      <summary>Which Android versions are supported?</summary>
+      <p>Android 8.0 (API 26) and newer. It has been verified on a physical device only on Android 17, so older versions are covered by tests but not yet by hardware.</p>
+    </details>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <ul>
+      <li><a href="https://github.com/riyadmondol2006/WakeNudge">Source on GitHub</a></li>
+      <li><a href="https://github.com/riyadmondol2006/WakeNudge/releases">Releases</a></li>
+      <li><a href="https://github.com/riyadmondol2006/WakeNudge/issues">Report a problem</a></li>
+      <li><a href="https://github.com/riyadmondol2006/WakeNudge/blob/main/CHANGELOG.md">Changelog</a></li>
+      <li><a href="privacy.html">Privacy policy</a></li>
+      <li><a href="https://github.com/riyadmondol2006/WakeNudge/security/policy">Security policy</a></li>
+    </ul>
+    <p>WakeNudge is free software under the <a href="https://github.com/riyadmondol2006/WakeNudge/blob/main/LICENSE">Apache License 2.0</a>. Copyright 2026 riyadm.</p>
+    <p>This page uses no cookies, trackers, web fonts or JavaScript.</p>
+  </div>
+</footer>
+</body>
+</html>

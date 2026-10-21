@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use WakeNudge in research or reference it, please cite it as below."
+type: software
+title: "WakeNudge: Alarm Clock"
+abstract: >-
+  WakeNudge is a free, open-source alarm clock for Android with wake-up missions (math, memory, typing, QR code, NFC,
+  shake, steps, squats, puzzles, photo), a still-awake check, an anti-oversleep toolkit with an emergency stop, and an
+  Alarm Health checkup. It works offline, with no ads, accounts or tracking.
+authors:
+  - name: "riyadm (riyadmondol2006)"
+repository-code: "https://github.com/riyadmondol2006/WakeNudge"
+url: "https://riyadmondol2006.github.io/WakeNudge/"
+license: Apache-2.0
+keywords:
+  - android
+  - alarm clock
+  - wake-up missions
+  - open source
+  - offline
+  - privacy
+  - kotlin
+  - jetpack compose
