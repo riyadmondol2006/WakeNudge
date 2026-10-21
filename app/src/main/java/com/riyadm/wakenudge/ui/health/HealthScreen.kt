@@ -38,6 +38,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -65,6 +66,7 @@ import com.riyadm.wakenudge.ui.theme.ClockType
 import com.riyadm.wakenudge.ui.theme.PolygonShape
 import java.text.DateFormat
 import java.util.Date
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -178,7 +180,16 @@ private fun TestAlarmCard(armedAt: Long, onTest10: () -> Unit, onTest60: () -> U
                 Button(onClick = onTest10) { Text(stringResource(R.string.health_test_10)) }
                 OutlinedButton(onClick = onTest60) { Text(stringResource(R.string.health_test_60)) }
             }
-            if (armedAt > System.currentTimeMillis()) {
+            // Re-evaluated when the test alarm's moment passes, so "will ring at" never outlives the ring.
+            var now by remember(armedAt) { mutableLongStateOf(System.currentTimeMillis()) }
+            LaunchedEffect(armedAt) {
+                val wait = armedAt - System.currentTimeMillis()
+                if (wait > 0) {
+                    delay(wait + 250)
+                    now = System.currentTimeMillis()
+                }
+            }
+            if (armedAt > now) {
                 Text(
                     stringResource(R.string.health_test_armed, DateFormat.getTimeInstance(DateFormat.MEDIUM).format(Date(armedAt))),
                     style = MaterialTheme.typography.bodyMedium, color = scheme.primary,

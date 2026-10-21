@@ -54,7 +54,10 @@ class BackupViewModel @Inject constructor(
                     BackupUiState(
                         message = BackupMessage(
                             R.string.backup_restore_done,
-                            listOf(c.alarms, c.groups),
+                            listOf(
+                                context.resources.getQuantityString(R.plurals.backup_restore_alarms, c.alarms, c.alarms),
+                                context.resources.getQuantityString(R.plurals.backup_restore_profiles, c.groups, c.groups),
+                            ),
                             result.warnings.map { it.text(context) },
                         ),
                     )

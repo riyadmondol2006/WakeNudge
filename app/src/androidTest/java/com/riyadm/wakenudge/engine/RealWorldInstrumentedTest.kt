@@ -135,6 +135,14 @@ class RealWorldInstrumentedTest {
         assertNotNull(history.findOccurrence(id, at))
     }
 
+    @Test fun theFirstSavedAlarmOnAFreshInstallArmsTheWatchdog() = runBlocking {
+        pending.cancel(TriggerKind.WATCHDOG, 0)                    // what a fresh install looks like
+        assertFalse(pending.isScheduled(TriggerKind.WATCHDOG, 0))
+        val id = alarms.save(Alarm(label = "first", hour = 6, minute = 30, repeatDaysMask = Alarm.EVERY_DAY_MASK))
+        scheduler.schedule(id)
+        assertTrue("the safety net is armed once an alarm exists", pending.isScheduled(TriggerKind.WATCHDOG, 0))
+    }
+
     @Test fun aLateDuplicateTriggerCannotOverrideASnooze() = runBlocking {
         val id = alarms.save(Alarm(label = "snz", hour = 7, minute = 0, repeatDaysMask = Alarm.EVERY_DAY_MASK))
         val at = time.nowMillis()

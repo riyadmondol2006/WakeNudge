@@ -144,6 +144,8 @@ class AlarmSchedulerImpl @Inject constructor(
             val map = runtime.registeredTriggers().toMutableMap()
             if (at == null) map.remove(alarmId) else map[alarmId] = at
             runtime.setRegisteredTriggers(map)
+            // A fresh install has no watchdog until something calls rescheduleAll; the first saved alarm must not wait for a reboot.
+            if (!pending.isScheduled(TriggerKind.WATCHDOG, 0)) scheduleWatchdog(time.nowMillis())
         }
         surfaces.refreshAll()
     }
