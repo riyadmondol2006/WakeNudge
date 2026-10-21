@@ -20,11 +20,11 @@
     <string name="update_last_checked">Last checked %1$s</string>
     <string name="update_never_checked">Not checked yet</string>
     <string name="update_disclosure_title">What this contacts</string>
-    <string name="update_disclosure">WakeNudge asks GitHub (api.github.com) for the latest release when you open the app, at most once a day, and when you tap Check now. Nothing about you or your alarms is sent, though GitHub sees your IP address like any website. The Google Play version of WakeNudge never does this.</string>
+    <string name="update_disclosure">WakeNudge asks GitHub (api.github.com) for the latest release when you open the app, at most once a day, and when you tap Check now. Nothing about you or your alarms is sent, though GitHub sees your IP address like any website.</string>
 
     <!-- This build has the internet permission, so the offline claims in the shared strings are reworded. -->
     <string name="about_offline">Works offline</string>
-    <string name="about_offline_body">Alarms, timers and everything else run on this phone. The only thing that goes online is the optional update check below, which you can switch off.</string>
+    <string name="about_offline_body">Alarms, timers and everything else run on this phone. The only thing that goes online is the optional update check under Updates, which you can switch off.</string>
     <string name="about_no_tracking_body">There is nothing to sign up for and nothing to pay. Your alarms and history stay on this phone, and the update check sends nothing about you.</string>
     <string name="about_permissions_body">Camera, activity recognition, NFC and calendar are requested only when you use a feature that needs them. This version also has internet access, used only for the optional update check.</string>
     <string name="onboarding_privacy_body">No ads, no accounts, no tracking. The only time WakeNudge goes online is an optional once-a-day update check, which you can switch off in About. Everything else stays on your phone.</string>

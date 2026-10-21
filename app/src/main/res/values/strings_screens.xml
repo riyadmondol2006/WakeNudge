@@ -127,13 +127,10 @@
     <string name="settings_emergency_hold_hint">How long the Emergency stop button must be held.</string>
     <string name="settings_defaults">New alarm defaults</string>
     <string name="settings_defaults_hint">Sound, volume, vibration, snooze and anti-oversleep for new alarms.</string>
-    <string name="settings_schedule">Schedule</string>
     <string name="settings_vacation">Vacation mode</string>
     <string name="settings_vacation_hint">Pause every alarm that is not marked to ring anyway.</string>
     <string name="settings_vacation_resume">Resume on</string>
     <string name="settings_vacation_manual">When I switch it off</string>
-    <string name="settings_exceptions">Holidays and exceptions</string>
-    <string name="settings_exceptions_hint">Days your repeating alarms stay quiet.</string>
     <string name="settings_groups">Profiles</string>
     <string name="settings_groups_hint">Switch groups of alarms on and off together.</string>
     <string name="settings_sleep">Sleep and bedtime</string>

@@ -1,6 +1,7 @@
 package com.riyadm.wakenudge.ui
 
 import android.content.Intent
+import android.util.Log
 import android.provider.AlarmClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -18,6 +19,7 @@ import com.riyadm.wakenudge.update.UpdateChecker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.DayOfWeek
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -59,15 +61,27 @@ class MainViewModel @Inject constructor(
     fun handleIntent(intent: Intent?) {
         intent ?: return
         viewModelScope.launch {
-            when (intent.action) {
-                MainActivity.ACTION_SHOW_ALARMS, AlarmClock.ACTION_SHOW_ALARMS -> _commands.send(AlarmsRoute)
-                MainActivity.ACTION_SHOW_TIMERS, AlarmClock.ACTION_SHOW_TIMERS -> _commands.send(TimerRoute)
-                MainActivity.ACTION_SHOW_SLEEP -> _commands.send(SleepRoute)
-                // A long-press on the Quick Settings tile lands on the alarm list.
-                ACTION_QS_TILE_PREFERENCES -> _commands.send(AlarmsRoute)
-                AlarmClock.ACTION_SET_ALARM -> setAlarmFromIntent(intent)
-                AlarmClock.ACTION_SET_TIMER -> setTimerFromIntent(intent)
+            // MainActivity is exported, so any app can hand it any Bundle. Reading a malformed one (for example an
+            // unparcelable extra) throws, and that must never take the app down: such an intent is simply ignored.
+            try {
+                dispatch(intent)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
+                Log.w(TAG, "Ignored a malformed intent", t)
             }
+        }
+    }
+
+    private suspend fun dispatch(intent: Intent) {
+        when (intent.action) {
+            MainActivity.ACTION_SHOW_ALARMS, AlarmClock.ACTION_SHOW_ALARMS -> _commands.send(AlarmsRoute)
+            MainActivity.ACTION_SHOW_TIMERS, AlarmClock.ACTION_SHOW_TIMERS -> _commands.send(TimerRoute)
+            MainActivity.ACTION_SHOW_SLEEP -> _commands.send(SleepRoute)
+            // A long-press on the Quick Settings tile lands on the alarm list.
+            ACTION_QS_TILE_PREFERENCES -> _commands.send(AlarmsRoute)
+            AlarmClock.ACTION_SET_ALARM -> setAlarmFromIntent(intent)
+            AlarmClock.ACTION_SET_TIMER -> setTimerFromIntent(intent)
         }
     }
 
@@ -108,3 +122,5 @@ class MainViewModel @Inject constructor(
         _commands.send(TimerRoute)
     }
 }
+
+private const val TAG = "MainViewModel"

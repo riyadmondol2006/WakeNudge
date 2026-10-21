@@ -54,8 +54,17 @@ class ProjectLinksUiTest {
     }
 
     @Test fun bothWelcomeLinksFitOnANarrowScreenWithoutClipping() {
+        // The welcome pages scroll, so even the smallest supported phone can reach both links without them being cut off.
         compose.setContent {
             WakeNudgeTheme { Box(Modifier.size(320.dp, 640.dp)) { OnboardingScreen(onFinish = {}, openLink = { opened += it }) } }
+        }
+        compose.onNodeWithText("Open source · github.com/riyadmondol2006/WakeNudge").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("wakenudge.site").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun bothWelcomeLinksAreVisibleWithoutScrollingOnAnOrdinaryPhone() {
+        compose.setContent {
+            WakeNudgeTheme { Box(Modifier.size(393.dp, 851.dp)) { OnboardingScreen(onFinish = {}, openLink = { opened += it }) } }
         }
         compose.onNodeWithText("Open source · github.com/riyadmondol2006/WakeNudge").assertIsDisplayed()
         compose.onNodeWithText("wakenudge.site").assertIsDisplayed()

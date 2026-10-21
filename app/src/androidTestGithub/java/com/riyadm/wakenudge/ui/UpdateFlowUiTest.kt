@@ -7,6 +7,8 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.riyadm.wakenudge.HiltTestActivity
@@ -69,6 +71,16 @@ class UpdateFlowUiTest {
 
     private fun scrollAboutTo(text: String) {
         compose.onNode(hasScrollAction()).performScrollToNode(hasText(text))
+    }
+
+    /**
+     * For rows that a touch has to hit: scrolling to a node leaves it at the very top, under the app bar, where a touch
+     * (unlike a real user's) would land on the bar instead of the row. Move it into the middle of the screen first.
+     */
+    private fun scrollAboutToMidScreen(text: String) {
+        scrollAboutTo(text)
+        compose.onNode(hasScrollAction()).performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, -500f) }
+        compose.waitForIdle()
     }
 
     @Test fun anUpdateFoundOnStartIsAnnouncedAndSkippingItIsRemembered() {
@@ -152,7 +164,7 @@ class UpdateFlowUiTest {
 
     @Test fun theSwitchIsStoredAndStopsAutomaticChecks() {
         compose.setContent { WakeNudgeTheme { AboutScreen(onBack = {}) } }
-        scrollAboutTo("Check for updates")
+        scrollAboutToMidScreen("Check for updates")
         compose.onNodeWithText("Check for updates").performClick()
         compose.waitUntil(5_000) { !runBlocking { settings.current().updateChecksEnabled } }
 
