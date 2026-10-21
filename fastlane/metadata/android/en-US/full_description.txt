@@ -1,0 +1,44 @@
+WakeNudge is a free, open-source alarm clock that makes sure you actually get up. It is built for heavy sleepers, shift workers, students and anyone who has ever slept through an alarm, and it works completely offline: no ads, no accounts, no subscriptions, no tracking and no internet permission at all.
+
+WHY WAKENUDGE
+• Rings when it should: exact alarms that work on the lock screen, in silent mode, after a restart and through time-zone and daylight-saving changes
+• Missions that wake your brain, not just your ears
+• A gentle design that follows your wallpaper colours (Material You), with light, dark and AMOLED themes
+• Open source under the Apache 2.0 licence
+
+WAKE-UP MISSIONS
+Solve to dismiss: math problems, memory patterns, typing a sentence, scanning a QR code or barcode, tapping an NFC tag, shaking your phone, walking steps, doing squats, puzzles, or photographing the same spot you set up the night before. Pick the difficulty, chain several missions, preview them first, or use Solve to Snooze.
+
+STILL AWAKE? CHECK
+After you dismiss, WakeNudge asks if you are still awake a few minutes later and rings again if you do not answer. It survives restarts, and you can cancel it whenever you like.
+
+A SOUND THAT WAKES YOU UP
+• 12 loudness-balanced tones, or your own music from your phone
+• Volume ramp-up, Extra Loud mode and an alarm that intensifies if you ignore it
+• Strong vibration patterns, or record your own rhythm
+• Spoken announcements using your phone's offline text-to-speech
+• Sunrise mode and a backup alarm
+• Hearing-safety limit on headphones. Your alarm volume is restored afterwards
+
+STOP OVERSLEEPING
+Snooze limits that shrink, hold-to-dismiss, protection against accidental dismissal, optional lock on last-minute edits, extra backup rings, and a morning dashboard with history and streaks. Everything can be switched off, and an Emergency stop is always one press-and-hold away, so the app never traps you.
+
+PLAN YOUR DAYS
+Unlimited alarms with labels and repeat days, groups like Work and Weekend, skip next ring, vacation mode, holiday and calendar exceptions, bedtime reminders and a sleep planner based on sleep cycles.
+
+CLOCK TOOLS
+Timer, stopwatch with laps, world clock, live countdown to your next alarm, home-screen widgets and a Quick Settings tile.
+
+ALARM HEALTH
+A built-in checkup shows whether notifications, full-screen alerts, exact alarms, battery settings, Do Not Disturb and audio routing could stop an alarm, tells you how to fix each, and lets you ring a real test alarm.
+
+BACKUP AND RESTORE
+Save your alarms and settings to a file you choose and restore them on a new phone. Nothing is uploaded.
+
+PRIVACY
+No account. No ads. No analytics. No internet permission. Permissions such as camera, step counter and calendar are asked for only when you use the feature that needs them.
+
+A NOTE ON RELIABILITY
+No app can override a phone that is switched off, and some manufacturers restrict background apps aggressively. WakeNudge uses the system alarm-clock APIs and tells you in Alarm health if something on your phone could get in the way.
+
+Free and open source. Wake up on purpose.
