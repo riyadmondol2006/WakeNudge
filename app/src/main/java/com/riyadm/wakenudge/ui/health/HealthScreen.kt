@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.ui.health
 
+import androidx.compose.ui.platform.LocalResources
 import android.content.ClipData
 import android.content.Intent
 import android.widget.Toast
@@ -72,6 +73,7 @@ fun HealthScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: H
     val events by viewModel.events.collectAsStateWithLifecycle()
     val testArmedAt by viewModel.testArmedAt.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val resources = LocalResources.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     var showEvents by remember { mutableStateOf(false) }
@@ -116,7 +118,7 @@ fun HealthScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: H
                                 scope.launch {
                                     val text = viewModel.buildReport()
                                     val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
-                                    context.startActivity(Intent.createChooser(send, context.getString(R.string.health_share)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                                    context.startActivity(Intent.createChooser(send, resources.getString(R.string.health_share)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                                 }
                             }) {
                                 Icon(Icons.Outlined.Share, null, Modifier.padding(end = 8.dp).size(18.dp))

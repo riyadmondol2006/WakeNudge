@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.ui
 
+import androidx.compose.ui.platform.LocalResources
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
@@ -101,6 +102,7 @@ fun WakeNudgeRoot(viewModel: MainViewModel) {
 private fun MainNav(viewModel: MainViewModel) {
     val nav = rememberNavController()
     val context = LocalContext.current
+    val resources = LocalResources.current
     val entry by nav.currentBackStackEntryAsState()
     val destination = entry?.destination
     val current = TopLevel.entries.firstOrNull { tab -> destination?.hierarchy?.any { it.hasRoute(tab.routeClass) } == true }
@@ -111,7 +113,7 @@ private fun MainNav(viewModel: MainViewModel) {
         }
     }
     LaunchedEffect(viewModel) {
-        viewModel.toasts.collect { Toast.makeText(context, context.getString(it), Toast.LENGTH_SHORT).show() }
+        viewModel.toasts.collect { Toast.makeText(context, resources.getString(it), Toast.LENGTH_SHORT).show() }
     }
 
     NavigationSuiteScaffold(

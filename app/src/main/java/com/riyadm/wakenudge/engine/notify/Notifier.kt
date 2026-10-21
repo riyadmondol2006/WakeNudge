@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.engine.notify
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,7 +8,10 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
+import androidx.core.content.ContextCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.riyadm.wakenudge.MainActivity
@@ -178,12 +182,12 @@ class Notifier @Inject constructor(
     }
 
     fun postRing(session: RingSession, alertAgain: Boolean = false) {
-        runCatching { manager.notify(NotificationIds.RING, ring(session, alertAgain)) }
+        post(NotificationIds.RING, ring(session, alertAgain))
     }
 
     /** Last-resort heads-up when the foreground service could not be started. */
     fun postRingFallback() {
-        runCatching { manager.notify(NotificationIds.RING, ringPlaceholder()) }
+        post(NotificationIds.RING, ringPlaceholder())
     }
 
     /** Placeholder shown within the 5-second foreground-service deadline, before the session is loaded. */
@@ -218,7 +222,7 @@ class Notifier @Inject constructor(
         if (alarm.missions.isEmpty()) {
             b.addAction(0, context.getString(R.string.action_dismiss), broadcast(Actions.DISMISS, alarm.id))
         }
-        runCatching { manager.notify(NotificationIds.snoozed(alarm.id), b.build()) }
+        post(NotificationIds.snoozed(alarm.id), b.build())
     }
 
     fun cancelSnoozed(alarmId: Long) = manager.cancel(NotificationIds.snoozed(alarmId))
@@ -232,7 +236,7 @@ class Notifier @Inject constructor(
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)
             .setContentIntent(mainIntent(alarm.id))
-        runCatching { manager.notify(NotificationIds.missed(alarm.id), b.build()) }
+        post(NotificationIds.missed(alarm.id), b.build())
     }
 
     fun showUpcoming(alarm: Alarm, atMillis: Long, canSkip: Boolean) {
@@ -246,7 +250,7 @@ class Notifier @Inject constructor(
             .setTimeoutAfter((atMillis - System.currentTimeMillis()).coerceAtLeast(1_000))
             .setContentIntent(mainIntent(alarm.id))
         if (canSkip) b.addAction(0, context.getString(R.string.action_skip_next), broadcast(Actions.SKIP_NEXT, alarm.id))
-        runCatching { manager.notify(NotificationIds.upcoming(alarm.id), b.build()) }
+        post(NotificationIds.upcoming(alarm.id), b.build())
     }
 
     fun cancelUpcoming(alarmId: Long) = manager.cancel(NotificationIds.upcoming(alarmId))
@@ -278,7 +282,7 @@ class Notifier @Inject constructor(
             .setFullScreenIntent(full, true)
             .addAction(0, context.getString(R.string.action_im_awake), broadcast(Actions.WAKE_CHECK_OK, alarm.id))
             .addAction(0, context.getString(R.string.action_cancel_check), broadcast(Actions.WAKE_CHECK_CANCEL, alarm.id))
-        runCatching { manager.notify(NotificationIds.wakeCheck(alarm.id), b.build()) }
+        post(NotificationIds.wakeCheck(alarm.id), b.build())
     }
 
     fun cancelWakeCheck(alarmId: Long) = manager.cancel(NotificationIds.wakeCheck(alarmId))
@@ -304,7 +308,7 @@ class Notifier @Inject constructor(
             b.addAction(0, context.getString(R.string.action_resume), broadcast(Actions.TIMER_RESUME, timer.id))
         }
         b.addAction(0, context.getString(R.string.action_reset), broadcast(Actions.TIMER_RESET, timer.id))
-        runCatching { manager.notify(NotificationIds.timer(timer.id), b.build()) }
+        post(NotificationIds.timer(timer.id), b.build())
     }
 
     fun cancelTimer(timerId: Long) = manager.cancel(NotificationIds.timer(timerId))
@@ -323,10 +327,18 @@ class Notifier @Inject constructor(
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
             .setContentIntent(mainIntent(0, MainActivity.ACTION_SHOW_SLEEP))
-        runCatching { manager.notify(NotificationIds.BEDTIME, b.build()) }
+        post(NotificationIds.BEDTIME, b.build())
     }
 
     // ---- plumbing ------------------------------------------------------------------------------------------
+
+    /** Posts only when the user has allowed notifications (Android 13+); never throws. */
+    private fun post(id: Int, notification: Notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) return
+        runCatching { manager.notify(id, notification) }
+    }
 
     private fun is24Hour(): Boolean = TimeText.is24Hour(context, timeFormat)
 
