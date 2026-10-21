@@ -1,3 +1,4 @@
+import com.android.build.api.artifact.SingleArtifact
 import java.util.Properties
 
 plugins {
@@ -15,6 +16,22 @@ val keystoreProps = Properties().apply {
 }
 fun signingValue(propKey: String, envKey: String): String? =
     keystoreProps.getProperty(propKey) ?: System.getenv(envKey)
+
+/** Fails the build if the merged manifest of any variant requests network permissions: WakeNudge is offline-only. */
+abstract class VerifyOfflineManifestTask : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val mergedManifest: RegularFileProperty
+
+    @TaskAction
+    fun verify() {
+        val text = mergedManifest.get().asFile.readText()
+        val declared = Regex("""<uses-permission[^>]*android:name="([^"]+)"""").findAll(text).map { it.groupValues[1] }.toSet()
+        val forbidden = setOf("android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE", "android.permission.ACCESS_WIFI_STATE")
+        val offending = declared.intersect(forbidden)
+        check(offending.isEmpty()) { "Network permissions are forbidden in WakeNudge but the merged manifest declares: $offending" }
+    }
+}
 
 android {
     namespace = "com.riyadm.wakenudge"
@@ -88,6 +105,16 @@ android {
     sourceSets {
         // Room exports schemas here so migrations can be verified.
         getByName("androidTest").assets.directories.add("$projectDir/schemas")
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        val capName = variant.name.replaceFirstChar { it.uppercase() }
+        val verify = tasks.register<VerifyOfflineManifestTask>("verifyOfflineManifest$capName") {
+            mergedManifest.set(variant.artifacts.get(SingleArtifact.MERGED_MANIFEST))
+        }
+        tasks.matching { it.name == "check" }.configureEach { dependsOn(verify) }
     }
 }
 

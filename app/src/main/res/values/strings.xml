@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- app_name is generated per build type in app/build.gradle.kts -->
+
+    <!-- Notification channels -->
+    <string name="channel_ring">Ringing alarms</string>
+    <string name="channel_ring_desc">The full-screen alarm that wakes you up.</string>
+    <string name="channel_upcoming">Upcoming alarms</string>
+    <string name="channel_upcoming_desc">A heads-up shortly before an alarm, with a quick way to skip it.</string>
+    <string name="channel_snoozed">Snoozed alarms</string>
+    <string name="channel_snoozed_desc">Shows when a snoozed alarm will ring again.</string>
+    <string name="channel_missed">Missed alarms</string>
+    <string name="channel_missed_desc">Tells you about alarms that went unanswered or were missed while the phone was off.</string>
+    <string name="channel_wake_check">Still awake? checks</string>
+    <string name="channel_wake_check_desc">Asks you to confirm you are really up after dismissing an alarm.</string>
+    <string name="channel_timer_running">Running timers</string>
+    <string name="channel_timer_running_desc">Live countdown for timers in progress.</string>
+    <string name="channel_timer_done">Finished timers</string>
+    <string name="channel_timer_done_desc">Shown when a timer finishes.</string>
+    <string name="channel_bedtime">Bedtime reminders</string>
+    <string name="channel_bedtime_desc">A nudge to wind down so you get enough sleep.</string>
+
+    <!-- Notifications -->
+    <string name="notif_alarm_default_title">Alarm</string>
+    <string name="timer_default_name">Timer</string>
+    <string name="notif_timer_done_text">Time\'s up</string>
+    <string name="notif_sunrise_text">Sunrise is starting…</string>
+    <string name="notif_snoozed_title">%1$s · snoozed</string>
+    <string name="notif_snoozed_text">Rings again at %1$s</string>
+    <string name="notif_missed_title">Missed alarm</string>
+    <string name="notif_missed_text">%1$s (%2$s) did not get a response.</string>
+    <string name="notif_upcoming_title">Alarm at %1$s</string>
+    <string name="notif_wake_check_title">Still awake?</string>
+    <string name="notif_wake_check_text">Confirm now, or %1$s rings again.</string>
+    <string name="notif_timer_paused">Paused · %1$s left</string>
+    <string name="notif_bedtime_title">Time to wind down</string>
+    <string name="notif_bedtime_text">Your bedtime is %1$s.</string>
+    <string name="notif_bedtime_text_with_alarm">Bedtime is %1$s — your next alarm is at %2$s.</string>
+
+    <string name="action_snooze">Snooze</string>
+    <string name="action_dismiss">Dismiss</string>
+    <string name="action_solve_to_dismiss">Solve to dismiss</string>
+    <string name="action_stop">Stop</string>
+    <string name="action_add_minute">+1:00</string>
+    <string name="action_wake_now">Wake me now</string>
+    <string name="action_skip_next">Skip this one</string>
+    <string name="action_im_awake">I\'m awake</string>
+    <string name="action_cancel_check">Cancel check</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_resume">Resume</string>
+    <string name="action_reset">Reset</string>
+
+    <!-- Voice announcements (spoken by text-to-speech) -->
+    <string name="tts_announce_time">It\'s %1$s.</string>
+    <string name="tts_announce_label">%1$s.</string>
+    <string name="tts_announce_default">Time to wake up.</string>
+
+    <!-- Bundled tones -->
+    <string name="tone_sunrise">Sunrise</string>
+    <string name="tone_ember">Ember</string>
+    <string name="tone_chime">Morning chime</string>
+    <string name="tone_kalimba">Kalimba dew</string>
+    <string name="tone_bell">Bell tower</string>
+    <string name="tone_marimba">Marimba run</string>
+    <string name="tone_pulse">Pulse</string>
+    <string name="tone_radar">Radar sweep</string>
+    <string name="tone_digital">Digital beeps</string>
+    <string name="tone_classic">Classic bell</string>
+    <string name="tone_beacon">Beacon</string>
+    <string name="tone_siren">Siren</string>
+    <string name="tone_intensify">Escalation layer</string>
+    <string name="tone_backup">Backup alarm</string>
+</resources>
