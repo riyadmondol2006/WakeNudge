@@ -122,7 +122,13 @@ class AlarmEditViewModel @Inject constructor(
 
     suspend fun save(): SaveOutcome {
         val s = _state.value
-        val result = actions.save(s.draft.copy(enabled = true), overrideLock = s.lockOverridden || s.lockedMinutes == null)
+        val original = stored
+        val d = s.draft
+        // Setting a time or schedule means "ring for me" (enable); fixing a typo in the label of an alarm the user
+        // switched off must not quietly turn it back on.
+        val scheduleChanged = original == null || original.hour != d.hour || original.minute != d.minute ||
+            original.repeatDaysMask != d.repeatDaysMask || original.oneTimeEpochDay != d.oneTimeEpochDay
+        val result = actions.save(d.copy(enabled = if (scheduleChanged) true else original!!.enabled), overrideLock = s.lockOverridden || s.lockedMinutes == null)
         return when (result) {
             is ActionResult.Locked -> SaveOutcome.Locked(result.minutes)
             else -> {

@@ -53,13 +53,27 @@ class HealthViewModel @Inject constructor(
     }
 }
 
-/** Tiny view model behind the red/amber dot on the Alarms screen's health icon. */
+/** Tiny view model behind the dot on the Alarms screen's health icon and the "fix this now" banner. */
 @HiltViewModel
 class HealthBadgeViewModel @Inject constructor(private val checker: HealthChecker) : ViewModel() {
     private val _worst = MutableStateFlow(Severity.OK)
     val worst: StateFlow<Severity> = _worst.asStateFlow()
 
+    private val _urgent = MutableStateFlow<com.riyadm.wakenudge.health.HealthItem?>(null)
+
+    /** The most serious problem that can stop an alarm from showing or sounding, if any. */
+    val urgent: StateFlow<com.riyadm.wakenudge.health.HealthItem?> = _urgent.asStateFlow()
+
     fun refresh() {
-        viewModelScope.launch { _worst.value = checker.check().worstSeverity }
+        viewModelScope.launch {
+            val report = checker.check()
+            _worst.value = report.worstSeverity
+            _urgent.value = report.bySeverity.firstOrNull { it.severity >= Severity.WARNING && it.id in URGENT_IDS && it.fix != null }
+        }
+    }
+
+    private companion object {
+        /** Problems the user can fix in one tap and that directly affect whether the alarm is seen or heard. */
+        val URGENT_IDS = setOf("notifications", "ring_channel", "full_screen", "dnd", "alarm_volume")
     }
 }

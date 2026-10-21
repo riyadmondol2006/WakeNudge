@@ -36,6 +36,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
@@ -65,6 +67,8 @@ fun SlideToDismiss(
     val scope = rememberCoroutineScope()
     val offset = remember { Animatable(0f) }
     var armed by remember { mutableStateOf(false) }
+    // In right-to-left languages the thumb starts on the right and travels left; [offset] is always "progress".
+    val direction = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1 else 1
     val thumb = 64.dp
     val inset = 4.dp
 
@@ -95,14 +99,14 @@ fun SlideToDismiss(
         Box(
             Modifier
                 .padding(inset)
-                .offset { IntOffset(offset.value.roundToInt(), 0) }
+                .offset { IntOffset(direction * offset.value.roundToInt(), 0) }
                 .size(thumb)
                 .clip(PolygonShape(Blobs.Cookie))
                 .background(MaterialTheme.colorScheme.onPrimary)
                 .draggable(
                     orientation = Orientation.Horizontal,
                     state = rememberDraggableState { delta ->
-                        val next = (offset.value + delta).coerceIn(0f, maxOffset)
+                        val next = (offset.value + direction * delta).coerceIn(0f, maxOffset)
                         scope.launch { offset.snapTo(next) }
                         val nowArmed = next >= maxOffset * 0.8f
                         if (nowArmed && !armed) haptics.threshold()

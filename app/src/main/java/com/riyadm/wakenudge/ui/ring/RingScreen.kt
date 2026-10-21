@@ -23,6 +23,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -156,24 +159,29 @@ fun RingScreen(
         )
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
             val wide = maxWidth > maxHeight && maxWidth > 600.dp
+            val viewport = maxHeight
             if (wide) {
                 Row(Modifier.fillMaxSize().padding(24.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-                    Column(Modifier.weight(1f).fillMaxSize(), verticalArrangement = Arrangement.Center) {
+                    Column(Modifier.weight(1f).fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.Center) {
                         Header(session, settings, now)
                     }
-                    Column(Modifier.weight(1f).fillMaxSize(), verticalArrangement = Arrangement.Center) {
+                    Column(Modifier.weight(1f).fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.Center) {
                         Controls(session, settings, mode, { mode = it }, actions, missionContent, onBottom)
                     }
                 }
+            } else if (mode == RingMode.Home) {
+                // Scrollable so that large system fonts or a small screen can never push a control off the bottom.
+                Column(
+                    Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = viewport).padding(horizontal = 24.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Header(session, settings, now, compact = false)
+                    Controls(session, settings, mode, { mode = it }, actions, missionContent, onBottom)
+                }
             } else {
                 Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp)) {
-                    Header(session, settings, now, compact = mode != RingMode.Home)
-                    // At rest the controls hug the bottom; during missions they take all the remaining height.
-                    if (mode == RingMode.Home) Spacer(Modifier.weight(1f))
-                    Controls(
-                        session, settings, mode, { mode = it }, actions, missionContent, onBottom,
-                        if (mode == RingMode.Home) Modifier else Modifier.weight(1f),
-                    )
+                    Header(session, settings, now, compact = true)
+                    Controls(session, settings, mode, { mode = it }, actions, missionContent, onBottom, Modifier.weight(1f))
                 }
             }
         }

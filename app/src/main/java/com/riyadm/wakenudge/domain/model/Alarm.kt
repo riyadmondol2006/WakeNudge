@@ -37,7 +37,8 @@ data class Alarm(
     val createdAt: Long = 0,
     val updatedAt: Long = 0,
 ) {
-    val time: LocalTime get() = LocalTime.of(hour, minute)
+    /** Clamped, so a corrupt row can never make scheduling or the UI throw. */
+    val time: LocalTime get() = LocalTime.of(hour.coerceIn(0, 23), minute.coerceIn(0, 59))
     val isRepeating: Boolean get() = repeatDaysMask != 0
     val oneTimeDate: LocalDate? get() = oneTimeEpochDay?.let(LocalDate::ofEpochDay)
 

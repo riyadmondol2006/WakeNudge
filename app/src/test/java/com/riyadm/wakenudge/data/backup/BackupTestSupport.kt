@@ -67,6 +67,7 @@ class RecordingScheduler : AlarmScheduler {
 
     override suspend fun schedule(alarmId: Long, afterMillis: Long) = Unit
     override suspend fun cancel(alarmId: Long) = Unit
+    override suspend fun cancelFollowUps(alarmId: Long) = Unit
     override suspend fun nextAlarm(): NextAlarm? = null
     override suspend fun nextTriggerOf(alarmId: Long): Long? = null
     override suspend fun refreshBedtime() = Unit

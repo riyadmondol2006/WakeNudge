@@ -44,7 +44,7 @@ class AlarmActions @Inject constructor(
         val normalized = alarm.copy(
             hour = alarm.hour.coerceIn(0, 23),
             minute = alarm.minute.coerceIn(0, 59),
-            label = alarm.label.trim().take(MAX_LABEL),
+            label = alarm.label.trim().truncateCodePoints(MAX_LABEL),
             // Editing the schedule invalidates a pending "skip next".
             skipEpochDay = alarm.skipEpochDay,
         )
@@ -68,6 +68,8 @@ class AlarmActions @Inject constructor(
         alarms.setEnabled(id, enabled)
         if (enabled) alarms.setSkipDay(id, null)
         scheduler.schedule(id)
+        // Switching an alarm off means "stop bothering me": a pending snooze or backup must not ring afterwards.
+        if (!enabled) scheduler.cancelFollowUps(id)
         surfaces.refreshAll()
         return ActionResult.Done(Unit)
     }
@@ -117,6 +119,10 @@ class AlarmActions @Inject constructor(
         const val MAX_LABEL = 60
     }
 }
+
+/** Cuts at a code-point boundary so emoji and other supplementary characters are never split into garbage. */
+internal fun String.truncateCodePoints(maxCodePoints: Int): String =
+    if (codePointCount(0, length) <= maxCodePoints) this else substring(0, offsetByCodePoints(0, maxCodePoints))
 
 /** Lets the domain layer ask whether an alarm is ringing or snoozed without depending on the engine. */
 interface ActiveRingQuery {
