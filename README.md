@@ -21,6 +21,7 @@
 </p>
 
 <p align="center">
+  <a href="https://wakenudge.site"><strong>Website</strong></a> ·
   <a href="#download">Download</a> ·
   <a href="#wake-up-missions">Missions</a> ·
   <a href="#screenshots">Screenshots</a> ·
@@ -45,7 +46,7 @@ one press-and-hold away, so it can never trap you.
 | Where | Status |
 |---|---|
 | **GitHub Releases** (APK) | [**Download the latest release**](https://github.com/riyadmondol2006/WakeNudge/releases/latest). Every release carries `WakeNudge-<version>.apk` (install this one), `WakeNudge-<version>.aab` (the Play bundle), the R8 `mapping` file and `SHA256SUMS.txt`. |
-| **Google Play** | The listing is being prepared and is not published yet. This README will link to it when it is. |
+| **Website** | [wakenudge.site](https://wakenudge.site): overview, screenshots, install steps and the privacy policy in one page. |
 
 Needs **Android 8.0 (API 26) or newer**.
 
@@ -168,7 +169,6 @@ There are two ways to get WakeNudge, and they differ in exactly one respect:
 
 | Build | Network permission | What it does online |
 |---|---|---|
-| **Google Play** (in preparation) | None. The build fails if one ever appears. | Nothing. |
 | **APK from GitHub Releases** | `INTERNET` only | An **update popup** that checks GitHub at most once a day for a newer release. It sends nothing about you or your alarms, and you can switch it off in **About, then Updates**. |
 
 Both are built from this repository. Read the full [privacy policy](PRIVACY.md).
