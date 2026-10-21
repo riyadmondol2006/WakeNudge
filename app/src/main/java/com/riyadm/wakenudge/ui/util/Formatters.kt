@@ -90,3 +90,8 @@ fun rememberIs24Hour(preference: TimeFormat): Boolean {
     val context = LocalContext.current
     return remember(preference, context) { com.riyadm.wakenudge.core.TimeText.is24Hour(context, preference) }
 }
+
+/** The user's current locale, observed so formatted text updates when the language changes. */
+@androidx.compose.runtime.Composable
+@androidx.compose.runtime.ReadOnlyComposable
+fun currentLocale(): Locale = androidx.compose.ui.text.intl.Locale.current.platformLocale

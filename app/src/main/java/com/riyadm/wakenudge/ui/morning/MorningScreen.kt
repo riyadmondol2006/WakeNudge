@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.ui.morning
 
+import com.riyadm.wakenudge.ui.util.currentLocale
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -200,8 +201,9 @@ private fun StreakCard(current: Int, best: Int) {
 private fun WeekChart(week: List<DayBar>) {
     val scheme = MaterialTheme.colorScheme
     val max = (week.mapNotNull { it.dismissMinutes }.maxOrNull() ?: 10f).coerceAtLeast(10f)
+    val locale = currentLocale()
     val summary = week.joinToString("; ") { d ->
-        d.date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault()) + ": " + (d.dismissMinutes?.let { "%.0f min".format(it) } ?: "no alarm")
+        d.date.dayOfWeek.getDisplayName(TextStyle.FULL, locale) + ": " + (d.dismissMinutes?.let { "%.0f min".format(it) } ?: "no alarm")
     }
     Surface(shape = RoundedCornerShape(28.dp), color = scheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp)) {
@@ -225,7 +227,7 @@ private fun WeekChart(week: List<DayBar>) {
             Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
                 week.forEach { d ->
                     Text(
-                        d.date.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.getDefault()), style = MaterialTheme.typography.labelMedium,
+                        d.date.dayOfWeek.getDisplayName(TextStyle.NARROW, currentLocale()), style = MaterialTheme.typography.labelMedium,
                         color = scheme.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     )
                 }
@@ -280,7 +282,7 @@ private fun HistoryRow(event: AlarmEvent, is24: Boolean, zone: java.time.ZoneId)
                     style = MaterialTheme.typography.titleSmall,
                 )
                 val details = buildList {
-                    add(fired.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()) + " " + fired.dayOfMonth + " · " + TimeText.format(fired.toLocalTime(), is24))
+                    add(fired.dayOfWeek.getDisplayName(TextStyle.SHORT, currentLocale()) + " " + fired.dayOfMonth + " · " + TimeText.format(fired.toLocalTime(), is24))
                     event.dismissDurationMs?.let { if (event.outcome == AlarmOutcome.DISMISSED) add(TimeText.duration(it)) }
                     if (event.snoozeCount > 0) add(pluralStringResource(R.plurals.morning_snoozes, event.snoozeCount, event.snoozeCount))
                     if (event.backupFired) add(stringResource(R.string.badge_backup_fired))

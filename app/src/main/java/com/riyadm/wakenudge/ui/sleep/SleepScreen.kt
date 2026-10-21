@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.ui.sleep
 
+import com.riyadm.wakenudge.ui.util.currentLocale
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -187,7 +188,7 @@ private fun BedtimeSettingsCard(viewModel: SleepViewModel, is24: Boolean) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val bed = settings.bedtime
     var typing by remember { mutableStateOf(false) }
-    val firstDay = settings.firstDayOfWeek(java.time.temporal.WeekFields.of(Locale.getDefault()).firstDayOfWeek)
+    val firstDay = settings.firstDayOfWeek(java.time.temporal.WeekFields.of(currentLocale()).firstDayOfWeek)
     SectionTitle(stringResource(R.string.sleep_reminder_section))
     SettingsGroup {
         item { shape ->
@@ -215,8 +216,8 @@ private fun BedtimeSettingsCard(viewModel: SleepViewModel, is24: Boolean) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                     Formatters.orderedDays(firstDay).forEach { day ->
                         DayChip(
-                            label = day.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
-                            fullName = day.getDisplayName(TextStyle.FULL, Locale.getDefault()),
+                            label = day.getDisplayName(TextStyle.NARROW, currentLocale()),
+                            fullName = day.getDisplayName(TextStyle.FULL, currentLocale()),
                             selected = bed.daysMask and Alarm.run { day.bit } != 0,
                             onToggle = { on ->
                                 viewModel.updateBedtime { b ->

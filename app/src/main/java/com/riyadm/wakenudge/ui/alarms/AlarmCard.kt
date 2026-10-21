@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.ui.alarms
 
+import com.riyadm.wakenudge.ui.util.currentLocale
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -76,7 +77,7 @@ fun AlarmCard(
     val scheme = MaterialTheme.colorScheme
     val contentAlpha = if (on) 1f else 0.62f
     val interaction = rememberInteractionSource()
-    val firstDay = settings.firstDayOfWeek(java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek)
+    val firstDay = settings.firstDayOfWeek(java.time.temporal.WeekFields.of(currentLocale()).firstDayOfWeek)
     val repeat = Formatters.repeatSummary(context, alarm, firstDay)
     val status = statusLine(item, now)
     val summaryOnOff = stringResource(if (on) R.string.state_on else R.string.state_off)

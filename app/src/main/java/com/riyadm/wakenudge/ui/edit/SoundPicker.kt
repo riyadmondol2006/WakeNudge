@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.ui.edit
 
+import androidx.compose.ui.platform.LocalResources
 import android.app.Activity
 import android.content.Intent
 import android.database.Cursor
@@ -58,6 +59,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun rememberSoundTitle(sound: SoundSettings): String {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val bundledName = BundledTones.byId(sound.bundledId)?.let { stringResource(it.nameRes) } ?: stringResource(R.string.tone_sunrise)
     val random = stringResource(R.string.sound_random)
     val custom = produceState(initialValue = "", sound) {
@@ -101,6 +103,7 @@ fun SoundPickerSheet(
     previewer: SoundPreviewer,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val haptics = LocalWakeHaptics.current
     val playing by previewer.playing.collectAsState()
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -173,7 +176,7 @@ fun SoundPickerSheet(
                                         .putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
                                         .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
                                         .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
-                                        .putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, context.getString(R.string.sound_system_picker_title))
+                                        .putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, resources.getString(R.string.sound_system_picker_title))
                                     sound.uri?.takeIf { sound.source == SoundSource.SYSTEM }?.let {
                                         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(it))
                                     }

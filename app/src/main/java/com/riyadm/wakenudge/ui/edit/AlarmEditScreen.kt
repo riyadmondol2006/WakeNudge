@@ -1,5 +1,7 @@
 package com.riyadm.wakenudge.ui.edit
 
+import androidx.compose.ui.platform.LocalResources
+import com.riyadm.wakenudge.ui.util.currentLocale
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -86,6 +88,7 @@ fun AlarmEditScreen(
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val groups by viewModel.groups.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     val haptics = LocalWakeHaptics.current
@@ -117,7 +120,7 @@ fun AlarmEditScreen(
                             scope.launch {
                                 when (val r = viewModel.save()) {
                                     SaveOutcome.Saved -> { haptics.confirm(); onClose() }
-                                    is SaveOutcome.Locked -> snackbar.showSnackbar(context.getString(R.string.snackbar_locked, r.minutes))
+                                    is SaveOutcome.Locked -> snackbar.showSnackbar(resources.getString(R.string.snackbar_locked, r.minutes))
                                 }
                             }
                         },
@@ -135,7 +138,7 @@ fun AlarmEditScreen(
         val enabled = !state.readOnly
         val update = viewModel::update
         val is24 = rememberIs24Hour(settings.timeFormat)
-        val firstDay = settings.firstDayOfWeek(WeekFields.of(Locale.getDefault()).firstDayOfWeek)
+        val firstDay = settings.firstDayOfWeek(WeekFields.of(currentLocale()).firstDayOfWeek)
 
         LazyColumn(
             modifier = Modifier.fillMaxSize().imePadding(),
@@ -206,7 +209,7 @@ fun AlarmEditScreen(
                 scope.launch {
                     when (val r = viewModel.delete()) {
                         SaveOutcome.Saved -> onClose()
-                        is SaveOutcome.Locked -> snackbar.showSnackbar(context.getString(R.string.snackbar_locked, r.minutes))
+                        is SaveOutcome.Locked -> snackbar.showSnackbar(resources.getString(R.string.snackbar_locked, r.minutes))
                     }
                 }
             },
@@ -240,6 +243,7 @@ private fun LockBanner(minutes: Int, onUnlock: () -> Unit) {
 @Composable
 private fun TimeCard(alarm: Alarm, upcoming: List<java.time.ZonedDateTime>, is24: Boolean, enabled: Boolean, update: ((Alarm) -> Alarm) -> Unit) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     var typing by remember { mutableStateOf(false) }
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -290,8 +294,8 @@ private fun ScheduleCard(alarm: Alarm, firstDay: DayOfWeek, enabled: Boolean, up
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Formatters.orderedDays(firstDay).forEach { day ->
                     DayChip(
-                        label = day.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
-                        fullName = day.getDisplayName(TextStyle.FULL, Locale.getDefault()),
+                        label = day.getDisplayName(TextStyle.NARROW, currentLocale()),
+                        fullName = day.getDisplayName(TextStyle.FULL, currentLocale()),
                         selected = alarm.repeatsOn(day),
                         enabled = enabled,
                         onToggle = { on ->

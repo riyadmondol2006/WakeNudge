@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.ui.alarms
 
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -95,19 +96,20 @@ fun AlarmsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val resources = LocalResources.current
 
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
             snackbar.currentSnackbarData?.dismiss()
             when (event) {
-                is AlarmsEvent.Locked -> snackbar.showSnackbar(context.getString(R.string.snackbar_locked, event.minutes))
+                is AlarmsEvent.Locked -> snackbar.showSnackbar(resources.getString(R.string.snackbar_locked, event.minutes))
                 is AlarmsEvent.Skipped -> snackbar.showSnackbar(
-                    context.getString(if (event.epochDay == null) R.string.snackbar_switched_off else R.string.snackbar_skipped),
+                    resources.getString(if (event.epochDay == null) R.string.snackbar_switched_off else R.string.snackbar_skipped),
                 )
                 is AlarmsEvent.Deleted -> {
                     val result = snackbar.showSnackbar(
-                        message = context.getString(R.string.snackbar_deleted),
-                        actionLabel = context.getString(R.string.snackbar_undo),
+                        message = resources.getString(R.string.snackbar_deleted),
+                        actionLabel = resources.getString(R.string.snackbar_undo),
                         duration = SnackbarDuration.Long,
                     )
                     if (result == SnackbarResult.ActionPerformed) viewModel.undoDelete(event.alarm)
@@ -209,6 +211,7 @@ fun AlarmsScreen(
 @Composable
 private fun NextAlarmHero(state: AlarmsUiState, onResume: () -> Unit, onStartVacation: () -> Unit) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scheme = MaterialTheme.colorScheme
     val vacation = state.settings.vacation
     val is24 = rememberIs24Hour(state.settings.timeFormat)
