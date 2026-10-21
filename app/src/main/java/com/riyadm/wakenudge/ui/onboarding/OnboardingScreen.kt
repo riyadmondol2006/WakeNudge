@@ -112,7 +112,7 @@ fun OnboardingScreen(onFinish: () -> Unit, modifier: Modifier = Modifier, openLi
                 0 -> InfoPage(
                     Icons.Outlined.AlarmOn, Blobs.Sunny, R.string.onboarding_welcome_title, R.string.onboarding_welcome_body,
                     MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer,
-                    footer = { OpenSourceLink(onClick = { open(ProjectLinks.REPO) }) },
+                    footer = { ProjectLinkLines(open) },
                 )
                 1 -> InfoPage(Icons.Outlined.Lock, Blobs.Cookie, R.string.onboarding_reliable_title, R.string.onboarding_reliable_body, MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
                 2 -> InfoPage(Icons.Outlined.Psychology, Blobs.Clover, R.string.onboarding_missions_title, R.string.onboarding_missions_body, MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
@@ -186,16 +186,32 @@ private fun InfoPage(
     }
 }
 
-/** "Open source · github.com/…": understated, but a full-size touch target and clearly a link. */
+/** The two understated lines under the welcome text: the source code and the website. */
 @Composable
-private fun OpenSourceLink(onClick: () -> Unit) {
+private fun ProjectLinkLines(open: (String) -> Unit) {
+    val repo = ProjectLinks.display(ProjectLinks.REPO)
+    val site = ProjectLinks.display(ProjectLinks.SITE)
+    Column(Modifier.padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        LinkLine(
+            text = stringResource(R.string.onboarding_open_source, repo), address = repo,
+            description = stringResource(R.string.onboarding_open_source_cd, repo),
+            onClick = { open(ProjectLinks.REPO) },
+        )
+        LinkLine(
+            text = site, address = site,
+            description = stringResource(R.string.onboarding_website_cd, site),
+            onClick = { open(ProjectLinks.SITE) },
+        )
+    }
+}
+
+/** One line of quiet text with [address] picked out as the link: a full-size touch target, wrapping at large fonts. */
+@Composable
+private fun LinkLine(text: String, address: String, description: String, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    val address = ProjectLinks.display(ProjectLinks.REPO)
-    val description = stringResource(R.string.onboarding_open_source_cd, address)
-    val label = stringResource(R.string.onboarding_open_source, address)
-    val text = buildAnnotatedString {
-        append(label)
-        val start = label.indexOf(address)
+    val styled = buildAnnotatedString {
+        append(text)
+        val start = text.indexOf(address)
         if (start >= 0) {
             addStyle(
                 SpanStyle(color = scheme.primary, fontWeight = FontWeight.Medium, textDecoration = TextDecoration.Underline),
@@ -204,12 +220,11 @@ private fun OpenSourceLink(onClick: () -> Unit) {
         }
     }
     Text(
-        text,
+        styled,
         style = MaterialTheme.typography.bodyMedium,
         color = scheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
         modifier = Modifier
-            .padding(top = 16.dp)
             .defaultMinSize(minHeight = 48.dp)
             .clickable(onClickLabel = stringResource(R.string.link_opens_browser), role = Role.Button, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 12.dp)

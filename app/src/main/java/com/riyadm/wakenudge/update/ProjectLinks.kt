@@ -12,6 +12,7 @@ import com.riyadm.wakenudge.R
 /** The project's public addresses, and the one place the app hands a link to the user's browser. */
 object ProjectLinks {
     const val REPO: String = BuildConfig.REPO_URL
+    const val SITE: String = BuildConfig.SITE_URL
     const val ISSUES: String = "$REPO/issues"
     /** The policy lives in the repository until the project has a website of its own; change it here when that happens. */
     const val PRIVACY_POLICY: String = "$REPO/blob/main/PRIVACY.md"
