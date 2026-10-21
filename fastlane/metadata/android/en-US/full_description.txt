@@ -13,7 +13,7 @@ STILL AWAKE? CHECK
 After you dismiss, WakeNudge asks if you are still awake a few minutes later and rings again if you do not answer. It survives restarts, and you can cancel it whenever you like.
 
 A SOUND THAT WAKES YOU UP
-• 12 loudness-balanced tones, or your own music from your phone
+• 12 tones from gentle to loud, or your own music from your phone
 • Volume ramp-up, Extra Loud mode and an alarm that intensifies if you ignore it
 • Strong vibration patterns, or record your own rhythm
 • Spoken announcements using your phone's offline text-to-speech
