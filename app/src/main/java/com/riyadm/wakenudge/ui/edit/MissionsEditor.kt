@@ -163,7 +163,7 @@ private fun MissionCard(
                 }
                 Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                     Text("${index + 1}. ${stringResource(MissionInfo.titleRes(mission.type))}", style = MaterialTheme.typography.titleMedium)
-                    Text(stringResource(MissionInfo.descriptionRes(mission.type)), style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 2)
+                    Text(stringResource(MissionInfo.descriptionRes(mission.type)), style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
                 }
                 IconButton(onClick = { onMove(-1) }, enabled = enabled && index > 0) { Icon(Icons.Filled.KeyboardArrowUp, stringResource(R.string.edit_missions_move_up)) }
                 IconButton(onClick = { onMove(1) }, enabled = enabled && !last) { Icon(Icons.Filled.KeyboardArrowDown, stringResource(R.string.edit_missions_move_down)) }

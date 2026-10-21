@@ -21,6 +21,23 @@ WakeNudge combines what people like about Alarmy, Sleep as Android, AMdroid and 
 Pixel-style app, with original code and design. Everything runs on the device. The merged app manifest is
 checked at build time to make sure it never asks for `INTERNET`, `ACCESS_NETWORK_STATE` or `ACCESS_WIFI_STATE`.
 
+## Screenshots
+
+Real captures from a Pixel 6 Pro (dark theme).
+
+<p>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1_alarms.png" width="150" alt="Alarm list">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2_edit_alarm.png" width="150" alt="Alarm editor with the animated time picker">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_missions.png" width="150" alt="Choosing wake-up missions">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4_mission_math.png" width="150" alt="The math mission">
+</p>
+<p>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5_ring_screen.png" width="150" alt="The lock-screen ring UI">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6_alarm_health.png" width="150" alt="Alarm health checkup and test alarm">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/7_sleep_planner.png" width="150" alt="Sleep planner">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/8_world_clock.png" width="150" alt="World clock">
+</p>
+
 ## Features
 
 **Alarms**
