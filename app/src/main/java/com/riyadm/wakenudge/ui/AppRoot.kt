@@ -44,8 +44,28 @@ import androidx.navigation.toRoute
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.ui.alarms.AlarmsScreen
 import com.riyadm.wakenudge.ui.edit.AlarmEditScreen
-import com.riyadm.wakenudge.ui.edit.MissionSlots
+import com.riyadm.wakenudge.ui.edit.missionSlots
+import com.riyadm.wakenudge.ui.clock.WorldClockScreen
+import com.riyadm.wakenudge.ui.morning.MorningScreen
+import com.riyadm.wakenudge.ui.onboarding.OnboardingScreen
+import com.riyadm.wakenudge.ui.settings.AboutScreen
+import com.riyadm.wakenudge.ui.settings.DefaultsScreen
+import com.riyadm.wakenudge.ui.settings.ExceptionsScreen
+import com.riyadm.wakenudge.ui.settings.GroupsScreen
+import com.riyadm.wakenudge.ui.settings.SettingsNav
+import com.riyadm.wakenudge.ui.settings.SettingsScreen
+import com.riyadm.wakenudge.ui.sleep.SleepScreen
+import com.riyadm.wakenudge.ui.stopwatch.StopwatchScreen
+import com.riyadm.wakenudge.ui.timer.TimerScreen
+import com.riyadm.wakenudge.ui.nav.AboutRoute
 import com.riyadm.wakenudge.ui.nav.AlarmEditRoute
+import com.riyadm.wakenudge.ui.nav.BackupRoute
+import com.riyadm.wakenudge.ui.nav.DefaultsRoute
+import com.riyadm.wakenudge.ui.nav.ExceptionsRoute
+import com.riyadm.wakenudge.ui.nav.GroupsRoute
+import com.riyadm.wakenudge.ui.nav.HealthRoute
+import com.riyadm.wakenudge.ui.nav.SettingsRoute
+import com.riyadm.wakenudge.ui.nav.SleepRoute
 import com.riyadm.wakenudge.ui.nav.AlarmsRoute
 import com.riyadm.wakenudge.ui.nav.MorningRoute
 import com.riyadm.wakenudge.ui.nav.StopwatchRoute
@@ -69,7 +89,7 @@ fun WakeNudgeRoot(viewModel: MainViewModel) {
     val s = settings ?: return
     WakeNudgeTheme(themeMode = s.themeMode, dynamicColor = s.dynamicColor, haptics = s.haptics) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            MainNav(viewModel)
+            if (!s.onboardingDone) OnboardingScreen(onFinish = viewModel::finishOnboarding) else MainNav(viewModel)
         }
     }
 }
@@ -137,14 +157,42 @@ private fun AppNavHost(nav: NavHostController) {
         composable<AlarmsRoute>(enterTransition = tabEnter, exitTransition = tabExit, popEnterTransition = tabEnter, popExitTransition = tabExit) {
             AlarmsScreen(
                 onEditAlarm = { nav.navigate(AlarmEditRoute(it)) },
-                onOpenSleep = {}, onOpenHealth = {}, onOpenSettings = {}, onOpenGroups = {},
+                onOpenSleep = { nav.navigate(SleepRoute) },
+                onOpenHealth = { nav.navigate(HealthRoute) },
+                onOpenSettings = { nav.navigate(SettingsRoute) },
+                onOpenGroups = { nav.navigate(GroupsRoute) },
             )
         }
+        composable<WorldClockRoute>(enterTransition = tabEnter, exitTransition = tabExit, popEnterTransition = tabEnter, popExitTransition = tabExit) { WorldClockScreen() }
+        composable<TimerRoute>(enterTransition = tabEnter, exitTransition = tabExit, popEnterTransition = tabEnter, popExitTransition = tabExit) { TimerScreen() }
+        composable<StopwatchRoute>(enterTransition = tabEnter, exitTransition = tabExit, popEnterTransition = tabEnter, popExitTransition = tabExit) { StopwatchScreen() }
+        composable<MorningRoute>(enterTransition = tabEnter, exitTransition = tabExit, popEnterTransition = tabEnter, popExitTransition = tabExit) { MorningScreen() }
         composable<AlarmEditRoute> {
-            AlarmEditScreen(
-                onClose = { nav.popBackStack() },
-                missionSlots = MissionSlots(missions = { _, _, _ -> }, snoozeMissions = { _, _, _ -> }),
+            AlarmEditScreen(onClose = { nav.popBackStack() }, missionSlots = missionSlots())
+        }
+        composable<SleepRoute> {
+            SleepScreen(
+                onBack = { nav.popBackStack() },
+                onCreateAlarm = { h, m -> nav.navigate(AlarmEditRoute(alarmId = 0, hour = h, minute = m)) },
             )
         }
+        composable<SettingsRoute> {
+            SettingsScreen(
+                SettingsNav(
+                    back = { nav.popBackStack() },
+                    defaults = { nav.navigate(DefaultsRoute) },
+                    groups = { nav.navigate(GroupsRoute) },
+                    exceptions = { nav.navigate(ExceptionsRoute) },
+                    sleep = { nav.navigate(SleepRoute) },
+                    health = { nav.navigate(HealthRoute) },
+                    backup = { nav.navigate(BackupRoute) },
+                    about = { nav.navigate(AboutRoute) },
+                ),
+            )
+        }
+        composable<DefaultsRoute> { DefaultsScreen(onBack = { nav.popBackStack() }) }
+        composable<GroupsRoute> { GroupsScreen(onBack = { nav.popBackStack() }) }
+        composable<ExceptionsRoute> { ExceptionsScreen(onBack = { nav.popBackStack() }) }
+        composable<AboutRoute> { AboutScreen(onBack = { nav.popBackStack() }) }
     }
 }

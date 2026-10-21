@@ -118,7 +118,7 @@ fun WorldClockScreen(modifier: Modifier = Modifier, viewModel: WorldClockViewMod
                                 style = MaterialTheme.typography.labelLarge,
                             )
                         }
-                        Slider(value = offsetHours, onValueChange = { offsetHours = it }, valueRange = -12f..48f, steps = 59)
+                        Slider(value = offsetHours, onValueChange = { offsetHours = Math.round(it).toFloat() }, valueRange = -12f..48f)
                     }
                 }
             }
