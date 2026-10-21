@@ -1,0 +1,86 @@
+{
+  "sunrise": {
+    "seconds": 7.0,
+    "target_lufs": -17.0,
+    "measured_lufs": -17.0,
+    "peak_dbfs": -6.76
+  },
+  "chime": {
+    "seconds": 5.0,
+    "target_lufs": -16.0,
+    "measured_lufs": -16.0,
+    "peak_dbfs": -2.91
+  },
+  "bell": {
+    "seconds": 6.0,
+    "target_lufs": -15.0,
+    "measured_lufs": -15.03,
+    "peak_dbfs": -1.15
+  },
+  "marimba": {
+    "seconds": 4.5,
+    "target_lufs": -15.0,
+    "measured_lufs": -15.0,
+    "peak_dbfs": -2.48
+  },
+  "kalimba": {
+    "seconds": 5.5,
+    "target_lufs": -16.0,
+    "measured_lufs": -16.0,
+    "peak_dbfs": -4.62
+  },
+  "ember": {
+    "seconds": 8.0,
+    "target_lufs": -18.0,
+    "measured_lufs": -18.0,
+    "peak_dbfs": -4.3
+  },
+  "digital": {
+    "seconds": 3.0,
+    "target_lufs": -13.0,
+    "measured_lufs": -13.0,
+    "peak_dbfs": -9.13
+  },
+  "pulse": {
+    "seconds": 4.0,
+    "target_lufs": -14.0,
+    "measured_lufs": -14.03,
+    "peak_dbfs": -1.31
+  },
+  "radar": {
+    "seconds": 3.2,
+    "target_lufs": -14.0,
+    "measured_lufs": -14.0,
+    "peak_dbfs": -7.62
+  },
+  "classic": {
+    "seconds": 3.4,
+    "target_lufs": -13.0,
+    "measured_lufs": -13.01,
+    "peak_dbfs": -1.68
+  },
+  "beacon": {
+    "seconds": 3.6,
+    "target_lufs": -12.0,
+    "measured_lufs": -12.0,
+    "peak_dbfs": -7.39
+  },
+  "siren": {
+    "seconds": 4.0,
+    "target_lufs": -11.0,
+    "measured_lufs": -11.0,
+    "peak_dbfs": -6.57
+  },
+  "intensify": {
+    "seconds": 2.4,
+    "target_lufs": -10.0,
+    "measured_lufs": -10.0,
+    "peak_dbfs": -5.72
+  },
+  "backup": {
+    "seconds": 4.0,
+    "target_lufs": -10.0,
+    "measured_lufs": -10.0,
+    "peak_dbfs": -2.67
+  }
+}

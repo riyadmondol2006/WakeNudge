@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Legs -->
+    <path
+        android:pathData="M43,76L39,82M65,76L69,82"
+        android:strokeColor="#FFFFC94A"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round" />
+    <!-- Bells -->
+    <path
+        android:fillColor="#FFFFC94A"
+        android:pathData="M31,38a6,6 0 1,0 12,0a6,6 0 1,0 -12,0zM65,38a6,6 0 1,0 12,0a6,6 0 1,0 -12,0z" />
+    <!-- Top button -->
+    <path
+        android:pathData="M54,35.5L54,31.5"
+        android:strokeColor="#FFFFC94A"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round" />
+    <!-- Body -->
+    <path
+        android:fillColor="#FFFFF6E5"
+        android:pathData="M33,57a21,21 0 1,0 42,0a21,21 0 1,0 -42,0z" />
+    <!-- Face -->
+    <path
+        android:fillColor="#FF2A1D74"
+        android:pathData="M37.5,57a16.5,16.5 0 1,0 33,0a16.5,16.5 0 1,0 -33,0z" />
+    <!-- Hour (7 o'clock) and minute (12) hands -->
+    <path
+        android:pathData="M54,57L50,63.9M54,57L54,45.5"
+        android:strokeColor="#FFFFC94A"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round" />
+    <!-- Hour marks and hub -->
+    <path
+        android:fillColor="#FFFFF6E5"
+        android:pathData="M66,57m-1,0a1,1 0 1,0 2,0a1,1 0 1,0 -2,0M54,69m-1,0a1,1 0 1,0 2,0a1,1 0 1,0 -2,0M42,57m-1,0a1,1 0 1,0 2,0a1,1 0 1,0 -2,0M54,57m-1.8,0a1.8,1.8 0 1,0 3.6,0a1.8,1.8 0 1,0 -3.6,0" />
+</vector>
