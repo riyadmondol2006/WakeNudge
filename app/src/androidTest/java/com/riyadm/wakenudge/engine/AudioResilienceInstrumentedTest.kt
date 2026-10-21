@@ -158,7 +158,8 @@ class AudioResilienceInstrumentedTest {
         await("sound") { audio.isAudible }
         onMain { audio.killPlayerForTest() }
         await("playback rebuilt after the player died", 6_000) { audio.isAudible }
-        assertTrue(runtime.lastAudioProblem.contains("fell back"))
+        // The new player is the audible one a few statements before the diagnostics note is written, so wait for the note.
+        await("the fallback to be recorded", 3_000) { runtime.lastAudioProblem.contains("fell back") }
     }
 
     // ---- the media player misbehaves ---------------------------------------------------------------------------
@@ -198,14 +199,14 @@ class AudioResilienceInstrumentedTest {
         val seconds = (SystemClock.elapsedRealtime() - started) / 1000.0
         assertTrue("fell back after ~4 s instead of waiting 25 s (took ${seconds}s)", seconds < 9)
         assertEquals("sunrise", audio.activeSoundId)
-        assertEquals("Fell back to a built-in sound", audio.lastNote)
+        await("the fallback to be noted", 3_000) { audio.lastNote == "Fell back to a built-in sound" }
     }
 
     @Test fun aMissingCustomSoundFallsBackToTheBundledTone() {
         startRing(quiet(SoundSettings(source = SoundSource.CUSTOM, uri = "content://no.such.provider/song/1")))
         await("sound") { audio.isAudible }
         assertEquals("sunrise", audio.activeSoundId)
-        assertTrue(runtime.lastAudioProblem.contains("fell back"))
+        await("the fallback to be recorded", 3_000) { runtime.lastAudioProblem.contains("fell back") }
     }
 
     @Test fun aLoweredVolumeForAnAnnouncementIsRestoredEvenIfTheSpeechEngineNeverFinishes() {
