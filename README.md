@@ -26,8 +26,7 @@
   <a href="#screenshots">Screenshots</a> ·
   <a href="#privacy">Privacy</a> ·
   <a href="#faq">FAQ</a> ·
-  <a href="#build-from-source">Build</a> ·
-  <a href="https://riyadmondol2006.github.io/WakeNudge/">Website</a>
+  <a href="#build-from-source">Build</a>
 </p>
 
 ---
@@ -172,8 +171,7 @@ There are two ways to get WakeNudge, and they differ in exactly one respect:
 | **Google Play** (in preparation) | None. The build fails if one ever appears. | Nothing. |
 | **APK from GitHub Releases** | `INTERNET` only | An **update popup** that checks GitHub at most once a day for a newer release. It sends nothing about you or your alarms, and you can switch it off in **About, then Updates**. |
 
-Both are built from this repository. Read the full [privacy policy](PRIVACY.md)
-(also at [riyadmondol2006.github.io/WakeNudge/privacy](https://riyadmondol2006.github.io/WakeNudge/privacy)).
+Both are built from this repository. Read the full [privacy policy](PRIVACY.md).
 
 ## Why another alarm app?
 
@@ -293,8 +291,7 @@ app/src/main/java/com/riyadm/wakenudge/
   widget/    Glance widgets          tile/  Quick Settings tile
   ui/        Compose screens, theme, components
 app/src/github/   manifest overlay for the GitHub flavour
-docs/             documentation and the GitHub Pages site
-scripts/          helper scripts for the site
+docs/             documentation
 ```
 
 Built with Kotlin, Jetpack Compose, Material 3, Hilt, Room, DataStore, Glance, CameraX and ZXing core.
