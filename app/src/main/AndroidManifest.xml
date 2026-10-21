@@ -3,8 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!--
-        WakeNudge is fully offline. There is intentionally NO android.permission.INTERNET here, and the
-        build verifies that (see the merged-manifest check in CI).
+        WakeNudge is fully offline. There is intentionally NO android.permission.INTERNET in this shared manifest, so
+        the Play Store build ("play" flavour) has none. Only the APK published on GitHub Releases ("github" flavour,
+        see src/github/AndroidManifest.xml) holds it, to look for a newer release. The build verifies both cases
+        (verifyOfflineManifest* tasks, run by CI).
     -->
 
     <!-- Alarms: exact scheduling. USE_EXACT_ALARM is granted automatically to alarm-clock apps on Android 13+. -->

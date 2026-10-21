@@ -22,6 +22,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Icon
@@ -402,6 +403,24 @@ fun ValueRow(
         title = title, subtitle = subtitle, icon = icon, shape = shape, enabled = enabled, onClick = onClick, modifier = modifier,
         trailing = {
             Text(value, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, maxLines = 1)
+        },
+    )
+}
+
+/** A row that opens another screen: icon, title, a one-line summary and a chevron that mirrors in right-to-left layouts. */
+@Composable
+fun NavRow(
+    title: String,
+    shape: Shape,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    summary: String? = null,
+    icon: ImageVector? = null,
+) {
+    SettingRow(
+        title = title, subtitle = summary, icon = icon, shape = shape, onClick = onClick, modifier = modifier,
+        trailing = {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         },
     )
 }

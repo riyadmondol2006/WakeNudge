@@ -6,6 +6,7 @@ import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.model.AlarmDefaults
 import com.riyadm.wakenudge.domain.model.AlarmGroup
 import com.riyadm.wakenudge.domain.model.AppSettings
+import com.riyadm.wakenudge.domain.model.VacationMode
 import com.riyadm.wakenudge.domain.model.ExceptionDate
 import com.riyadm.wakenudge.domain.repository.ExceptionRepository
 import com.riyadm.wakenudge.domain.repository.GroupRepository
@@ -98,6 +99,7 @@ data class ExceptionsUiState(
     val selectedCalendarIds: Set<Long> = emptySet(),
     /** How many days in the next year are skipped because of selected calendars. */
     val calendarHolidayDays: Int = 0,
+    val vacation: VacationMode = VacationMode(),
 )
 
 @HiltViewModel
@@ -125,8 +127,13 @@ class ExceptionsViewModel @Inject constructor(
         }
         _calendarState.value = _calendarState.value.copy(
             calendarEnabled = s.calendarExceptions.enabled, hasCalendarPermission = has, calendars = cals,
-            selectedCalendarIds = s.calendarExceptions.calendarIds, calendarHolidayDays = days,
+            selectedCalendarIds = s.calendarExceptions.calendarIds, calendarHolidayDays = days, vacation = s.vacation,
         )
+    }
+
+    fun setVacation(enabled: Boolean, resumeEpochDay: Long?) = viewModelScope.launch {
+        settings.update { it.copy(vacation = it.vacation.copy(enabled = enabled, resumeEpochDay = resumeEpochDay)) }
+        scheduler.rescheduleAll("vacation")
     }
 
     fun addDate(epochDay: Long, label: String) = viewModelScope.launch {

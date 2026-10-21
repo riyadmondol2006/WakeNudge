@@ -20,16 +20,15 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.riyadm.wakenudge.R
-import com.riyadm.wakenudge.ui.edit.AntiOversleepSection
-import com.riyadm.wakenudge.ui.edit.SnoozeSection
-import com.riyadm.wakenudge.ui.edit.SoundSection
-import com.riyadm.wakenudge.ui.edit.VibrationSection
-import com.riyadm.wakenudge.ui.edit.VolumeSection
+import com.riyadm.wakenudge.ui.edit.CategoryOptions
+import com.riyadm.wakenudge.ui.edit.alarmCategories
+import com.riyadm.wakenudge.ui.edit.rememberExpandedCategories
 
 /** Defaults for new alarms, edited with the very same sections as a real alarm so nothing can drift. */
 @Composable
 fun DefaultsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
     val alarm by viewModel.defaultsAlarm.collectAsStateWithLifecycle()
+    val expanded = rememberExpandedCategories()
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -45,11 +44,11 @@ fun DefaultsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel:
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             item { Text(stringResource(R.string.defaults_hint), style = androidx.compose.material3.MaterialTheme.typography.bodyMedium, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) }
-            item { SoundSection(alarm, true, viewModel.soundPreviewer, viewModel::updateDefaults) }
-            item { VolumeSection(alarm, true, viewModel::updateDefaults) }
-            item { VibrationSection(alarm, true, viewModel.vibrator, viewModel::updateDefaults) }
-            item { SnoozeSection(alarm, true, viewModel::updateDefaults) {} }
-            item { AntiOversleepSection(alarm, true, viewModel::updateDefaults) }
+            alarmCategories(
+                alarm = alarm, enabled = true, expanded = expanded,
+                options = CategoryOptions(perAlarm = false),
+                previewer = viewModel.soundPreviewer, vibrator = viewModel.vibrator, onChange = viewModel::updateDefaults,
+            )
         }
     }
 }

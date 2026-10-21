@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Alarm option categories (alarm editor and new-alarm defaults) -->
+    <string name="cat_wake_up">Wake-up challenge</string>
+    <string name="cat_sound">Sound and light</string>
+    <string name="cat_volume">Volume and vibration</string>
+    <string name="cat_snooze">Snooze</string>
+    <string name="cat_protection">Oversleep protection</string>
+    <string name="cat_rules">Schedule rules</string>
+
+    <string name="cat_expand">Show options</string>
+    <string name="cat_collapse">Hide options</string>
+    <string name="cat_state_expanded">Expanded</string>
+    <string name="cat_state_collapsed">Collapsed</string>
+
+    <!-- One-line summaries shown while a category is collapsed -->
+    <string name="cat_separator" translatable="false">" · "</string>
+    <string name="cat_no_missions">No missions</string>
+    <plurals name="cat_missions">
+        <item quantity="one">%d mission</item>
+        <item quantity="other">%d missions</item>
+    </plurals>
+    <string name="cat_still_awake">Still-awake check</string>
+    <string name="cat_announces">Spoken announcement</string>
+    <string name="cat_sunrise">Sunrise</string>
+    <string name="cat_fade_in">%1$s fade-in</string>
+    <string name="cat_system_volume">System volume</string>
+    <string name="cat_vibration_off">No vibration</string>
+    <plurals name="cat_snooze_limit">
+        <item quantity="one">up to %d time</item>
+        <item quantity="other">up to %d times</item>
+    </plurals>
+    <string name="cat_hold">Hold %1$s to dismiss</string>
+    <string name="cat_backup_in">Backup alarm after %1$s</string>
+    <string name="cat_edit_lock">Edit lock %1$s</string>
+    <string name="cat_standard">Standard</string>
+    <string name="cat_skips_holidays">Skips holidays</string>
+    <string name="cat_ignores_vacation">Ignores vacation mode</string>
+    <string name="cat_notice">Heads-up %1$s before</string>
+    <string name="cat_deletes">Deleted after ringing</string>
+    <string name="cat_defaults">Default</string>
+</resources>

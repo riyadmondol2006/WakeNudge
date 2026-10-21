@@ -96,6 +96,7 @@ fun AlarmEditScreen(
     var confirmDiscard by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var showOverride by remember { mutableStateOf(false) }
+    val expanded = rememberExpandedCategories()
 
     BackHandler(enabled = state.dirty) { confirmDiscard = true }
 
@@ -178,15 +179,11 @@ fun AlarmEditScreen(
                     }
                 }
             }
-            item { missionSlots.missions(alarm, enabled, update) }
-            item { SoundSection(alarm, enabled, viewModel.soundPreviewer, update) }
-            item { VolumeSection(alarm, enabled, update) }
-            item { VibrationSection(alarm, enabled, viewModel.vibrator, update) }
-            item { SnoozeSection(alarm, enabled, update) { missionSlots.snoozeMissions(alarm, enabled, update) } }
-            item { WakeCheckSection(alarm, enabled, update) }
-            item { AntiOversleepSection(alarm, enabled, update) }
-            item { SunriseSection(alarm, enabled, update) }
-            item { ExtrasSection(alarm, enabled, update) }
+            alarmCategories(
+                alarm = alarm, enabled = enabled, expanded = expanded,
+                options = CategoryOptions(perAlarm = true, missionSlots = missionSlots),
+                previewer = viewModel.soundPreviewer, vibrator = viewModel.vibrator, onChange = update,
+            )
         }
     }
 

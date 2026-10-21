@@ -141,7 +141,7 @@
     <string name="settings_timers">Timers</string>
     <string name="settings_timer_sound">Timer sound</string>
     <string name="settings_timer_vibrate">Vibrate when a timer ends</string>
-    <string name="settings_data">Data and reliability</string>
+    <string name="settings_data">Reliability and backup</string>
     <string name="settings_health">Alarm health</string>
     <string name="settings_health_hint">Check that your alarms can wake you, and test one.</string>
     <string name="settings_backup">Backup and restore</string>
@@ -160,7 +160,7 @@
     <string name="groups_delete_body">Alarms in this profile are kept and simply become ungrouped.</string>
 
     <!-- Exceptions -->
-    <string name="exceptions_title">Holidays and exceptions</string>
+    <string name="exceptions_title">Vacation and holidays</string>
     <string name="exceptions_hint">Repeating alarms stay quiet on these days. One-time alarms always ring.</string>
     <string name="exceptions_calendar">From your calendars</string>
     <string name="exceptions_calendar_switch">Skip holidays from my calendar</string>
@@ -264,4 +264,32 @@
         <item quantity="other">%d profiles</item>
     </plurals>
     <string name="backup_restore_failed">Could not restore: %1$s</string>
+    <string name="sound_preview_tip">Tap a sound to hear it. Tap the play button to stop it.</string>
+    <string name="sound_preview_silent">The alarm volume on this phone is at zero, so previews are silent. A real alarm still rings audibly.</string>
+    <string name="sound_preview_failed">That sound could not be played. If it is chosen, the alarm falls back to the default tone so it never rings silently.</string>
+
+    <!-- Settings hub -->
+    <string name="settings_group_alarms">Alarms</string>
+    <string name="settings_group_ringing">Ringing and sound</string>
+    <string name="settings_group_look">Look and feel</string>
+    <string name="settings_group_about">About</string>
+    <string name="settings_vacation_holidays">Vacation and holidays</string>
+    <string name="settings_vacation_holidays_hint">Pause alarms for a trip, and skip holidays and calendar events.</string>
+    <string name="settings_vacation_until">Vacation mode is on until %1$s</string>
+    <string name="settings_vacation_on">Vacation mode is on</string>
+    <string name="settings_ringing_hint">Volume buttons, the alarm screen and Emergency stop.</string>
+    <string name="settings_ringing_intro">How the phone behaves while an alarm is ringing.</string>
+    <string name="settings_ringing_controls">Buttons and screen</string>
+    <string name="settings_ringing_safety">A way out</string>
+    <string name="settings_audio_page">Audio output and hearing</string>
+    <string name="settings_audio_hint">Speaker or headphones, and a volume limit on headphones.</string>
+    <string name="settings_hearing">Hearing safety</string>
+    <string name="settings_timers_hint">Sound and vibration when a timer ends.</string>
+    <string name="settings_timers_when_done">When a timer ends</string>
+    <string name="settings_appearance_page">Appearance and format</string>
+    <string name="settings_appearance_summary">Theme: %1$s · Clock: %2$s</string>
+    <string name="settings_format">Clock and calendar</string>
+    <string name="settings_about_hint">Version, privacy and open-source licences.</string>
+    <string name="vacation_section">Vacation mode</string>
+    <string name="exceptions_title_days">Days to skip</string>
 </resources>
