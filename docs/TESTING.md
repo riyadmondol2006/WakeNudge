@@ -66,8 +66,8 @@ Hardware: **Google Pixel 6 Pro, Android 17 (API 37)**. No other physical device 
 - Widgets and the Quick Settings tile are **registered** with Android (three `AppWidgetProvider`s and the tile service
   resolve). Their layouts are covered by JVM tests of the data they show.
 
-- **The full instrumented suite of the `play` build: 142 tests, run on the device** after the final changes (the engine,
-  reliability, abuse, migration, category, ring-screen and mission-flow classes, including the 47 added by the reliability
+- **The full instrumented suite of the `play` build: 146 tests, run on the device** after the final changes (the engine,
+  reliability, abuse, migration, category, settings switch-row, ring-screen and mission-flow classes, including the 47 added by the reliability
   audit: audio focus loss, dying players, a real `RingService`, failing storage, refused starts, clock changes and crash
   rescue). The GitHub-only update tests (25: popup, switch, links, backup restore) ran on the `github` build. One audio
   test asserted a diagnostics note a few milliseconds before the engine wrote it and failed once in a while; the

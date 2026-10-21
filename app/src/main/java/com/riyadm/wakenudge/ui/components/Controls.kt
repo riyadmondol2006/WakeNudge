@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -64,6 +65,9 @@ private val SwitchMorph by lazy { Blobs.morph(Blobs.Circle, Blobs.Cookie) }
 /**
  * Switch whose thumb is a circle when off and morphs into a rubbery cookie when on. A real, accessible
  * [Role.Switch] with haptics, 48 dp minimum touch height, and no motion beyond a spring.
+ *
+ * With a null [onCheckedChange] it is only a picture of the state: it takes no touches and has no semantics, so a tap on
+ * it reaches the row around it, which owns the toggle (see [SwitchRow]).
  */
 @Composable
 fun ExpressiveSwitch(
@@ -88,16 +92,23 @@ fun ExpressiveSwitch(
         modifier = modifier
             .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
             .pressScale(interaction, 0.92f)
-            .toggleable(
-                value = checked,
-                enabled = enabled && onCheckedChange != null,
-                role = Role.Switch,
-                interactionSource = interaction,
-                indication = null,
-            ) {
-                haptics.toggle(it)
-                onCheckedChange?.invoke(it)
-            },
+            .then(
+                if (onCheckedChange != null) {
+                    Modifier.toggleable(
+                        value = checked,
+                        enabled = enabled,
+                        role = Role.Switch,
+                        interactionSource = interaction,
+                        indication = null,
+                    ) {
+                        haptics.toggle(it)
+                        onCheckedChange(it)
+                    }
+                } else {
+                    // A disabled toggleable would still swallow the touch, and the row behind it would never see the tap.
+                    Modifier.clearAndSetSemantics { }
+                },
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -209,6 +220,8 @@ fun SettingRow(
     icon: ImageVector? = null,
     enabled: Boolean = true,
     onClick: (() -> Unit)? = null,
+    /** Set for a row that is a switch: the whole row is then one [Role.Switch] toggle in this state, not a button. */
+    toggled: Boolean? = null,
     trailing: (@Composable () -> Unit)? = null,
     below: (@Composable () -> Unit)? = null,
 ) {
@@ -220,7 +233,13 @@ fun SettingRow(
     ) {
         Column(
             Modifier
-                .then(if (onClick != null && enabled) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
+                .then(
+                    when {
+                        onClick == null || !enabled -> Modifier
+                        toggled != null -> Modifier.toggleable(value = toggled, role = Role.Switch) { onClick() }
+                        else -> Modifier.clickable(role = Role.Button, onClick = onClick)
+                    },
+                )
                 .padding(horizontal = 20.dp, vertical = 14.dp),
         ) {
             Row(Modifier.fillMaxWidth().defaultMinSize(minHeight = 40.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -258,8 +277,10 @@ fun SwitchRow(
     SettingRow(
         title = title, subtitle = subtitle, icon = icon, shape = shape, enabled = enabled, modifier = modifier,
         onClick = { haptics.toggle(!checked); onCheckedChange(!checked) },
+        // The whole row is the one toggle (switch semantics, state announced). The switch on its right is only a picture
+        // of that state and passes every touch on to the row, so tapping the switch itself works as well as the text.
+        toggled = checked,
         trailing = { ExpressiveSwitch(checked, null, enabled = enabled) },
-        // The whole row is the click target; the switch is decorative, so expose one toggle to accessibility.
     )
 }
 
