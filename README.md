@@ -46,7 +46,7 @@ one press-and-hold away, so it never traps you. For an alarm you really must obe
 
 | Where | Status |
 |---|---|
-| **GitHub Releases** (APK) | [**Download the latest release**](https://github.com/riyadmondol2006/WakeNudge/releases/latest). Every release carries `WakeNudge-<version>.apk` (install this one), `WakeNudge-<version>.aab` (the Play bundle), the R8 `mapping` file and `SHA256SUMS.txt`. |
+| **GitHub Releases** (APK) | [**Download the latest APK**](https://github.com/riyadmondol2006/WakeNudge/releases/latest/download/WakeNudge.apk) (starts the download straight away), or browse the [latest release](https://github.com/riyadmondol2006/WakeNudge/releases/latest). Every release carries `WakeNudge-<version>.apk` (install this one), `WakeNudge-<version>.aab` (the Play bundle), the R8 `mapping` file and `SHA256SUMS.txt`. |
 | **Website** | [wakenudge.site](https://wakenudge.site): overview, screenshots, install steps and the privacy policy in one page. |
 
 Needs **Android 8.0 (API 26) or newer**.
@@ -54,7 +54,7 @@ Needs **Android 8.0 (API 26) or newer**.
 <details>
 <summary><strong>How to install the APK and check the download</strong></summary>
 
-1. Open the [latest release](https://github.com/riyadmondol2006/WakeNudge/releases/latest) on your phone and download `WakeNudge-<version>.apk`.
+1. On your phone, [download the latest APK](https://github.com/riyadmondol2006/WakeNudge/releases/latest/download/WakeNudge.apk) (or open the [latest release](https://github.com/riyadmondol2006/WakeNudge/releases/latest) and pick `WakeNudge-<version>.apk`; both are the same file).
 2. Open the file. When Android asks, allow "Install unknown apps" for your browser or file manager.
 3. Optional: download `SHA256SUMS.txt` next to the APK and compare, for example on a computer:
 

@@ -31,6 +31,7 @@ the newest waiting run goes next: its release covers the commits of any run that
 
 | File | What it is |
 |---|---|
+| `WakeNudge.apk` | The very same file as the versioned APK, under a name that never changes. `https://github.com/riyadmondol2006/WakeNudge/releases/latest/download/WakeNudge.apk` therefore always downloads the newest APK; the website's Download button uses it. |
 | `WakeNudge-<version>.apk` | `github` flavour. Sideload it. Holds `INTERNET` (and nothing else network-related) so the app can look for newer releases. |
 | `WakeNudge-<version>.aab` | `play` flavour. This is what you upload to Google Play. No network permission, ever. |
 | `mapping-<version>.txt.gz` | R8 mapping of the play build (gzipped, the raw file is about 77 MB), for de-obfuscating Play crash reports. |

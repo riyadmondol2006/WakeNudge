@@ -2,6 +2,7 @@
 # Lays out the release: copies the verified build outputs into one folder under their public names, writes
 # SHA256SUMS.txt, and writes the release notes.
 #
+#   WakeNudge.apk                     the same APK under a fixed name (the "latest download" link)
 #   WakeNudge-<version>.apk           github flavour (sideload)
 #   WakeNudge-<version>.aab           play flavour (what is uploaded to Google Play)
 #   mapping-<version>.txt.gz          R8 mapping of the play build (gzipped: the raw file is ~77 MB), to de-obfuscate Play crash reports
@@ -42,6 +43,10 @@ tag=v$version_name
 rm -rf "$out"
 mkdir -p "$out"
 cp "$apk" "$out/WakeNudge-$version_name.apk"
+# The same file under a name that never changes, so that
+#   https://github.com/$repo/releases/latest/download/WakeNudge.apk
+# always downloads the newest APK (the website's Download button points there).
+cp "$apk" "$out/WakeNudge.apk"
 cp "$aab" "$out/WakeNudge-$version_name.aab"
 gzip -9 -n -c "$mapping_play" > "$out/mapping-$version_name.txt.gz"
 github_mapping_note=""
@@ -63,6 +68,7 @@ max_lines=60
   echo "## Install"
   echo
   echo "- **Android phone (sideload):** download \`WakeNudge-$version_name.apk\`, open it and allow installing from your browser or file manager when Android asks. This is the GitHub edition: the only WakeNudge build with the INTERNET permission, used to look for newer releases here."
+  echo "- **Always the newest APK:** \`WakeNudge.apk\` is the very same file under a fixed name, so [this link](https://github.com/$repo/releases/latest/download/WakeNudge.apk) always downloads the latest release."
   echo "- **Google Play:** \`WakeNudge-$version_name.aab\` is the Android App Bundle that is uploaded to Google Play. It cannot be installed on a phone directly; it is attached so the Play build is public too."
   echo
   echo "The Play build and the APK are signed with different keys (Google re-signs Play builds), so switching from one to the other means uninstalling first. Alarms and settings live on the phone: export a backup before you switch."
@@ -87,7 +93,7 @@ max_lines=60
   echo
   echo "\`$cert_sha256\`"
   echo
-  echo "Check a download with \`sha256sum --check SHA256SUMS.txt\`, and the APK signature with \`apksigner verify --print-certs WakeNudge-$version_name.apk\`."
+  echo "Check a download with \`sha256sum --check SHA256SUMS.txt --ignore-missing\`, and the APK signature with \`apksigner verify --print-certs WakeNudge-$version_name.apk\`."
   echo
   echo "\`mapping-$version_name.txt.gz\` (gzip) de-obfuscates crash reports of the Play build and is not needed to use the app.$github_mapping_note"
 } > "$notes_file"
