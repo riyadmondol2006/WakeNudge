@@ -292,4 +292,5 @@
     <string name="settings_about_hint">Version, privacy and open-source licences.</string>
     <string name="vacation_section">Vacation mode</string>
     <string name="exceptions_title_days">Days to skip</string>
+    <string name="settings_source">Source code on GitHub</string>
 </resources>

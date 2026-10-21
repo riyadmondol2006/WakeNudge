@@ -1,5 +1,9 @@
 package com.riyadm.wakenudge.ui.settings
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -8,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.BeachAccess
+import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.FolderSpecial
 import androidx.compose.material.icons.outlined.Headphones
@@ -27,10 +32,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.riyadm.wakenudge.BuildConfig
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.ui.components.NavRow
 import com.riyadm.wakenudge.ui.components.SectionTitle
@@ -136,12 +143,28 @@ fun SettingsScreen(nav: SettingsNav, modifier: Modifier = Modifier, viewModel: S
             }
             item {
                 SectionTitle(stringResource(R.string.settings_group_about))
+                val context = LocalContext.current
                 SettingsGroup {
                     item { shape ->
                         NavRow(stringResource(R.string.settings_about), shape, nav.about, summary = stringResource(R.string.settings_about_hint), icon = Icons.Outlined.Info)
                     }
+                    item { shape ->
+                        NavRow(
+                            stringResource(R.string.settings_source), shape, onClick = { openInBrowser(context, BuildConfig.REPO_URL) },
+                            summary = BuildConfig.REPO_URL.removePrefix("https://"), icon = Icons.Outlined.Code,
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+/** Opens a web page in the user's browser; a phone without one simply does nothing instead of crashing. */
+private fun openInBrowser(context: Context, url: String) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    } catch (_: ActivityNotFoundException) {
+        // No browser installed: nothing sensible to do.
     }
 }
