@@ -254,6 +254,14 @@
     <string name="backup_restore_button">Restore</string>
     <string name="backup_confirm_title">Replace everything with this backup?</string>
     <string name="backup_confirm_body">Your current alarms, profiles and settings will be replaced. This cannot be undone, so save a backup first if you are unsure.</string>
-    <string name="backup_restore_done">Restored %1$d alarms and %2$d profiles.</string>
+    <string name="backup_restore_done">Restored %1$s and %2$s.</string>
+    <plurals name="backup_restore_alarms">
+        <item quantity="one">%d alarm</item>
+        <item quantity="other">%d alarms</item>
+    </plurals>
+    <plurals name="backup_restore_profiles">
+        <item quantity="one">%d profile</item>
+        <item quantity="other">%d profiles</item>
+    </plurals>
     <string name="backup_restore_failed">Could not restore: %1$s</string>
 </resources>
