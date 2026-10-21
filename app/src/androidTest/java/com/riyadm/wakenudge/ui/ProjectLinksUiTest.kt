@@ -21,6 +21,7 @@ import com.riyadm.wakenudge.ui.settings.AboutContent
 import com.riyadm.wakenudge.ui.theme.WakeNudgeTheme
 import java.util.concurrent.CopyOnWriteArrayList
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -32,12 +33,12 @@ class ProjectLinksUiTest {
 
     private val opened = CopyOnWriteArrayList<String>()
 
-    @Test fun theWelcomeScreenLinksToTheSourceCode() {
+    @Test fun theWelcomeScreenLinksToTheSourceCodeAndTheWebsite() {
         compose.setContent { WakeNudgeTheme { OnboardingScreen(onFinish = {}, openLink = { opened += it }) } }
         compose.onNodeWithText("Wake up on purpose").assertIsDisplayed()
-        val link = compose.onNodeWithText("Open source · github.com/riyadmondol2006/WakeNudge")
-        link.assertIsDisplayed().performClick()
-        assertEquals(listOf("https://github.com/riyadmondol2006/WakeNudge"), opened.toList())
+        compose.onNodeWithText("Open source · github.com/riyadmondol2006/WakeNudge").assertIsDisplayed().performClick()
+        compose.onNodeWithText("wakenudge.site").assertIsDisplayed().performClick()
+        assertEquals(listOf("https://github.com/riyadmondol2006/WakeNudge", "https://wakenudge.site"), opened.toList())
     }
 
     @Test fun theWelcomeLinkStaysReachableOnASmallPhoneAtTheLargestFont() {
@@ -48,7 +49,16 @@ class ProjectLinksUiTest {
             }
         }
         compose.onNodeWithText("Open source · github.com/riyadmondol2006/WakeNudge").performScrollTo().assertIsDisplayed().performClick()
-        assertEquals(1, opened.size)
+        compose.onNodeWithText("wakenudge.site").performScrollTo().assertIsDisplayed().performClick()
+        assertEquals(listOf("https://github.com/riyadmondol2006/WakeNudge", "https://wakenudge.site"), opened.toList())
+    }
+
+    @Test fun bothWelcomeLinksFitOnANarrowScreenWithoutClipping() {
+        compose.setContent {
+            WakeNudgeTheme { Box(Modifier.size(320.dp, 640.dp)) { OnboardingScreen(onFinish = {}, openLink = { opened += it }) } }
+        }
+        compose.onNodeWithText("Open source · github.com/riyadmondol2006/WakeNudge").assertIsDisplayed()
+        compose.onNodeWithText("wakenudge.site").assertIsDisplayed()
     }
 
     @Test fun onlyTheWelcomePageCarriesTheLink() {
@@ -62,6 +72,7 @@ class ProjectLinksUiTest {
     @Test fun theAboutScreenListsTheSourceIssuesAndPrivacyPolicyLinks() {
         compose.setContent { WakeNudgeTheme { AboutContent(onBack = {}, openLink = { opened += it }) } }
         val rows = listOf(
+            "Website" to "https://wakenudge.site",
             "Source code on GitHub" to "https://github.com/riyadmondol2006/WakeNudge",
             "Report a problem" to "https://github.com/riyadmondol2006/WakeNudge/issues",
             "Privacy policy" to "https://github.com/riyadmondol2006/WakeNudge/blob/main/PRIVACY.md",
@@ -73,5 +84,14 @@ class ProjectLinksUiTest {
             compose.onNodeWithText(title).performClick()
         }
         assertEquals(rows.map { it.second }, opened.toList())
+    }
+
+    @Test fun theWebsiteRowSitsAboveTheSourceCodeRow() {
+        compose.setContent { WakeNudgeTheme { AboutContent(onBack = {}, openLink = { opened += it }) } }
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Source code on GitHub"))
+        compose.onNodeWithText("wakenudge.site").assertIsDisplayed()
+        val website = compose.onNodeWithText("Website").fetchSemanticsNode().boundsInRoot.top
+        val source = compose.onNodeWithText("Source code on GitHub").fetchSemanticsNode().boundsInRoot.top
+        assertTrue("Website ($website) is above Source code ($source)", website < source)
     }
 }

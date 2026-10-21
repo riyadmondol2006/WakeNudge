@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.AlarmOn
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -104,6 +105,7 @@ internal fun AboutContent(
             item {
                 SectionTitle(stringResource(R.string.about_project))
                 SettingsGroup {
+                    item { shape -> LinkRow(Icons.Outlined.Language, stringResource(R.string.about_website), ProjectLinks.SITE, shape, open) }
                     item { shape -> LinkRow(Icons.Outlined.Code, stringResource(R.string.about_source_code), ProjectLinks.REPO, shape, open) }
                     item { shape -> LinkRow(Icons.Outlined.BugReport, stringResource(R.string.about_report_problem), ProjectLinks.ISSUES, shape, open) }
                     item { shape -> LinkRow(Icons.Outlined.PrivacyTip, stringResource(R.string.about_privacy_policy), ProjectLinks.PRIVACY_POLICY, shape, open) }
