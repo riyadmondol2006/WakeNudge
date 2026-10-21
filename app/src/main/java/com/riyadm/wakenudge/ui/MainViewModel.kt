@@ -14,6 +14,7 @@ import com.riyadm.wakenudge.ui.nav.AlarmEditRoute
 import com.riyadm.wakenudge.ui.nav.AlarmsRoute
 import com.riyadm.wakenudge.ui.nav.SleepRoute
 import com.riyadm.wakenudge.ui.nav.TimerRoute
+import com.riyadm.wakenudge.update.UpdateChecker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.DayOfWeek
 import javax.inject.Inject
@@ -33,6 +34,7 @@ class MainViewModel @Inject constructor(
     private val settingsRepo: SettingsRepository,
     private val alarmActions: AlarmActions,
     private val timers: TimerController,
+    private val updates: UpdateChecker,
 ) : ViewModel() {
 
     /** Null until the first read finishes, so the splash screen can wait instead of flashing default theming. */
@@ -46,6 +48,11 @@ class MainViewModel @Inject constructor(
 
     private val _toasts = Channel<Int>(Channel.BUFFERED)
     val toasts = _toasts.receiveAsFlow()
+
+    /** The main screen came to the foreground: let the update checker see whether a check is due (Play: does nothing). */
+    fun onForeground() {
+        viewModelScope.launch { updates.checkIfDue() }
+    }
 
     fun finishOnboarding() = viewModelScope.launch { settingsRepo.update { it.copy(onboardingDone = true) } }
 

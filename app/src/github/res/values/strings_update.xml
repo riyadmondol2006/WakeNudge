@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The update popup and the About screen's "Updates" section. GitHub APK only; the Play build has none of this. -->
+    <string name="update_dialog_title">Update available</string>
+    <string name="update_dialog_body">WakeNudge %1$s is available. You have %2$s.</string>
+    <string name="update_notes_title">What\'s new</string>
+    <string name="update_download">Download</string>
+    <string name="update_later">Later</string>
+    <string name="update_skip">Skip this version</string>
+
+    <string name="update_section">Updates</string>
+    <string name="update_switch">Check for updates</string>
+    <string name="update_switch_body">Once a day, when you open WakeNudge. Turn this off and WakeNudge never goes online by itself.</string>
+    <string name="update_check_now">Check now</string>
+    <string name="update_idle">See if a newer version is out</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_up_to_date">You\'re up to date</string>
+    <string name="update_available_row">Version %1$s is available</string>
+    <string name="update_failed">Couldn\'t check right now</string>
+    <string name="update_last_checked">Last checked %1$s</string>
+    <string name="update_never_checked">Not checked yet</string>
+    <string name="update_disclosure_title">What this contacts</string>
+    <string name="update_disclosure">WakeNudge asks GitHub (api.github.com) for the latest release when you open the app, at most once a day, and when you tap Check now. Nothing about you or your alarms is sent, though GitHub sees your IP address like any website. The Google Play version of WakeNudge never does this.</string>
+
+    <!-- This build has the internet permission, so the offline claims in the shared strings are reworded. -->
+    <string name="about_offline">Works offline</string>
+    <string name="about_offline_body">Alarms, timers and everything else run on this phone. The only thing that goes online is the optional update check below, which you can switch off.</string>
+    <string name="about_no_tracking_body">There is nothing to sign up for and nothing to pay. Your alarms and history stay on this phone, and the update check sends nothing about you.</string>
+    <string name="about_permissions_body">Camera, activity recognition, NFC and calendar are requested only when you use a feature that needs them. This version also has internet access, used only for the optional update check.</string>
+    <string name="onboarding_privacy_body">No ads, no accounts, no tracking. The only time WakeNudge goes online is an optional once-a-day update check, which you can switch off in About. Everything else stays on your phone.</string>
+</resources>
