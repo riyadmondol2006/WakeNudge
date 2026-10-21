@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Timer -->
+    <string name="timer_title">Timer</string>
+    <string name="timer_new">New timer</string>
+    <string name="timer_quick_start">Start a timer in one tap</string>
+    <string name="timer_label">Label (optional)</string>
+    <string name="timer_add">Add</string>
+    <string name="timer_start">Start</string>
+    <string name="cd_backspace">Delete last digit</string>
+
+    <!-- Stopwatch -->
+    <string name="stopwatch_title">Stopwatch</string>
+    <string name="stopwatch_start">Start</string>
+    <string name="stopwatch_lap">Lap</string>
+    <string name="stopwatch_lap_number">Lap %1$d</string>
+
+    <!-- World clock -->
+    <string name="clock_title">World clock</string>
+    <string name="clock_local">Here</string>
+    <string name="clock_add_city">Add city</string>
+    <string name="clock_search">Search cities</string>
+    <string name="clock_popular">Popular cities</string>
+    <string name="clock_plan_ahead">Plan ahead</string>
+    <string name="clock_now">Now</string>
+    <string name="clock_hours_ahead">%1$+d h</string>
+    <string name="cd_remove_city">Remove %1$s</string>
+
+    <!-- Morning dashboard -->
+    <string name="morning_title">Morning</string>
+    <string name="morning_clear">Clear history</string>
+    <string name="morning_clear_title">Clear your wake-up history?</string>
+    <string name="morning_clear_body">Streaks and statistics start again from zero. Your alarms are not affected.</string>
+    <string name="morning_greeting_night">Sleep well</string>
+    <string name="morning_greeting_morning">Good morning</string>
+    <string name="morning_greeting_afternoon">Good afternoon</string>
+    <string name="morning_greeting_evening">Good evening</string>
+    <string name="morning_nothing_today">No alarm has gone off today yet.</string>
+    <string name="morning_summary_up">You were up at %1$s after %2$s.</string>
+    <string name="morning_summary_emergency">You used Emergency stop this morning.</string>
+    <string name="morning_summary_missed">Your alarm went unanswered this morning.</string>
+    <plurals name="morning_snoozes">
+        <item quantity="one">Snoozed %1$d time</item>
+        <item quantity="other">Snoozed %1$d times</item>
+    </plurals>
+    <plurals name="morning_streak_days">
+        <item quantity="one">day streak</item>
+        <item quantity="other">day streak</item>
+    </plurals>
+    <string name="morning_streak_best">Best: %1$d</string>
+    <string name="morning_week_title">Time to get up</string>
+    <string name="morning_week_hint">Minutes from first ring to dismissal over the last 7 days. Red bars were not clean wake-ups.</string>
+    <string name="morning_stat_success">Clean wake-ups</string>
+    <string name="morning_stat_avg_up">Average time to dismiss</string>
+    <string name="morning_stat_snoozes">Average snoozes</string>
+    <string name="morning_stat_checks">Still-awake checks passed</string>
+    <string name="morning_history">Recent alarms</string>
+    <string name="morning_empty">Your wake-ups will show up here once an alarm has gone off.</string>
+    <string name="morning_check_pending">Still-awake check active</string>
+    <string name="morning_check_waiting">Will ask you at %1$s.</string>
+    <string name="morning_check_prompted">Waiting for your answer.</string>
+    <string name="outcome_dismissed">Dismissed</string>
+    <string name="outcome_missed">Missed</string>
+    <string name="outcome_emergency">Emergency stop</string>
+    <string name="outcome_check_failed">Fell back asleep</string>
+    <string name="outcome_ringing">Ringing</string>
+    <string name="badge_backup_fired">Backup rang</string>
+    <string name="badge_check_passed">Check passed</string>
+
+    <!-- Sleep planner -->
+    <string name="sleep_title">Sleep planner</string>
+    <string name="sleep_mode_wake">I wake up at</string>
+    <string name="sleep_mode_bed">I go to bed at</string>
+    <string name="sleep_fall_asleep">Time to fall asleep</string>
+    <string name="sleep_fall_asleep_hint">Added to the plan on top of full 90-minute sleep cycles.</string>
+    <string name="sleep_results_bed">Go to bed at</string>
+    <string name="sleep_results_wake">Best times to wake up</string>
+    <string name="sleep_option_summary">%1$d cycles · %2$s h of sleep</string>
+    <string name="sleep_recommended">Recommended</string>
+    <string name="sleep_remind_me">Remind me</string>
+    <string name="sleep_set_alarm">Set alarm</string>
+    <string name="sleep_reminder_section">Bedtime reminder</string>
+    <string name="sleep_reminder_title">Remind me to wind down</string>
+    <string name="sleep_reminder_hint">A gentle notification before bedtime on the days you pick.</string>
+    <string name="sleep_bedtime">Bedtime</string>
+    <string name="sleep_lead">Remind me</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_amoled">AMOLED black</string>
+    <string name="settings_dynamic">Wallpaper colours</string>
+    <string name="settings_dynamic_hint">Use Material You colours from your wallpaper.</string>
+    <string name="settings_time_format">Time format</string>
+    <string name="time_format_system">System</string>
+    <string name="time_format_12">12-hour</string>
+    <string name="time_format_24">24-hour</string>
+    <string name="settings_week_start">Week starts on</string>
+    <string name="week_system">System</string>
+    <string name="week_monday">Monday</string>
+    <string name="week_saturday">Saturday</string>
+    <string name="week_sunday">Sunday</string>
+    <string name="settings_haptics">Haptic feedback</string>
+    <string name="settings_haptics_hint">Gentle vibrations when you turn wheels and flip switches.</string>
+    <string name="settings_ringing">While an alarm rings</string>
+    <string name="settings_volume_keys">Volume buttons</string>
+    <string name="settings_volume_keys_hint">What the hardware buttons do while an alarm is ringing.</string>
+    <string name="vk_volume">Change volume</string>
+    <string name="vk_snooze">Snooze</string>
+    <string name="vk_dismiss">Dismiss</string>
+    <string name="vk_silence">Quiet for 30 s</string>
+    <string name="vk_nothing">Nothing</string>
+    <string name="settings_route">Sound output</string>
+    <string name="settings_route_hint">The phone speaker wakes you even when earbuds are connected.</string>
+    <string name="route_speaker">Phone speaker</string>
+    <string name="route_system">Follow system</string>
+    <string name="settings_hearing_cap">Protect my hearing on headphones</string>
+    <string name="settings_hearing_cap_hint">Limits loudness whenever earbuds or a headset would play the alarm.</string>
+    <string name="settings_hearing_cap_level">Headphone limit</string>
+    <string name="settings_keep_front">Keep the alarm screen in front</string>
+    <string name="settings_keep_front_hint">If you leave the screen while an alarm rings, bring it back.</string>
+    <string name="settings_emergency_hold">Emergency stop hold time</string>
+    <string name="settings_emergency_hold_hint">How long the Emergency stop button must be held.</string>
+    <string name="settings_defaults">New alarm defaults</string>
+    <string name="settings_defaults_hint">Sound, volume, vibration, snooze and anti-oversleep for new alarms.</string>
+    <string name="settings_schedule">Schedule</string>
+    <string name="settings_vacation">Vacation mode</string>
+    <string name="settings_vacation_hint">Pause every alarm that is not marked to ring anyway.</string>
+    <string name="settings_vacation_resume">Resume on</string>
+    <string name="settings_vacation_manual">When I switch it off</string>
+    <string name="settings_exceptions">Holidays and exceptions</string>
+    <string name="settings_exceptions_hint">Days your repeating alarms stay quiet.</string>
+    <string name="settings_groups">Profiles</string>
+    <string name="settings_groups_hint">Switch groups of alarms on and off together.</string>
+    <string name="settings_sleep">Sleep and bedtime</string>
+    <string name="settings_sleep_hint">Sleep planner and bedtime reminder.</string>
+    <string name="settings_timers">Timers</string>
+    <string name="settings_timer_sound">Timer sound</string>
+    <string name="settings_timer_vibrate">Vibrate when a timer ends</string>
+    <string name="settings_data">Data and reliability</string>
+    <string name="settings_health">Alarm health</string>
+    <string name="settings_health_hint">Check that your alarms can wake you, and test one.</string>
+    <string name="settings_backup">Backup and restore</string>
+    <string name="settings_backup_hint">Save everything to a file on your device.</string>
+    <string name="settings_about">About WakeNudge</string>
+    <string name="defaults_title">New alarm defaults</string>
+    <string name="defaults_hint">These settings are copied into every alarm you create. Existing alarms are not changed.</string>
+
+    <!-- Profiles -->
+    <string name="groups_title">Profiles</string>
+    <string name="groups_hint">Put alarms into profiles such as “Work week” or “Weekend”, then switch a whole profile on or off with one tap.</string>
+    <string name="groups_new">New profile</string>
+    <string name="groups_name">Profile name</string>
+    <string name="groups_rename">Rename</string>
+    <string name="groups_delete_title">Delete “%1$s”?</string>
+    <string name="groups_delete_body">Alarms in this profile are kept and simply become ungrouped.</string>
+
+    <!-- Exceptions -->
+    <string name="exceptions_title">Holidays and exceptions</string>
+    <string name="exceptions_hint">Repeating alarms stay quiet on these days. One-time alarms always ring.</string>
+    <string name="exceptions_calendar">From your calendars</string>
+    <string name="exceptions_calendar_switch">Skip holidays from my calendar</string>
+    <string name="exceptions_calendar_hint">Reads all-day events on this phone (for example a “Holidays” calendar) and never sends them anywhere.</string>
+    <string name="exceptions_no_calendars">No calendars found on this phone.</string>
+    <plurals name="exceptions_calendar_days">
+        <item quantity="one">%1$d day in the next year is skipped.</item>
+        <item quantity="other">%1$d days in the next year are skipped.</item>
+    </plurals>
+    <string name="exceptions_dates">Your dates</string>
+    <string name="exceptions_none">No dates added yet.</string>
+    <string name="exceptions_add">Add a date</string>
+    <string name="exceptions_label_title">Name %1$s</string>
+    <string name="exceptions_label">Name (optional)</string>
+
+    <!-- About -->
+    <string name="about_name">WakeNudge</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_tagline">A free, open-source alarm clock that gets you out of bed — and keeps your data to itself.</string>
+    <string name="about_privacy">Privacy</string>
+    <string name="about_offline">Works completely offline</string>
+    <string name="about_offline_body">WakeNudge does not have the internet permission. It cannot send anything anywhere.</string>
+    <string name="about_no_tracking">No ads, accounts or tracking</string>
+    <string name="about_no_tracking_body">There is nothing to sign up for and nothing to pay. Your alarms and history stay on this phone.</string>
+    <string name="about_permissions">Permissions only when needed</string>
+    <string name="about_permissions_body">Camera, activity recognition, NFC and calendar are requested only when you use a feature that needs them.</string>
+    <string name="about_license">License</string>
+    <string name="about_license_name">Apache License 2.0</string>
+    <string name="about_license_body">You are free to use, study, change and share this app. The source code is public.</string>
+    <string name="about_libraries">Open-source libraries</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_start">Get started</string>
+    <string name="onboarding_welcome_title">Wake up on purpose</string>
+    <string name="onboarding_welcome_body">WakeNudge is an alarm clock that makes sure you actually get up, with a calm design that stays out of the way.</string>
+    <string name="onboarding_reliable_title">Rings when it must</string>
+    <string name="onboarding_reliable_body">Lock screen, silent mode, battery saver or a restart in the night: the alarm is scheduled the way the system intends, and re-armed after a reboot.</string>
+    <string name="onboarding_missions_title">Missions, not mashing</string>
+    <string name="onboarding_missions_body">Solve a sum, scan a barcode, shake, walk or squat before the alarm lets go. Add a backup alarm and a “still awake?” check, and switch any of it off whenever you like.</string>
+    <string name="onboarding_privacy_title">Private by design</string>
+    <string name="onboarding_privacy_body">No internet permission, no ads, no accounts, no tracking. Everything stays on your phone.</string>
+    <string name="onboarding_permissions_title">One last thing</string>
+    <string name="onboarding_permissions_body">These make sure your alarm can wake you. You can change them later in Alarm health.</string>
+    <string name="onboarding_perm_notifications">Notifications</string>
+    <string name="onboarding_perm_notifications_body">Needed to show the alarm and its Snooze and Dismiss buttons.</string>
+    <string name="onboarding_perm_fullscreen">Full-screen alarm</string>
+    <string name="onboarding_perm_fullscreen_body">Lets the alarm light up the screen over the lock screen.</string>
+    <string name="onboarding_perm_battery">Battery</string>
+    <string name="onboarding_perm_battery_body">Optional: if your phone is aggressive about battery saving, allow WakeNudge to run unrestricted.</string>
+    <string name="onboarding_allow">Allow</string>
+    <string name="onboarding_granted">Granted</string>
+    <string name="onboarding_open_settings">Open settings</string>
+</resources>

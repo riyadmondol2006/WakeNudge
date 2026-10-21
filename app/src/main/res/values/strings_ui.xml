@@ -281,4 +281,37 @@
     <!-- Still-awake screen -->
     <string name="wake_check_screen_title">Still awake?</string>
     <string name="wake_check_screen_body">Tap to confirm. Otherwise your alarm rings again when the time runs out.</string>
+
+    <!-- Mission editor -->
+    <string name="edit_missions_title">Wake-up missions</string>
+    <string name="edit_missions_hint">Complete these in order to dismiss the alarm. Snoozing stays available unless you limit it.</string>
+    <string name="edit_missions_snooze_title">Solve to snooze</string>
+    <string name="edit_missions_snooze_hint">Optional: require a short mission before a snooze is granted.</string>
+    <string name="edit_missions_add">Add mission</string>
+    <string name="edit_missions_pick_title">Choose a mission</string>
+    <string name="edit_missions_move_up">Move up</string>
+    <string name="edit_missions_move_down">Move down</string>
+    <string name="edit_missions_difficulty">Difficulty</string>
+    <string name="edit_missions_puzzle_kind">Puzzle</string>
+    <string name="edit_missions_needs_setup">Needs one-time setup</string>
+    <string name="edit_missions_setup_done">Ready: %1$s</string>
+    <string name="edit_missions_set_up">Set up</string>
+    <string name="edit_missions_change">Change</string>
+    <string name="edit_missions_preview">Try it</string>
+    <string name="edit_missions_code_registered">Code registered</string>
+    <string name="edit_missions_tag_registered">Tag registered</string>
+    <string name="edit_missions_photo_saved">Reference photo saved</string>
+    <string name="edit_missions_count_math">Problems</string>
+    <string name="edit_missions_count_memory">Rounds</string>
+    <string name="edit_missions_count_typing">Phrases</string>
+    <string name="edit_missions_count_shake">Shakes</string>
+    <string name="edit_missions_count_steps">Steps</string>
+    <string name="edit_missions_count_squats">Squats</string>
+    <string name="edit_missions_count_times">Times</string>
+    <string name="difficulty_easy">Easy</string>
+    <string name="difficulty_medium">Medium</string>
+    <string name="difficulty_hard">Hard</string>
+    <string name="puzzle_sliding">Sliding tiles</string>
+    <string name="puzzle_number_grid">Number grid</string>
+    <string name="puzzle_pattern">Pattern trace</string>
 </resources>
