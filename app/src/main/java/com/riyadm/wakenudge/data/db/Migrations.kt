@@ -15,5 +15,12 @@ object Migrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(V1_TO_V2)
+    /** The Emergency stop became a per-alarm option; every existing alarm keeps it on. */
+    val V2_TO_V3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `alarms` ADD COLUMN `ao_emergencyStopEnabled` INTEGER NOT NULL DEFAULT 1")
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(V1_TO_V2, V2_TO_V3)
 }

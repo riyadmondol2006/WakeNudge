@@ -1,6 +1,23 @@
 package com.riyadm.wakenudge.ui
 
 import androidx.compose.material3.Text
+import com.riyadm.wakenudge.engine.audio.AlarmVibrator
+import com.riyadm.wakenudge.ui.ring.RingScreen
+import com.riyadm.wakenudge.ui.ring.RingMissionContent
+import com.riyadm.wakenudge.ui.ring.RingActions
+import com.riyadm.wakenudge.ui.edit.rememberExpandedCategories
+import com.riyadm.wakenudge.ui.edit.alarmCategories
+import com.riyadm.wakenudge.ui.edit.CategoryOptions
+import com.riyadm.wakenudge.ui.edit.AntiOversleepSection
+import com.riyadm.wakenudge.engine.RingSession
+import com.riyadm.wakenudge.engine.RingPhase
+import com.riyadm.wakenudge.engine.RingKind
+import com.riyadm.wakenudge.domain.model.AppSettings
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -41,6 +58,7 @@ class CategoriesAndPickerUiTest {
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val previewer = SoundPreviewer(ApplicationProvider.getApplicationContext())
+    private val vibratorForTest = AlarmVibrator(ApplicationProvider.getApplicationContext())
 
     @After fun silence() = previewer.stop()
 
@@ -137,6 +155,90 @@ class CategoriesAndPickerUiTest {
         // A switched-off snooze and an alarm with no missions say so plainly.
         assertEquals("Off", plain.getValue(AlarmCategory.SNOOZE))
         assertEquals("No missions", plain.getValue(AlarmCategory.WAKE_UP))
+    }
+
+    // ---- strict alarms: Emergency stop and snooze are per-alarm switches ----------------------------------------------
+
+    private fun ringSession(alarm: Alarm) =
+        RingSession(alarm = alarm, kind = RingKind.PRIMARY, phase = RingPhase.RINGING, eventId = 1, scheduledAt = 0, startedAt = 0)
+
+    private fun showRing(alarm: Alarm) {
+        compose.setContent {
+            WakeNudgeTheme {
+                Box(Modifier.size(393.dp, 851.dp)) {
+                    RingScreen(
+                        session = ringSession(alarm), settings = AppSettings(),
+                        actions = RingActions(
+                            onSnooze = {}, onDismiss = {}, onEmergencyStop = {}, onAddMinute = {}, onHide = {},
+                            onInteraction = {}, onMissionProgress = {},
+                        ),
+                        missionContent = { m, i, p, c -> RingMissionContent(m, i, p, c) },
+                    )
+                }
+            }
+        }
+    }
+
+    @Test fun theRingScreenOffersTheEmergencyStopByDefault() {
+        showRing(Alarm(label = "Gym"))
+        compose.onNodeWithText("Emergency stop").assertIsDisplayed()
+    }
+
+    @Test fun aStrictAlarmHasNoEmergencyStopOnTheRingScreen() {
+        showRing(Alarm(label = "Flight", antiOversleep = AntiOversleepSettings(emergencyStopEnabled = false)))
+        compose.onNodeWithText("Emergency stop").assertDoesNotExist()
+        // The way to end it is still the normal one.
+        compose.onNodeWithText("Slide to dismiss").assertIsDisplayed()
+    }
+
+    @Test fun turningTheEmergencyStopOffAsksFirstAndTurningItOnDoesNot() {
+        var alarm by mutableStateOf(Alarm())
+        compose.setContent {
+            WakeNudgeTheme {
+                androidx.compose.foundation.lazy.LazyColumn {
+                    item { AntiOversleepSection(alarm, enabled = true, onChange = { f -> alarm = f(alarm) }, showTitle = false) }
+                }
+            }
+        }
+        compose.onNodeWithText("Emergency stop").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Turn off the Emergency stop?").assertIsDisplayed()
+        assertTrue("nothing changes until the user confirms", alarm.antiOversleep.emergencyStopEnabled)
+
+        compose.onNodeWithText("Cancel").performClick()
+        compose.waitForIdle()
+        assertTrue(alarm.antiOversleep.emergencyStopEnabled)
+
+        compose.onNodeWithText("Emergency stop").performClick()
+        compose.onNodeWithText("Turn off").performClick()
+        compose.waitForIdle()
+        assertEquals(false, alarm.antiOversleep.emergencyStopEnabled)
+
+        compose.onNodeWithText("Emergency stop").performClick()   // back on: immediate, no dialog
+        compose.waitForIdle()
+        assertTrue(alarm.antiOversleep.emergencyStopEnabled)
+        compose.onNodeWithText("Turn off the Emergency stop?").assertDoesNotExist()
+    }
+
+    @Test fun theSnoozeSwitchOnItsCardWorksWithoutOpeningTheCard() {
+        var alarm by mutableStateOf(Alarm())
+        compose.setContent {
+            WakeNudgeTheme {
+                val expanded = rememberExpandedCategories()
+                androidx.compose.foundation.lazy.LazyColumn {
+                    alarmCategories(
+                        alarm = alarm, enabled = true, expanded = expanded, options = CategoryOptions(perAlarm = true),
+                        previewer = previewer, vibrator = vibratorForTest, onChange = { f -> alarm = f(alarm) },
+                    )
+                }
+            }
+        }
+        assertTrue(alarm.snooze.enabled)
+        compose.onNodeWithContentDescription("Allow snooze").performClick()
+        compose.waitForIdle()
+        assertEquals("the switch turns snooze off", false, alarm.snooze.enabled)
+        compose.onNodeWithText("Off").assertIsDisplayed()           // the collapsed card now says so
+        compose.onNodeWithText("Snooze length").assertDoesNotExist() // and it stayed closed
     }
 }
 

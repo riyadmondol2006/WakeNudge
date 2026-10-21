@@ -314,4 +314,12 @@
     <string name="puzzle_sliding">Sliding tiles</string>
     <string name="puzzle_number_grid">Number grid</string>
     <string name="puzzle_pattern">Pattern trace</string>
+
+    <string name="ao_emergency_stop">Emergency stop</string>
+    <string name="ao_emergency_stop_on">A press-and-hold button on the ring screen that ends the alarm without its missions.</string>
+    <string name="ao_emergency_stop_off">Off: only dismissing normally (missions and all) ends this alarm, or the ring timeout below.</string>
+    <string name="ao_emergency_note_off">A strict alarm. If a mission cannot be done on this phone (no camera, permission refused) it still offers Continue, and the alarm stops by itself after the ring timeout.</string>
+    <string name="ao_emergency_off_title">Turn off the Emergency stop?</string>
+    <string name="ao_emergency_off_body">Nothing on the ring screen will be able to skip this alarm\'s missions. Pick this for alarms you really must get up for, and make sure the missions are ones you can always do.</string>
+    <string name="ao_emergency_off_confirm">Turn off</string>
 </resources>

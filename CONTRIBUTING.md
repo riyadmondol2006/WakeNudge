@@ -12,7 +12,7 @@ Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT
    flavour declares no network permission at all, and the GitHub flavour holds only `INTERNET` for its update check. The
    build enforces this; do not work around it.
 2. **A mission must never trap the user.** Anything that can be impossible on some phone needs a way out, and the
-   Emergency stop must always work.
+   Emergency stop must work wherever the alarm has it switched on (it is on by default; a strict alarm may turn it off).
 3. **Restore what you change.** Anything modifying system state (alarm volume, brightness) must put it back.
 4. **No placeholders.** No TODO-shaped UI, no mock buttons, no dead settings.
 

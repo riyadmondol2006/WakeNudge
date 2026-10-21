@@ -97,6 +97,12 @@ data class AntiOversleepSettings(
     val editLockMinutes: Int = 0,
     /** Auto-silence after this many minutes of ringing without any action. */
     val ringTimeoutMinutes: Int = 10,
+    /**
+     * Whether the ring screen offers the press-and-hold Emergency stop, which ends the alarm without its missions. On by
+     * default so nobody is ever trapped; a strict alarm can switch it off. The ring timeout and missions that this phone
+     * cannot perform still end the alarm either way.
+     */
+    val emergencyStopEnabled: Boolean = true,
 )
 
 @Serializable

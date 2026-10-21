@@ -15,7 +15,7 @@ import androidx.room.TypeConverters
         WakeCheckEntity::class,
         DiagnosticEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

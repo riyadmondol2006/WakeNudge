@@ -17,7 +17,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandMore
@@ -45,6 +48,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
@@ -54,6 +58,7 @@ import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.engine.audio.AlarmVibrator
 import com.riyadm.wakenudge.engine.audio.SoundPreviewer
 import com.riyadm.wakenudge.ui.theme.Blobs
+import com.riyadm.wakenudge.ui.components.ExpressiveSwitch
 import com.riyadm.wakenudge.ui.theme.LocalWakeHaptics
 import com.riyadm.wakenudge.ui.theme.PolygonShape
 import com.riyadm.wakenudge.ui.theme.WakeMotion
@@ -115,12 +120,24 @@ fun LazyListScope.alarmCategories(
     val shown = AlarmCategory.entries.filter { options.perAlarm || it != AlarmCategory.WAKE_UP && it != AlarmCategory.RULES }
     shown.forEach { category ->
         item(key = "category-${category.name}") {
+            val switchLabel = stringResource(R.string.cat_snooze_switch)
             CategoryCard(
                 icon = category.icon,
                 title = stringResource(categoryTitle(category)),
                 summary = categorySummary(category, alarm, options.perAlarm),
                 expanded = expanded.isOpen(category),
                 onToggle = { expanded.toggle(category) },
+                trailing = if (category == AlarmCategory.SNOOZE) {
+                    {
+                        // Snooze is the one option people flip on every alarm, so it is a switch right on the card.
+                        ExpressiveSwitch(
+                            checked = alarm.snooze.enabled,
+                            onCheckedChange = { on -> onChange { it.copy(snooze = it.snooze.copy(enabled = on)) } },
+                            enabled = enabled,
+                            modifier = Modifier.semantics { contentDescription = switchLabel },
+                        )
+                    }
+                } else null,
             ) {
                 when (category) {
                     AlarmCategory.WAKE_UP -> {
@@ -155,6 +172,8 @@ fun CategoryCard(
     summary: String,
     expanded: Boolean,
     onToggle: () -> Unit,
+    /** A control that sits in the header, so it can be used without opening the card (for example the Snooze switch). */
+    trailing: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val haptics = LocalWakeHaptics.current
@@ -167,30 +186,49 @@ fun CategoryCard(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp).animateContentSize(WakeMotion.defaultSpatial()),
     ) {
         Column {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable(role = Role.Button, onClickLabel = stringResource(if (expanded) R.string.cat_collapse else R.string.cat_expand)) {
-                        haptics.tick()
-                        onToggle()
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                // The icon and texts are one tappable, announced-as-a-unit area; a trailing control (the Snooze switch) and the
+                // chevron are separate siblings, so a screen reader never mistakes the whole card for a switch.
+                Row(
+                    Modifier
+                        .weight(1f)
+                        .clickable(role = Role.Button, onClickLabel = stringResource(if (expanded) R.string.cat_collapse else R.string.cat_expand)) {
+                            haptics.tick()
+                            onToggle()
+                        }
+                        .semantics(mergeDescendants = true) { stateDescription = stateText }
+                        .padding(vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(44.dp).clip(PolygonShape(Blobs.Cookie)).background(scheme.secondaryContainer), contentAlignment = Alignment.Center) {
+                        Icon(icon, null, tint = scheme.onSecondaryContainer)
                     }
-                    .semantics(mergeDescendants = true) { stateDescription = stateText }
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(Modifier.size(44.dp).clip(PolygonShape(Blobs.Cookie)).background(scheme.secondaryContainer), contentAlignment = Alignment.Center) {
-                    Icon(icon, null, tint = scheme.onSecondaryContainer)
-                }
-                Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-                    Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-                    if (!expanded) {
-                        Text(
-                            summary, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant,
-                            maxLines = 2, overflow = TextOverflow.Ellipsis,
-                        )
+                    Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                        Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+                        if (!expanded) {
+                            Text(
+                                summary, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant,
+                                maxLines = 2, overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 }
-                Icon(Icons.Filled.ExpandMore, null, tint = scheme.onSurfaceVariant, modifier = Modifier.rotate(chevron))
+                if (trailing != null) {
+                    trailing()
+                    Spacer(Modifier.width(4.dp))
+                }
+                Box(
+                    Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .clickable(role = Role.Button, onClickLabel = stringResource(if (expanded) R.string.cat_collapse else R.string.cat_expand)) {
+                            haptics.tick()
+                            onToggle()
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Filled.ExpandMore, null, tint = scheme.onSurfaceVariant, modifier = Modifier.rotate(chevron))
+                }
             }
             AnimatedVisibility(
                 visible = expanded,
@@ -251,7 +289,8 @@ fun categorySummary(category: AlarmCategory, alarm: Alarm, perAlarm: Boolean): S
             val hold = if (a.holdToDismissSeconds > 0) stringResource(R.string.cat_hold, stringResource(R.string.unit_seconds, a.holdToDismissSeconds)) else null
             val backup = if (a.backupEnabled) stringResource(R.string.cat_backup_in, minutesLabel(a.backupDelayMinutes)) else null
             val lock = if (a.editLockMinutes > 0) stringResource(R.string.cat_edit_lock, minutesLabel(a.editLockMinutes)) else null
-            listOfNotNull(backup, hold, lock).ifEmpty { listOf(stringResource(R.string.cat_standard)) }.joinToString(separator)
+            val noEmergency = if (!a.emergencyStopEnabled) stringResource(R.string.cat_no_emergency_stop) else null
+            listOfNotNull(noEmergency, backup, hold, lock).ifEmpty { listOf(stringResource(R.string.cat_standard)) }.joinToString(separator)
         }
         AlarmCategory.RULES -> {
             val skips = if (alarm.isRepeating && alarm.respectExceptions) stringResource(R.string.cat_skips_holidays) else null

@@ -322,7 +322,9 @@ private fun Controls(
                         onDismiss = actions.onDismiss,
                     )
                 }
-                EmergencyStop(settings.emergencyStopHoldSeconds, actions.onEmergencyStop, onBottom)
+                if (alarm.antiOversleep.emergencyStopEnabled) {
+                    EmergencyStop(settings.emergencyStopHoldSeconds, actions.onEmergencyStop, onBottom)
+                }
             }
 
             RingMode.DismissMissions, RingMode.SnoozeMissions -> Column(Modifier.fillMaxSize()) {
@@ -345,7 +347,9 @@ private fun Controls(
                         { if (current == RingMode.SnoozeMissions) actions.onSnooze() else actions.onDismiss() },
                     )
                 }
-                EmergencyStop(settings.emergencyStopHoldSeconds, actions.onEmergencyStop, onBottom, Modifier.padding(top = 8.dp))
+                if (alarm.antiOversleep.emergencyStopEnabled) {
+                    EmergencyStop(settings.emergencyStopHoldSeconds, actions.onEmergencyStop, onBottom, Modifier.padding(top = 8.dp))
+                }
             }
         }
     }
