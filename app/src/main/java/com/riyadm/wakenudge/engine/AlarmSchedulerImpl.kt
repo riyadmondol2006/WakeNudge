@@ -24,6 +24,7 @@ import java.time.Duration
 import java.time.ZonedDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -55,21 +56,30 @@ class AlarmSchedulerImpl @Inject constructor(
     /** The global heads-up lead time, read once per scheduling pass so the hot loop never suspends on settings. */
     private var noticeDefault = 0
 
+    /** Set by [scheduleOne] when the OS would not take an alarm; read and cleared under [lock] by [schedule]. */
+    private var refusedByOs = false
+
     override suspend fun rescheduleAll(reason: String) = lock.withLock {
         val now = time.now()
         val nowMs = now.toInstant().toEpochMilli()
         val today = now.toLocalDate().toEpochDay()
-        expireVacation(today)
-        noticeDefault = settings.current().upcomingNoticeMinutes
+        val fallbacksBefore = pending.fallbackCount
+        // Arming the alarms comes first and depends on as little as possible. Settings, vacation and the like are
+        // read with safe defaults: if the store is unreadable, alarms are armed as if nothing were paused.
+        step("ending an expired vacation") { expireVacation(today) }
+        noticeDefault = guarded("reading settings", 0) { settings.current().upcomingNoticeMinutes }
 
-        val ctx = contextProvider.load()
+        val ctx = guarded("loading the scheduling context", null) { contextProvider.load() }
+            ?: LoadedSchedulingContext(VacationMode(), emptySet(), emptyMap())
         val all = alarms.getAlarms()
 
         // Anything we registered for an alarm that no longer exists must go, follow-ups included.
         val known = all.map { it.id }.toSet()
         for (gone in runtime.registeredTriggers().keys.filter { it !in known }) {
-            cancelAlarmTriggers(gone)
-            cancelFollowUpsLocked(gone)
+            step("cancelling the triggers of removed alarm $gone") {
+                cancelAlarmTriggers(gone)
+                cancelFollowUpsLocked(gone)
+            }
         }
 
         // Plan first, register second: one broken alarm must not stop the others, and when the OS's 500-alarm cap
@@ -80,9 +90,11 @@ class AlarmSchedulerImpl @Inject constructor(
             try {
                 cancelAlarmTriggers(alarm.id)
                 val live = alarm.copy(skipEpochDay = alarm.skipEpochDay?.takeIf { it >= today })
-                if (alarm.skipEpochDay != null && live.skipEpochDay == null) alarms.setSkipDay(alarm.id, null)
+                // Tidying a stale "skip" is bookkeeping; if it cannot be written the alarm is still planned.
+                if (alarm.skipEpochDay != null && live.skipEpochDay == null) step("clearing the stale skip of alarm ${alarm.id}") { alarms.setSkipDay(alarm.id, null) }
                 calculator.next(live, now, ctx.forAlarm(alarm))?.let { plans += alarm to it }
             } catch (t: Throwable) {
+                if (t is CancellationException) throw t
                 failures++
                 diagnostics.error("Scheduler", "alarm ${alarm.id} could not be planned and was skipped", t)
             }
@@ -92,6 +104,7 @@ class AlarmSchedulerImpl @Inject constructor(
         val registered = HashMap<Long, Long>()
         var used = 0
         var overflow = 0
+        var refused = 0
         for ((alarm, next) in plans) {
             if (used >= MAX_ARMED_ALARMS) { overflow++; continue }
             val at = next.toInstant().toEpochMilli()
@@ -99,10 +112,11 @@ class AlarmSchedulerImpl @Inject constructor(
                 registered[alarm.id] = at
                 used++
             } else {
-                failures++
+                refused++
                 diagnostics.error("Scheduler", "OS refused alarm ${alarm.id}: ${pending.lastFailure}")
             }
         }
+        failures += refused
         // Lead-in and heads-up triggers are a bonus: only for alarms in the next day and a half, budget permitting.
         for ((alarm, _) in plans) {
             val at = registered[alarm.id] ?: continue
@@ -111,17 +125,52 @@ class AlarmSchedulerImpl @Inject constructor(
         }
         if (overflow > 0) diagnostics.warn("Scheduler", "$overflow alarms are beyond the OS limit of concurrent alarms and not armed")
         runtime.setRegisteredTriggers(registered)
+        reportArming(nowMs, unarmed = refused + overflow, usedFallback = pending.fallbackCount > fallbacksBefore)
 
-        restoreFollowUps(nowMs)
-        restoreWakeChecks(nowMs)
-        restoreTimers(nowMs)
-        scheduleBedtime(settings.current().bedtime, now)
-        scheduleWatchdog(nowMs)
+        // Everything below is a safety net or a convenience: each runs on its own so a failing one cannot skip the rest,
+        // above all the watchdog that re-validates the whole schedule every few hours.
+        step("restoring snoozes and backup alarms") { restoreFollowUps(nowMs) }
+        step("restoring still-awake checks") { restoreWakeChecks(nowMs) }
+        step("restoring timers") { restoreTimers(nowMs) }
+        step("scheduling the bedtime reminder") { scheduleBedtime(guarded("reading settings", BedtimeSettings()) { settings.current().bedtime }, now) }
+        step("arming the watchdog") { scheduleWatchdog(nowMs) }
 
         runtime.lastRescheduleAt = nowMs
         runtime.lastRescheduleReason = reason
         diagnostics.info("Scheduler", "rescheduleAll($reason): ${all.size} alarms, ${registered.size} armed" + if (failures > 0) ", $failures problems" else "")
         surfaces.refreshAll()
+    }
+
+    /**
+     * Tells the user when alarms could not be armed (the OS refused or ran out of room) or only got a second-best
+     * registration, and clears the notice once everything is armed properly. Alarm Health shows the details.
+     */
+    private fun reportArming(nowMs: Long, unarmed: Int, usedFallback: Boolean) {
+        runtime.lastSchedulingProblem = when {
+            unarmed > 0 -> "$nowMs|$unarmed alarm(s) could not be armed: ${pending.lastFailure ?: "limit reached"}"
+            usedFallback -> "$nowMs|${pending.lastFallback?.substringAfter('|').orEmpty()}"
+            else -> ""
+        }
+        if (unarmed > 0) notifier.showSchedulingProblem(unarmed) else notifier.cancelSchedulingProblem()
+    }
+
+    private inline fun step(what: String, block: () -> Unit) {
+        try {
+            block()
+        } catch (c: CancellationException) {
+            throw c
+        } catch (t: Throwable) {
+            diagnostics.error("Scheduler", "$what failed; continuing", t)
+        }
+    }
+
+    private inline fun <T> guarded(what: String, fallback: T, block: () -> T): T = try {
+        block()
+    } catch (c: CancellationException) {
+        throw c
+    } catch (t: Throwable) {
+        diagnostics.error("Scheduler", "$what failed; using a safe default", t)
+        fallback
     }
 
     override suspend fun schedule(alarmId: Long, afterMillis: Long) = lock.withLock {
@@ -138,8 +187,14 @@ class AlarmSchedulerImpl @Inject constructor(
             val at = try {
                 scheduleOne(alarm, contextProvider.load(), from)
             } catch (t: Throwable) {
+                if (t is CancellationException) throw t
                 diagnostics.error("Scheduler", "alarm ${alarm.id} could not be scheduled", t)
                 null
+            }
+            if (refusedByOs) {
+                refusedByOs = false
+                runtime.lastSchedulingProblem = "${time.nowMillis()}|1 alarm(s) could not be armed: ${pending.lastFailure ?: "refused by the OS"}"
+                notifier.showSchedulingProblem(1)
             }
             val map = runtime.registeredTriggers().toMutableMap()
             if (at == null) map.remove(alarmId) else map[alarmId] = at
@@ -252,16 +307,17 @@ class AlarmSchedulerImpl @Inject constructor(
         cancelAlarmTriggers(alarm.id)
 
         val today = now.toLocalDate().toEpochDay()
-        if (alarm.skipEpochDay != null && alarm.skipEpochDay < today) alarms.setSkipDay(alarm.id, null)
+        if (alarm.skipEpochDay != null && alarm.skipEpochDay < today) step("clearing the stale skip of alarm ${alarm.id}") { alarms.setSkipDay(alarm.id, null) }
 
         val next = calculator.next(alarm.copy(skipEpochDay = alarm.skipEpochDay?.takeIf { it >= today }), now, ctx.forAlarm(alarm))
             ?: return null
         val at = next.toInstant().toEpochMilli()
         if (!pending.setAlarmClock(TriggerKind.ALARM, alarm.id, at)) {
             diagnostics.error("Scheduler", "OS refused alarm ${alarm.id}: ${pending.lastFailure}")
+            refusedByOs = true
             return null
         }
-        noticeDefault = settings.current().upcomingNoticeMinutes
+        noticeDefault = guarded("reading settings", 0) { settings.current().upcomingNoticeMinutes }
         registerAuxiliary(alarm, at, now.toInstant().toEpochMilli())
         return at
     }

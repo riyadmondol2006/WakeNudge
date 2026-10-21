@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Notification channel for problems the user must act on -->
+    <string name="channel_problems">Alarm problems</string>
+    <string name="channel_problems_desc">Warns you when WakeNudge could not set up an alarm, so you do not oversleep because of it.</string>
+
+    <string name="channel_ring_fallback">Alarm sound backup</string>
+    <string name="channel_ring_fallback_desc">Sounds the alarm by itself in the rare case WakeNudge could not start its alarm service.</string>
+
+    <!-- Alarms that could not be armed -->
+    <string name="notif_scheduling_problem_title">An alarm may not ring</string>
+    <plurals name="notif_scheduling_problem_text">
+        <item quantity="one">Android refused to set up %d alarm. Open WakeNudge and check Alarm health.</item>
+        <item quantity="other">Android refused to set up %d alarms. Open WakeNudge and check Alarm health.</item>
+    </plurals>
+
+    <!-- Alarm Health: things the engine noticed while running -->
+    <string name="health_title_scheduling_problem">Setting up alarms</string>
+    <string name="health_detail_scheduling_problem">On %1$s: %2$s Alarms set up this way can ring a little late, or not be shown as the next alarm in the status bar. Restarting the phone often clears it.</string>
+    <string name="health_title_audio_problem">Alarm sound</string>
+    <string name="health_detail_audio_problem">On %1$s the alarm could not play the sound it was set to and used a fallback: %2$s. Pick a different sound for the alarm, or check that the file still exists.</string>
+    <string name="health_title_ring_crash">Alarm stability</string>
+    <string name="health_detail_ring_crash">The alarm stopped unexpectedly while it was ringing on %1$s (the alarm screen or the sound service stopped working). WakeNudge started it again right away, but please send a support report from this screen.</string>
+    <string name="health_title_battery_saver">Battery Saver</string>
+    <string name="health_detail_battery_saver">Battery Saver is on. Alarms still ring, but timers, heads-up notices and the bedtime reminder can arrive late.</string>
+</resources>

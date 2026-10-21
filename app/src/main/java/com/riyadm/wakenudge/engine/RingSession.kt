@@ -46,10 +46,15 @@ data class RingSession(
     val lastInteractionAt: Long = startedAt,
     val missionsDone: Int = 0,
     val timerId: Long = 0,
+    /** The ring screen crashed repeatedly: the notification carries the controls instead of launching the screen. */
+    val safeMode: Boolean = false,
 ) {
     val isTimer: Boolean get() = kind == RingKind.TIMER
     val isTest: Boolean get() = kind == RingKind.TEST
     val hasMissions: Boolean get() = !isTimer && alarm.missions.isNotEmpty()
+
+    /** The request that would start this very session again, e.g. after the service had to be restarted. */
+    fun toRequest() = RingRequest(alarm.id, eventId, scheduledAt, kind, snoozeCount, phase, timerId)
 }
 
 /** Process-wide holder of the single active ring session. */
@@ -85,4 +90,6 @@ data class RingRequest(
     val snoozeCount: Int = 0,
     val phase: RingPhase = RingPhase.RINGING,
     val timerId: Long = 0,
+    /** How many times starting the service for this ring has already been retried (see [RingRetry]). */
+    val attempt: Int = 0,
 )

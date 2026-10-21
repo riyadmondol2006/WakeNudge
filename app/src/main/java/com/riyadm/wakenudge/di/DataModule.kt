@@ -2,8 +2,10 @@ package com.riyadm.wakenudge.di
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.room.Room
 import com.riyadm.wakenudge.core.SystemTimeSource
 import com.riyadm.wakenudge.core.TimeSource
@@ -72,7 +74,8 @@ object DataModule {
     @Provides
     @Singleton
     fun settingsDataStore(@DeviceProtected context: Context, @AppScope scope: CoroutineScope): DataStore<Preferences> =
-        PreferenceDataStoreFactory.create(scope = scope) {
+        // A settings file that cannot be parsed is replaced by defaults instead of failing every read from then on.
+        PreferenceDataStoreFactory.create(corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() }, scope = scope) {
             File(context.filesDir, "datastore/settings.preferences_pb")
         }
 }

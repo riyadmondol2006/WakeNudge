@@ -344,4 +344,34 @@ class HealthEvaluatorTest {
             fixes.map { it.kind }.toSet(),
         )
     }
+
+    // ---- what the engine noticed while running ----------------------------------------------------------------------
+
+    @Test fun `recent engine problems are reported and stale ones are forgotten`() {
+        val now = HealthSnapshot().nowMillis
+        val recent = evaluate(HealthSnapshot(schedulingProblem = "${now - hour}|1 alarm(s) could not be armed: boom", audioProblem = "${now - 2 * hour}|emergency beeper in use"))
+        assertEquals(Severity.WARNING, recent.severity("scheduling_problem"))
+        assertEquals(Severity.WARNING, recent.severity("audio_problem"))
+        assertTrue(recent.item("audio_problem").detail.contains("emergency beeper in use"))
+
+        val old = evaluate(HealthSnapshot(schedulingProblem = "${now - 10 * 24 * hour}|old", audioProblem = "${now - 10 * 24 * hour}|old"))
+        assertTrue(old.none { it.id == "scheduling_problem" || it.id == "audio_problem" })
+    }
+
+    @Test fun `a malformed problem record is ignored instead of crashing the screen`() {
+        val items = evaluate(HealthSnapshot(schedulingProblem = "no timestamp here", audioProblem = "|"))
+        assertTrue(items.none { it.id == "scheduling_problem" || it.id == "audio_problem" })
+    }
+
+    @Test fun `a ring screen crash is shown for a few days`() {
+        val now = HealthSnapshot().nowMillis
+        assertEquals(Severity.WARNING, evaluate(HealthSnapshot(lastRingCrashAt = now - hour)).severity("ring_crash"))
+        assertTrue(evaluate(HealthSnapshot(lastRingCrashAt = now - 5 * 24 * hour)).none { it.id == "ring_crash" })
+        assertTrue(evaluate(HealthSnapshot()).none { it.id == "ring_crash" })
+    }
+
+    @Test fun `battery saver is mentioned but never alarming because alarm clocks are exempt`() {
+        assertEquals(Severity.INFO, evaluate(HealthSnapshot(batterySaver = true)).severity("battery_saver"))
+        assertTrue(evaluate(HealthSnapshot()).none { it.id == "battery_saver" })
+    }
 }

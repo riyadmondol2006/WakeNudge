@@ -72,6 +72,15 @@ data class HealthSnapshot(
     val hasVibrator: Boolean = true,
     /** Enabled alarms that leave the volume to the system (level 0). */
     val alarmsUsingSystemVolume: Int = 0,
+
+    // Things the engine noticed going wrong while it ran
+    val batterySaver: Boolean = false,
+    /** "epoch|text" while alarms could not be armed, or were armed the second-best way; blank when all is well. */
+    val schedulingProblem: String = "",
+    /** "epoch|text" for the last time playback needed a fallback (broken file, dead player, emergency beeper). */
+    val audioProblem: String = "",
+    /** When the app last died while an alarm was ringing (epoch millis); 0 if never. */
+    val lastRingCrashAt: Long = 0,
 ) {
     companion object {
         // UsageStatsManager.STANDBY_BUCKET_*, spelled out so the evaluator needs no Android class.
@@ -82,5 +91,8 @@ data class HealthSnapshot(
         const val STANDBY_RARE = 40
         const val STANDBY_RESTRICTED = 45
         const val STANDBY_NEVER = 50
+
+        /** How long an engine problem stays on the Alarm Health screen after it happened. */
+        const val PROBLEM_MEMORY_MS = 3 * 24 * 60 * 60_000L
     }
 }
