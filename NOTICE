@@ -1,0 +1,14 @@
+WakeNudge: Alarm Clock
+Copyright 2026 riyadm
+
+This product includes software developed by third parties, used under the
+Apache License 2.0 unless noted otherwise:
+
+  - AndroidX / Jetpack Compose / Material 3 / CameraX / Room / DataStore /
+    Glance / Navigation / Lifecycle / Core (The Android Open Source Project)
+  - Dagger / Hilt (Google LLC)
+  - Kotlin, kotlinx.coroutines, kotlinx.serialization (JetBrains s.r.o.)
+  - ZXing core (ZXing authors) - barcode/QR decoding
+
+All bundled alarm tones, icons and illustrations were synthesized or drawn
+for this project and are released under the same Apache License 2.0.
