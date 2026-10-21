@@ -1,0 +1,12 @@
+// Measurement-only (see measure.sh): gives the debug build a private application id, so installs, `pm clear` and
+// instrumented runs on com.riyadm.wakenudge.debug cannot disturb a long idle measurement. Never used for real builds.
+allprojects {
+    pluginManager.withPlugin("com.android.application") {
+        def comps = extensions.getByName("androidComponents")
+        comps.onVariants(comps.selector().all(), { variant ->
+            variant.applicationId.set("com.riyadm.wakenudge.batmeasure")
+            def t = variant.androidTest
+            if (t != null) t.applicationId.set("com.riyadm.wakenudge.batmeasure.test")
+        })
+    }
+}

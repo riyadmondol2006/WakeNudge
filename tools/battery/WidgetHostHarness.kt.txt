@@ -1,0 +1,43 @@
+package com.riyadm.wakenudge.battery
+
+import android.appwidget.AppWidgetHost
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
+import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * Measurement helper (copied in by tools/battery/measure.sh while it builds, never part of the normal test tree):
+ * hosts the three WakeNudge widgets under this package's own host id, so the system treats them as placed without
+ * touching anybody's launcher. `unbind` removes them again.
+ */
+class WidgetHostHarness {
+    private val inst = InstrumentationRegistry.getInstrumentation()
+    private val host get() = AppWidgetHost(inst.context, HOST_ID)
+    private val manager get() = AppWidgetManager.getInstance(inst.context)
+
+    private val receivers = listOf("NextAlarmWidgetReceiver", "ClockWidgetReceiver", "AlarmListWidgetReceiver")
+
+    @Test fun bind() {
+        inst.uiAutomation.adoptShellPermissionIdentity("android.permission.BIND_APPWIDGET")
+        try {
+            host.deleteHost()
+            for (name in receivers) {
+                val id = host.allocateAppWidgetId()
+                val ok = manager.bindAppWidgetIdIfAllowed(id, ComponentName(inst.targetContext.packageName, "com.riyadm.wakenudge.widget.$name"))
+                assertTrue("bind $name", ok)
+            }
+        } finally {
+            inst.uiAutomation.dropShellPermissionIdentity()
+        }
+    }
+
+    @Test fun unbind() {
+        host.deleteHost()
+    }
+
+    private companion object {
+        const val HOST_ID = 0x5742
+    }
+}
