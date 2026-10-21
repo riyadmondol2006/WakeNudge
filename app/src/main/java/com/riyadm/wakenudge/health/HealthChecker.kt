@@ -128,6 +128,10 @@ class HealthChecker @Inject constructor(
             vibrationAlarms = enabled.count { it.vibration.enabled },
             hasVibrator = safe(true) { context.getSystemService(Vibrator::class.java).hasVibrator() },
             alarmsUsingSystemVolume = enabled.count { it.volume.level == 0 && !it.volume.useMaxSystemVolume },
+            batterySaver = safe(false) { context.getSystemService(PowerManager::class.java).isPowerSaveMode },
+            schedulingProblem = runtime.lastSchedulingProblem,
+            audioProblem = runtime.lastAudioProblem,
+            lastRingCrashAt = runtime.ringCrashTimes().lastOrNull() ?: 0,
         )
     }
 

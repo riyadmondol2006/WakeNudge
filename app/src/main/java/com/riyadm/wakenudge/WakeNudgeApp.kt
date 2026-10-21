@@ -3,6 +3,7 @@ package com.riyadm.wakenudge
 import android.app.Application
 import com.riyadm.wakenudge.di.AppScope
 import com.riyadm.wakenudge.engine.RingController
+import com.riyadm.wakenudge.engine.RingCrashGuard
 import com.riyadm.wakenudge.engine.audio.AlarmAudioEngine
 import com.riyadm.wakenudge.engine.notify.Notifier
 import dagger.hilt.android.HiltAndroidApp
@@ -15,15 +16,21 @@ class WakeNudgeApp : Application() {
     @Inject lateinit var notifier: Notifier
     @Inject lateinit var ring: RingController
     @Inject lateinit var audio: AlarmAudioEngine
+    @Inject lateinit var crashGuard: RingCrashGuard
     @Inject @AppScope lateinit var appScope: CoroutineScope
 
     override fun onCreate() {
         super.onCreate()
+        // The ring screen shares this process with the sound: if it crashes mid-ring, the alarm is re-armed first.
+        crashGuard.install()
         // Channels must exist before any receiver posts a notification, including receivers that start the process.
         notifier.ensureChannels()
+        // Housekeeping runs at every process start, including the one an alarm wakes: whatever it hits, it must not crash.
         appScope.launch {
-            audio.restoreSystemVolumeIfStale()
-            ring.recoverStaleState()
+            runCatching {
+                audio.restoreSystemVolumeIfStale()
+                ring.recoverStaleState()
+            }
         }
     }
 }

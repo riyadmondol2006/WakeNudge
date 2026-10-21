@@ -9,6 +9,7 @@ import com.riyadm.wakenudge.engine.notify.Notifier
 import java.time.LocalTime
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 
 /** Routes every AlarmManager trigger to the component that owns it. */
 @Singleton
@@ -32,21 +33,39 @@ class TriggerHandler @Inject constructor(
         diagnostics.info("Trigger", "$kind id=$id index=$index")
 
         when (kind) {
-            TriggerKind.ALARM -> ring.onAlarmFired(id, at)?.let(launcher::start)
+            TriggerKind.ALARM -> ringing(RingKind.PRIMARY, id, at, eventId) { ring.onAlarmFired(id, at) }
             TriggerKind.SUNRISE -> ring.onSunrise(id, at)?.let(launcher::start)
-            TriggerKind.SNOOZE -> ring.onSnoozeExpired(id, eventId)?.let(launcher::start)
-            TriggerKind.BACKUP -> ring.onBackupFired(id, eventId, index)?.let(launcher::start)
+            TriggerKind.SNOOZE -> ringing(RingKind.SNOOZE_RETURN, id, at, eventId) { ring.onSnoozeExpired(id, eventId) }
+            TriggerKind.BACKUP -> ringing(RingKind.BACKUP, id, at, eventId) { ring.onBackupFired(id, eventId, index) }
             TriggerKind.UPCOMING -> ring.onUpcoming(id, at)
             TriggerKind.WAKE_CHECK_PROMPT -> wakeChecks.onPrompt(id)
-            TriggerKind.WAKE_CHECK_DEADLINE -> ring.onWakeCheckDeadline(id)?.let(launcher::start)
+            TriggerKind.WAKE_CHECK_DEADLINE -> ringing(RingKind.WAKE_CHECK_RERING, id, at, eventId) { ring.onWakeCheckDeadline(id) }
             TriggerKind.TIMER -> ring.onTimerFired(id)?.let(launcher::start)
             TriggerKind.BEDTIME -> onBedtime()
+            TriggerKind.RING_RETRY -> ring.onRetry(id, eventId, at, RingRetry.kindOf(index), RingRetry.attemptOf(index))?.let(launcher::start)
             TriggerKind.WATCHDOG -> {
                 runtime.lastWatchdogAt = time.nowMillis()
                 scheduler.rescheduleAll("watchdog")
                 ring.recoverStaleState()
             }
         }
+    }
+
+    /**
+     * Starts a ring for a trigger. The engine decides *whether* to ring (duplicates, handled alarms, disabled ones), but
+     * if it fails while deciding, the alarm rings anyway with what the trigger itself carries: a trigger that fired is a
+     * real alarm, and oversleeping because of an engine error is worse than a spurious ring.
+     */
+    private suspend inline fun ringing(kind: RingKind, alarmId: Long, at: Long, eventId: Long, decide: () -> RingRequest?) {
+        val request = try {
+            decide()
+        } catch (c: CancellationException) {
+            throw c
+        } catch (t: Throwable) {
+            diagnostics.error("Trigger", "$kind for alarm $alarmId failed inside the engine; ringing anyway", t)
+            RingRequest(alarmId, eventId, at, if (alarmId == RingIds.TEST_ALARM_ID) RingKind.TEST else kind)
+        }
+        request?.let(launcher::start)
     }
 
     private suspend fun onBedtime() {

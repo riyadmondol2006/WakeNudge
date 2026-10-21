@@ -25,6 +25,7 @@ import com.riyadm.wakenudge.engine.notify.Notifier
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -48,6 +49,10 @@ object RingIds {
  * everything that changes history, schedules follow-ups or ends a session lives here so it can be reasoned about
  * (and tested) in one place. All mutations are serialized by a mutex, so a double tap on Dismiss or a snooze racing
  * a timeout cannot corrupt state.
+ *
+ * One rule runs through it: **persistence never decides whether an alarm rings or stops.** A full disk, a locked or
+ * corrupt database or a broken settings file is logged and the ring carries on with safe defaults; history, follow-up
+ * bookkeeping and settings are best-effort around the sound, never in front of it.
  */
 @Singleton
 class RingController @Inject constructor(
@@ -78,8 +83,22 @@ class RingController @Inject constructor(
         if (alarmId == RingIds.TEST_ALARM_ID) {
             return@withLock RingRequest(alarmId, -1, scheduledAt, RingKind.TEST)
         }
-        val alarm = alarms.getAlarm(alarmId)
+        val alarm = try {
+            alarms.getAlarm(alarmId)
+        } catch (c: CancellationException) {
+            throw c
+        } catch (t: Throwable) {
+            // The OS only fires triggers this app registered, so a trigger is a real alarm even if the database can't be read.
+            diagnostics.error("Ring", "could not read alarm $alarmId; ringing with safe defaults", t)
+            return@withLock RingRequest(alarmId, -1, scheduledAt, RingKind.PRIMARY)
+        }
         if (alarm == null) {
+            if (alarmId in runtime.registeredTriggers()) {
+                // Armed by us and never cancelled, yet gone from the database: it was lost (reset or corrupted), not deleted.
+                diagnostics.error("Ring", "alarm $alarmId is armed but missing from the database; ringing with safe defaults")
+                runtime.setRegisteredTriggers(runtime.registeredTriggers() - alarmId)
+                return@withLock RingRequest(alarmId, -1, scheduledAt, RingKind.PRIMARY)
+            }
             diagnostics.warn("Ring", "trigger for unknown alarm $alarmId ignored")
             scheduler.cancel(alarmId)
             return@withLock null
@@ -89,9 +108,9 @@ class RingController @Inject constructor(
             return@withLock null
         }
         snapshots[alarmId] = alarm
-        afterFire(alarm, scheduledAt)
+        tryDb("re-arming after alarm $alarmId fired", Unit) { afterFire(alarm, scheduledAt) }
 
-        val existing = history.findOccurrence(alarmId, scheduledAt)
+        val existing = tryDb("looking up alarm $alarmId's history", null) { history.findOccurrence(alarmId, scheduledAt) }
         if (existing != null) {
             // Already handled, already on screen, or deliberately snoozed: a replayed trigger must not ring again.
             val onScreen = store.current?.alarm?.id == alarmId
@@ -101,11 +120,13 @@ class RingController @Inject constructor(
                 return@withLock null
             }
         }
-        val eventId = existing?.id ?: history.start(
-            AlarmEvent(alarmId = alarmId, label = alarm.label, scheduledAt = scheduledAt, firedAt = now, missionsTotal = alarm.missions.size),
-        )
+        val eventId = existing?.id ?: tryDb("recording the ring of alarm $alarmId", -1L) {
+            history.start(
+                AlarmEvent(alarmId = alarmId, label = alarm.label, scheduledAt = scheduledAt, firedAt = now, missionsTotal = alarm.missions.size),
+            )
+        }
         notifier.cancelUpcoming(alarmId)
-        scheduleBackups(alarm, eventId, now)
+        tryDb("arming backups for alarm $alarmId", Unit) { scheduleBackups(alarm, eventId, now) }
         diagnostics.info("Ring", "alarm $alarmId fired (scheduled $scheduledAt, late ${now - scheduledAt} ms)")
         RingRequest(alarmId, eventId, scheduledAt, RingKind.PRIMARY)
     }
@@ -121,32 +142,57 @@ class RingController @Inject constructor(
         if (alarmId == RingIds.TEST_ALARM_ID) {
             return@withLock RingRequest(alarmId, -1, time.nowMillis(), RingKind.TEST)
         }
-        val event = history.get(eventId)
+        val event = if (eventId > 0) history.get(eventId) else null
         val alarm = alarms.getAlarm(alarmId)
-        if (event == null || alarm == null || event.outcome != AlarmOutcome.RINGING) {
+        // No event id at all means the snooze was set while the history could not be written: the user still asked
+        // to be woken, so that rings. A positive id must still point at an unresolved event.
+        if (alarm == null || (eventId > 0 && (event == null || event.outcome != AlarmOutcome.RINGING))) {
             diagnostics.warn("Ring", "snooze expiry for $alarmId has nothing to ring")
             return@withLock null
         }
         snapshots[alarmId] = alarm
-        history.update(event.copy(snoozeUntil = 0))
-        scheduleBackups(alarm, eventId, time.nowMillis())
-        RingRequest(alarmId, eventId, event.scheduledAt, RingKind.SNOOZE_RETURN, snoozeCount = event.snoozeCount)
+        if (event != null) tryDb("clearing the snooze of alarm $alarmId", Unit) { history.update(event.copy(snoozeUntil = 0)) }
+        tryDb("arming backups for alarm $alarmId", Unit) { scheduleBackups(alarm, eventId, time.nowMillis()) }
+        RingRequest(alarmId, eventId, event?.scheduledAt ?: time.nowMillis(), RingKind.SNOOZE_RETURN, snoozeCount = event?.snoozeCount ?: 0)
     }
 
     suspend fun onBackupFired(alarmId: Long, eventId: Long, index: Int): RingRequest? = mutex.withLock {
-        val event = history.get(eventId) ?: return@withLock null
+        val event = if (eventId > 0) history.get(eventId) else null
+        if (eventId > 0 && event == null) return@withLock null
         // Anything but "still unresolved" means the user already handled it.
-        if (event.outcome != AlarmOutcome.RINGING && event.outcome != AlarmOutcome.MISSED) return@withLock null
+        if (event != null && event.outcome != AlarmOutcome.RINGING && event.outcome != AlarmOutcome.MISSED) return@withLock null
         val alarm = alarms.getAlarm(alarmId) ?: return@withLock null
         snapshots[alarmId] = alarm
-        history.update(
-            event.copy(
-                outcome = AlarmOutcome.RINGING, endedAt = null, backupFired = true,
-                pendingBackups = event.pendingBackups.drop(1),
-            ),
-        )
+        if (event != null) {
+            tryDb("recording the backup ring of alarm $alarmId", Unit) {
+                history.update(
+                    event.copy(
+                        outcome = AlarmOutcome.RINGING, endedAt = null, backupFired = true,
+                        pendingBackups = event.pendingBackups.drop(1),
+                    ),
+                )
+            }
+        }
         diagnostics.warn("Ring", "backup #$index fired for alarm $alarmId — primary was not handled")
-        RingRequest(alarmId, eventId, event.scheduledAt, RingKind.BACKUP, snoozeCount = event.snoozeCount)
+        RingRequest(alarmId, eventId, event?.scheduledAt ?: time.nowMillis(), RingKind.BACKUP, snoozeCount = event?.snoozeCount ?: 0)
+    }
+
+    /**
+     * Rings again an alarm that was cut off: the ring screen crashed, the service died or the OS refused to start it.
+     * Nothing rings if the alarm was handled in the meantime (dismissed, snoozed) or something is already ringing.
+     */
+    suspend fun onRetry(alarmId: Long, eventId: Long, scheduledAt: Long, kind: RingKind, attempt: Int): RingRequest? = mutex.withLock {
+        if (store.current != null) return@withLock null
+        val event = if (eventId > 0) tryDb("loading the event to retry", null) { history.get(eventId) } else null
+        if (event != null) {
+            val unresolved = event.outcome == AlarmOutcome.RINGING || event.outcome == AlarmOutcome.MISSED
+            if (!unresolved || event.snoozeUntil > time.nowMillis()) {
+                diagnostics.info("Ring", "retry for alarm $alarmId skipped: it was already handled")
+                return@withLock null
+            }
+        }
+        diagnostics.warn("Ring", "ringing alarm $alarmId again (retry ${attempt + 1}, $kind)")
+        RingRequest(alarmId, eventId, scheduledAt, kind, snoozeCount = event?.snoozeCount ?: 0, attempt = attempt + 1)
     }
 
     suspend fun onWakeCheckDeadline(alarmId: Long): RingRequest? {
@@ -188,9 +234,39 @@ class RingController @Inject constructor(
 
     // ---- session lifecycle (from the service) --------------------------------------------------------------
 
-    suspend fun begin(request: RingRequest): RingSession? = mutex.withLock {
+    /** Never throws: if anything inside fails, the ring starts anyway with a plain default alarm. */
+    suspend fun begin(request: RingRequest): RingSession? = try {
+        beginInternal(request)
+    } catch (c: CancellationException) {
+        throw c
+    } catch (t: Throwable) {
+        diagnostics.error("Ring", "starting the ring session failed; ringing with a plain default alarm", t)
+        emergencySession(request)
+    }
+
+    /** A session built from nothing but the request, for when loading the real alarm is impossible. */
+    private fun emergencySession(request: RingRequest): RingSession {
+        store.current?.let { return it }
         val now = time.nowMillis()
-        val appSettings = settings.current()
+        val session = RingSession(
+            alarm = Alarm(id = request.alarmId, label = "Alarm"),
+            kind = request.kind,
+            phase = request.phase,
+            eventId = request.eventId,
+            scheduledAt = request.scheduledAt,
+            startedAt = now,
+            snoozeCount = request.snoozeCount,
+            intensified = request.kind == RingKind.BACKUP,
+            lastInteractionAt = now,
+            timerId = request.timerId,
+        )
+        store.set(session)
+        return session
+    }
+
+    private suspend fun beginInternal(request: RingRequest): RingSession? = mutex.withLock {
+        val now = time.nowMillis()
+        val appSettings = tryDb("reading settings", AppSettings()) { settings.current() }
         val alarm = loadForRing(request, appSettings) ?: return@withLock null
 
         val existing = store.current
@@ -241,6 +317,7 @@ class RingController @Inject constructor(
             intensified = request.kind == RingKind.BACKUP,
             lastInteractionAt = now,
             timerId = request.timerId,
+            safeMode = CrashRescuePolicy.safeMode(runtime.ringCrashTimes(), now),
         )
         store.set(session)
         runtime.activeAlarmId = alarm.id
@@ -295,14 +372,23 @@ class RingController @Inject constructor(
         val now = time.nowMillis()
         val until = now + minutes * 60_000L
 
-        pending.setAlarmClock(TriggerKind.SNOOZE, s.alarm.id, until, eventId = s.eventId)
-        cancelBackups(s.alarm.id)
-        if (s.eventId > 0) {
-            history.get(s.eventId)?.let {
-                history.update(it.copy(snoozeCount = s.snoozeCount + 1, snoozeUntil = until, pendingBackups = emptyList()))
-            }
+        // If the OS will not take the snooze, keep ringing: a silent snooze that never comes back is the worst outcome.
+        if (!pending.setAlarmClock(TriggerKind.SNOOZE, s.alarm.id, until, eventId = s.eventId)) {
+            diagnostics.error("Ring", "snooze for alarm ${s.alarm.id} could not be armed (${pending.lastFailure}); still ringing")
+            return@withLock SnoozeOutcome.NotAllowed
         }
-        finishSession(s)
+        try {
+            cancelBackups(s.alarm.id)
+            if (s.eventId > 0) {
+                tryDb("recording the snooze of alarm ${s.alarm.id}", Unit) {
+                    history.get(s.eventId)?.let {
+                        history.update(it.copy(snoozeCount = s.snoozeCount + 1, snoozeUntil = until, pendingBackups = emptyList()))
+                    }
+                }
+            }
+        } finally {
+            finishSession(s)
+        }
         notifier.showSnoozed(s.alarm, until)
         diagnostics.info("Ring", "alarm ${s.alarm.id} snoozed ${s.snoozeCount + 1}x for $minutes min")
         SnoozeOutcome.Snoozed(until, minutes)
@@ -334,8 +420,8 @@ class RingController @Inject constructor(
     /** Ring now instead of waiting out the snooze. */
     suspend fun wakeNow(alarmId: Long): RingRequest? {
         pending.cancel(TriggerKind.SNOOZE, alarmId)
-        val open = history.recent(30).firstOrNull { it.alarmId == alarmId && it.outcome == AlarmOutcome.RINGING }
-        return onSnoozeExpired(alarmId, open?.id ?: -1)
+        val open = history.recent(30).firstOrNull { it.alarmId == alarmId && it.outcome == AlarmOutcome.RINGING } ?: return null
+        return onSnoozeExpired(alarmId, open.id)
     }
 
     // ---- timers --------------------------------------------------------------------------------------------
@@ -343,14 +429,21 @@ class RingController @Inject constructor(
     suspend fun addMinuteToRingingTimer() = mutex.withLock {
         val s = store.current ?: return@withLock
         if (!s.isTimer) return@withLock
-        val timer = timers.getTimer(s.timerId)
-        if (timer != null) {
-            val endsAt = time.nowMillis() + 60_000
-            timers.save(timer.copy(state = TimerState.RUNNING, endsAtMillis = endsAt, remainingMs = 60_000))
-            pending.setExact(TriggerKind.TIMER, timer.id, endsAt)
-            timers.getTimer(timer.id)?.let { notifier.showTimerRunning(it) }
+        try {
+            val timer = timers.getTimer(s.timerId)
+            if (timer != null) {
+                val endsAt = time.nowMillis() + 60_000
+                timers.save(timer.copy(state = TimerState.RUNNING, endsAtMillis = endsAt, remainingMs = 60_000))
+                pending.setExact(TriggerKind.TIMER, timer.id, endsAt)
+                timers.getTimer(timer.id)?.let { notifier.showTimerRunning(it) }
+            }
+        } catch (c: CancellationException) {
+            throw c
+        } catch (t: Throwable) {
+            diagnostics.error("Ring", "could not extend timer ${s.timerId}", t)
+        } finally {
+            finishSession(s)
         }
-        finishSession(s)
     }
 
     // ---- ending sessions -----------------------------------------------------------------------------------
@@ -359,29 +452,48 @@ class RingController @Inject constructor(
         val s = store.current ?: return@withLock
         if (s.phase != RingPhase.RINGING) return@withLock
         val now = time.nowMillis()
-        if (s.isTimer) {
-            timers.getTimer(s.timerId)?.let { timers.save(it.copy(state = TimerState.IDLE, remainingMs = it.durationMs)) }
-            finishSession(s)
-            return@withLock
-        }
-        diagnostics.warn("Ring", "alarm ${s.alarm.id} ignored until the ring timeout")
-        if (s.eventId > 0) {
-            history.get(s.eventId)?.let {
-                history.update(it.copy(outcome = AlarmOutcome.MISSED, endedAt = now, snoozeCount = s.snoozeCount))
+        try {
+            if (s.isTimer) {
+                timers.getTimer(s.timerId)?.let { timers.save(it.copy(state = TimerState.IDLE, remainingMs = it.durationMs)) }
+                return@withLock
             }
+            diagnostics.warn("Ring", "alarm ${s.alarm.id} ignored until the ring timeout")
+            if (s.eventId > 0) {
+                history.get(s.eventId)?.let {
+                    history.update(it.copy(outcome = AlarmOutcome.MISSED, endedAt = now, snoozeCount = s.snoozeCount))
+                }
+            }
+        } catch (c: CancellationException) {
+            throw c
+        } catch (t: Throwable) {
+            diagnostics.error("Ring", "could not record the ring timeout of alarm ${s.alarm.id}", t)
+        } finally {
+            val backupsLeft = !s.isTimer && (1..RingIds.MAX_BACKUPS).any { pending.isScheduled(TriggerKind.BACKUP, s.alarm.id, it) }
+            finishSession(s)
+            if (!s.isTimer && !backupsLeft && !s.isTest) notifier.showMissed(s.alarm, s.scheduledAt)
         }
-        val backupsLeft = (1..RingIds.MAX_BACKUPS).any { pending.isScheduled(TriggerKind.BACKUP, s.alarm.id, it) }
-        finishSession(s)
-        if (!backupsLeft && !s.isTest) notifier.showMissed(s.alarm, s.scheduledAt)
     }
 
+    /** Ends the ring: whatever the history or follow-up bookkeeping did, the sound must stop when the user says so. */
     private suspend fun endSession(s: RingSession, outcome: AlarmOutcome) {
+        try {
+            persistEnd(s, outcome)
+        } catch (c: CancellationException) {
+            throw c
+        } catch (t: Throwable) {
+            diagnostics.error("Ring", "bookkeeping for the end of alarm ${s.alarm.id} failed", t)
+        } finally {
+            finishSession(s)
+        }
+    }
+
+    private suspend fun persistEnd(s: RingSession, outcome: AlarmOutcome) {
         val now = time.nowMillis()
         if (s.isTimer) {
             timers.getTimer(s.timerId)?.let { timers.save(it.copy(state = TimerState.IDLE, remainingMs = it.durationMs)) }
-            finishSession(s)
             return
         }
+        // Cancelling the OS triggers comes first and needs no database: the backup must not ring after a dismissal.
         cancelBackups(s.alarm.id)
         pending.cancel(TriggerKind.SNOOZE, s.alarm.id)
         notifier.cancelSnoozed(s.alarm.id)
@@ -414,7 +526,6 @@ class RingController @Inject constructor(
         } else if (outcome == AlarmOutcome.EMERGENCY_STOPPED) {
             wakeChecks.abandon(s.alarm.id, WakeCheckStatus.NONE)
         }
-        finishSession(s)
     }
 
     private suspend fun endAsMissed(s: RingSession, now: Long) {
@@ -478,11 +589,15 @@ class RingController @Inject constructor(
 
     private suspend fun loadForRing(request: RingRequest, appSettings: AppSettings): Alarm? {
         return when (request.kind) {
-            RingKind.TIMER -> timers.getTimer(request.timerId)?.let { timerAlarm(it, appSettings) }
+            RingKind.TIMER -> {
+                // A timer that cannot be read still rings (a plain one); only one that is known to be gone does not.
+                val timer = tryDb("loading timer ${request.timerId}", CountdownTimer(id = request.timerId, durationMs = 0)) { timers.getTimer(request.timerId) }
+                timer?.let { timerAlarm(it, appSettings) }
+            }
             RingKind.TEST -> runtime.testAlarmJson?.let {
                 runCatching { WakeJson.instance.decodeFromString(Alarm.serializer(), it) }.getOrNull()
             } ?: Alarm(id = RingIds.TEST_ALARM_ID, label = "Test alarm")
-            else -> snapshots[request.alarmId] ?: alarms.getAlarm(request.alarmId) ?: run {
+            else -> snapshots[request.alarmId] ?: tryDb("loading alarm ${request.alarmId}", null) { alarms.getAlarm(request.alarmId) } ?: run {
                 // The alarm vanished (e.g. deleted mid-ring). Ring anyway rather than stay silent.
                 diagnostics.warn("Ring", "alarm ${request.alarmId} missing; ringing a default alarm")
                 Alarm(id = request.alarmId, label = "Alarm")
@@ -500,6 +615,16 @@ class RingController @Inject constructor(
         antiOversleep = AntiOversleepSettings(backupEnabled = false, ringTimeoutMinutes = 3),
     )
 
+    /** Runs a database or settings step; if it fails the failure is logged and [fallback] is used so the ring goes on. */
+    private inline fun <T> tryDb(what: String, fallback: T, block: () -> T): T = try {
+        block()
+    } catch (c: CancellationException) {
+        throw c
+    } catch (t: Throwable) {
+        diagnostics.error("Ring", "$what failed; carrying on", t)
+        fallback
+    }
+
     // ---- recovery ------------------------------------------------------------------------------------------
 
     /** After a crash/reboot: closes events that can no longer be ringing and restores the system volume. */
@@ -507,16 +632,21 @@ class RingController @Inject constructor(
         if (store.current != null) return@withLock
         val now = time.nowMillis()
         val staleBefore = now - STALE_RING_MS
-        history.openEvents().forEach { e ->
-            val hasFollowUp = pending.isScheduled(TriggerKind.SNOOZE, e.alarmId) ||
-                (1..RingIds.MAX_BACKUPS).any { pending.isScheduled(TriggerKind.BACKUP, e.alarmId, it) }
-            if (e.firedAt < staleBefore && !hasFollowUp) {
-                history.update(e.copy(outcome = AlarmOutcome.MISSED, endedAt = e.endedAt ?: now))
+        // Housekeeping runs at every process start, including the one an alarm wakes: it must never be able to crash it.
+        tryDb("closing stale ring events", Unit) {
+            history.openEvents().forEach { e ->
+                val hasFollowUp = pending.isScheduled(TriggerKind.SNOOZE, e.alarmId) ||
+                    (1..RingIds.MAX_BACKUPS).any { pending.isScheduled(TriggerKind.BACKUP, e.alarmId, it) }
+                if (e.firedAt < staleBefore && !hasFollowUp) {
+                    history.update(e.copy(outcome = AlarmOutcome.MISSED, endedAt = e.endedAt ?: now))
+                }
             }
         }
         // A timer can only be "ringing" while a session says so; after a crash nothing is, so reset it.
-        timers.getTimers().filter { it.state == TimerState.RINGING }.forEach {
-            timers.save(it.copy(state = TimerState.IDLE, remainingMs = it.durationMs, endsAtMillis = 0))
+        tryDb("resetting stuck timers", Unit) {
+            timers.getTimers().filter { it.state == TimerState.RINGING }.forEach {
+                timers.save(it.copy(state = TimerState.IDLE, remainingMs = it.durationMs, endsAtMillis = 0))
+            }
         }
         if (runtime.activeAlarmId != -1L) {
             diagnostics.warn("Ring", "recovering from a ring session that did not end cleanly")
