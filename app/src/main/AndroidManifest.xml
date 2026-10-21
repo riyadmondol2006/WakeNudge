@@ -46,17 +46,27 @@
         </intent>
     </queries>
 
+    <!--
+        Backup policy (deliberate, see docs/PLAY_STORE.md "Backup and data transfer"): no Google cloud backup and no
+        device-to-device transfer of app data. Alarms live in device-protected storage, a restored copy would not be
+        armed with AlarmManager until the app is opened, the onboarding flag would travel without the runtime
+        permissions, and the photo-mission fingerprint belongs to the old phone's camera. People move to a new phone
+        with the in-app backup file instead. allowBackup="false" is not honoured for device transfer by every OEM, so
+        the XML rules below exclude every domain for both cloud backup and device transfer.
+    -->
     <application
         android:name=".WakeNudgeApp"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:directBootAware="true"
+        android:enableOnBackInvokedCallback="true"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.WakeNudge.Splash"
+        android:usesCleartextTraffic="false"
         tools:targetApi="36">
 
         <activity

@@ -1,19 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android 12+: no cloud backup; on-device transfer to a new phone is allowed. Local backup/restore is in the app. -->
+<!--
+    Android 12+ (API 31+): WakeNudge opts out of BOTH Google cloud backup and device-to-device transfer.
+
+    Why not transfer? Alarms, settings and history live in device-protected storage (the "device_*" domains) so alarms
+    can ring before first unlock. A raw copy of that data on a new phone would show alarms that AlarmManager does not
+    know about until the app is opened once, would carry the "onboarding done" flag without the notification, camera
+    or full-screen permissions, and would carry the photo-mission fingerprint of the old phone's camera and custom
+    sound URIs that no longer resolve. The in-app backup (Settings > Backup and restore) exports a JSON file that is validated
+    and re-armed on restore, which is the supported way to move to a new phone.
+
+    The manifest also says allowBackup="false", but some manufacturers still run device-to-device transfer in that
+    case, so every domain is excluded explicitly in both sections. Listing a domain that holds no data is harmless.
+-->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="root" path="." />
         <exclude domain="file" path="." />
         <exclude domain="database" path="." />
         <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
         <exclude domain="device_root" path="." />
         <exclude domain="device_file" path="." />
         <exclude domain="device_database" path="." />
         <exclude domain="device_sharedpref" path="." />
     </cloud-backup>
     <device-transfer>
-        <include domain="device_file" path="." />
-        <include domain="device_database" path="." />
-        <include domain="device_sharedpref" path="." />
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+        <exclude domain="device_root" path="." />
+        <exclude domain="device_file" path="." />
+        <exclude domain="device_database" path="." />
+        <exclude domain="device_sharedpref" path="." />
     </device-transfer>
 </data-extraction-rules>
