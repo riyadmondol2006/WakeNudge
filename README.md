@@ -73,8 +73,8 @@ Real captures from a Pixel 6 Pro in the dark theme. WakeNudge also has light and
 
 <p align="center">
   <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1_alarms.png" width="190" alt="WakeNudge alarm list showing the next alarm, alarm profiles and a still-awake check">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2_edit_alarm.png" width="190" alt="Alarm editor with an animated time picker and repeat days">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_missions.png" width="190" alt="Choosing wake-up missions for an alarm, with difficulty and problem count">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2_edit_alarm.png" width="190" alt="Alarm editor with options grouped into collapsible categories, each with a live summary, and a snooze switch">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_missions.png" width="190" alt="The wake-up challenge category with a math mission, its difficulty and problem count, and the still-awake check">
   <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4_mission_math.png" width="190" alt="The math wake-up mission with a large number keypad">
 </p>
 <p align="center">
