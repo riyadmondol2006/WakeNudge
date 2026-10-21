@@ -169,7 +169,8 @@ fallback (including the emergency beeper), a ring that was cut short by a crash,
 ## Offline guarantee
 
 `app/build.gradle.kts` registers `verifyOfflineManifest<Variant>` for every variant: it fails the build when the merged
-manifest declares `INTERNET`, `ACCESS_NETWORK_STATE` or `ACCESS_WIFI_STATE`. `ACCESS_NETWORK_STATE`, which some
+manifest declares `ACCESS_NETWORK_STATE` or `ACCESS_WIFI_STATE`, and, for the `play` flavour, also `INTERNET` (the
+`github` flavour may hold `INTERNET` and nothing else; see "Two builds" below). `ACCESS_NETWORK_STATE`, which some
 libraries add, is removed in the manifest with `tools:node="remove"`.
 
 ## UI
