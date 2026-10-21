@@ -1,0 +1,8 @@
+First release.
+• Unlimited alarms, groups, skip next, vacation mode and exceptions
+• 10 wake-up mission types and a Still awake? check
+• Loud, ramping, escalating alarms with a backup alarm
+• Alarm health checkup with a test alarm
+• Timer, stopwatch, world clock, widgets and a Quick Settings tile
+• Local backup and restore
+• No ads, no accounts, no internet permission
