@@ -32,6 +32,10 @@ data class AlarmEvent(
     val backupFired: Boolean = false,
     val wakeCheck: WakeCheckStatus = WakeCheckStatus.NONE,
     val wakeCheckReRings: Int = 0,
+    /** When a pending snooze ends (epoch millis), or 0. Persisted so a reboot cannot lose a snoozed alarm. */
+    val snoozeUntil: Long = 0,
+    /** Epoch millis of backup alarms that have not fired yet, kept so they can be re-armed after a reboot. */
+    val pendingBackups: List<Long> = emptyList(),
 ) {
     /** Milliseconds between the first ring and the final dismissal (snooze time included). */
     val dismissDurationMs: Long? get() = endedAt?.let { (it - firedAt).coerceAtLeast(0) }

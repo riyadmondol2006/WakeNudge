@@ -110,6 +110,9 @@ interface EventDao {
     @Query("SELECT * FROM alarm_events WHERE outcome = 'RINGING'")
     suspend fun openEvents(): List<EventEntity>
 
+    @Query("SELECT * FROM alarm_events WHERE outcome IN ('RINGING', 'MISSED') AND (snoozeUntil > 0 OR pendingBackups != '[]')")
+    suspend fun withFollowUps(): List<EventEntity>
+
     @Query("DELETE FROM alarm_events WHERE firedAt < :before")
     suspend fun deleteOlderThan(before: Long)
 

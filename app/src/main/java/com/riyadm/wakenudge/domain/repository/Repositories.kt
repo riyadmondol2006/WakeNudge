@@ -39,6 +39,9 @@ interface HistoryRepository {
     suspend fun get(id: Long): AlarmEvent?
     suspend fun findOccurrence(alarmId: Long, scheduledAt: Long): AlarmEvent?
     suspend fun openEvents(): List<AlarmEvent>
+
+    /** Unresolved events that still have a snooze or backup alarm waiting to fire. */
+    suspend fun withFollowUps(): List<AlarmEvent>
     suspend fun recent(limit: Int): List<AlarmEvent>
     fun observeRecent(limit: Int): Flow<List<AlarmEvent>>
     fun observeSince(sinceMillis: Long): Flow<List<AlarmEvent>>

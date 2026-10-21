@@ -1,21 +1,33 @@
 package com.riyadm.wakenudge
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.activity.viewModels
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.riyadm.wakenudge.ui.MainViewModel
+import com.riyadm.wakenudge.ui.WakeNudgeRoot
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private val viewModel: MainViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        // Hold the splash until settings are loaded so the first frame already has the right theme.
+        installSplashScreen().setKeepOnScreenCondition { viewModel.settings.value == null }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { MaterialTheme { Text("WakeNudge") } }
+        if (savedInstanceState == null) viewModel.handleIntent(intent)
+        setContent { WakeNudgeRoot(viewModel) }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        viewModel.handleIntent(intent)
     }
 
     companion object {

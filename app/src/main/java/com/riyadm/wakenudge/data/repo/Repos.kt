@@ -81,6 +81,7 @@ class HistoryRepositoryImpl @Inject constructor(private val dao: EventDao) : His
         dao.findOccurrence(alarmId, scheduledAt)?.toDomain()
 
     override suspend fun openEvents(): List<AlarmEvent> = dao.openEvents().map { it.toDomain() }
+    override suspend fun withFollowUps(): List<AlarmEvent> = dao.withFollowUps().map { it.toDomain() }
     override suspend fun recent(limit: Int): List<AlarmEvent> = dao.recent(limit).map { it.toDomain() }
     override fun observeRecent(limit: Int): Flow<List<AlarmEvent>> = dao.observeRecent(limit).map { l -> l.map { it.toDomain() } }
     override fun observeSince(sinceMillis: Long): Flow<List<AlarmEvent>> = dao.observeSince(sinceMillis).map { l -> l.map { it.toDomain() } }

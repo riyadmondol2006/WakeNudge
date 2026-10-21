@@ -8,6 +8,7 @@ import com.riyadm.wakenudge.domain.model.TimerState
 import com.riyadm.wakenudge.domain.model.WakeCheck
 import com.riyadm.wakenudge.domain.repository.AlarmRepository
 import com.riyadm.wakenudge.domain.repository.DiagnosticsLog
+import com.riyadm.wakenudge.domain.repository.HistoryRepository
 import com.riyadm.wakenudge.domain.repository.SettingsRepository
 import com.riyadm.wakenudge.domain.repository.TimerRepository
 import com.riyadm.wakenudge.domain.repository.WakeCheckRepository
@@ -31,6 +32,7 @@ class AlarmSchedulerImpl @Inject constructor(
     private val alarms: AlarmRepository,
     private val timers: TimerRepository,
     private val wakeChecks: WakeCheckRepository,
+    private val history: HistoryRepository,
     private val settings: SettingsRepository,
     private val calculator: NextTriggerCalculator,
     private val contextProvider: SchedulingContextProvider,
@@ -58,6 +60,7 @@ class AlarmSchedulerImpl @Inject constructor(
         }
         runtime.setRegisteredTriggers(registered)
 
+        restoreFollowUps(now.toInstant().toEpochMilli())
         restoreWakeChecks(now.toInstant().toEpochMilli())
         restoreTimers(now.toInstant().toEpochMilli())
         scheduleBedtime(settings.current().bedtime, now)
@@ -165,6 +168,26 @@ class AlarmSchedulerImpl @Inject constructor(
         pending.cancel(TriggerKind.UPCOMING, alarmId)
     }
 
+    /**
+     * Snoozes and backup alarms live only in AlarmManager, which forgets them on reboot, app update and force-stop.
+     * They are also persisted on the history event; re-arm them here. One that came due while the phone was off rings
+     * right away (within an hour), since the user asked to be woken.
+     */
+    private suspend fun restoreFollowUps(nowMs: Long) {
+        for (event in history.withFollowUps()) {
+            if (event.snoozeUntil > 0) {
+                val at = if (event.snoozeUntil <= nowMs) nowMs + FOLLOW_UP_DELAY_MS else event.snoozeUntil
+                if (nowMs - event.snoozeUntil <= STALE_FOLLOW_UP_MS) pending.setAlarmClock(TriggerKind.SNOOZE, event.alarmId, at, eventId = event.id)
+            }
+            event.pendingBackups.forEachIndexed { i, backupAt ->
+                val index = i + 1
+                if (nowMs - backupAt > STALE_FOLLOW_UP_MS) return@forEachIndexed
+                val at = if (backupAt <= nowMs) nowMs + FOLLOW_UP_DELAY_MS * index else backupAt
+                pending.setAlarmClock(TriggerKind.BACKUP, event.alarmId, at, index = index, eventId = event.id)
+            }
+        }
+    }
+
     private suspend fun restoreWakeChecks(nowMs: Long) {
         for (check in wakeChecks.getAll()) {
             when (check.phase) {
@@ -197,6 +220,8 @@ class AlarmSchedulerImpl @Inject constructor(
 
     companion object {
         const val TEST_ALARM_ID = -1L
+        private const val FOLLOW_UP_DELAY_MS = 2_000L
+        private const val STALE_FOLLOW_UP_MS = 60 * 60_000L
         private val WATCHDOG_INTERVAL: Duration = Duration.ofHours(6)
 
         /** Next moment (after [now]) at which the "time to wind down" reminder is due. Exposed for tests and the UI. */
