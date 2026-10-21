@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+private const val ACTION_QS_TILE_PREFERENCES = "android.service.quicksettings.action.QS_TILE_PREFERENCES"
+
 /** Hosts app-wide state (settings for theming) and turns external intents (assistant, shortcuts) into navigation. */
 @HiltViewModel
 class MainViewModel @Inject constructor(
@@ -54,6 +56,8 @@ class MainViewModel @Inject constructor(
                 MainActivity.ACTION_SHOW_ALARMS, AlarmClock.ACTION_SHOW_ALARMS -> _commands.send(AlarmsRoute)
                 MainActivity.ACTION_SHOW_TIMERS, AlarmClock.ACTION_SHOW_TIMERS -> _commands.send(TimerRoute)
                 MainActivity.ACTION_SHOW_SLEEP -> _commands.send(SleepRoute)
+                // A long-press on the Quick Settings tile lands on the alarm list.
+                ACTION_QS_TILE_PREFERENCES -> _commands.send(AlarmsRoute)
                 AlarmClock.ACTION_SET_ALARM -> setAlarmFromIntent(intent)
                 AlarmClock.ACTION_SET_TIMER -> setTimerFromIntent(intent)
             }
@@ -62,7 +66,8 @@ class MainViewModel @Inject constructor(
 
     private suspend fun setAlarmFromIntent(intent: Intent) {
         if (!intent.hasExtra(AlarmClock.EXTRA_HOUR)) {
-            _commands.send(AlarmsRoute)
+            // "Add alarm" from the list widget (and any bare SET_ALARM) opens the empty editor.
+            _commands.send(AlarmEditRoute(alarmId = 0))
             return
         }
         val hour = intent.getIntExtra(AlarmClock.EXTRA_HOUR, 7).coerceIn(0, 23)

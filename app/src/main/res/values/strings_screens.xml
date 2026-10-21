@@ -215,4 +215,45 @@
     <string name="onboarding_allow">Allow</string>
     <string name="onboarding_granted">Granted</string>
     <string name="onboarding_open_settings">Open settings</string>
+
+    <!-- Alarm health screen -->
+    <string name="health_screen_title">Alarm health</string>
+    <string name="health_recheck">Check again</string>
+    <string name="health_checking">Checking your setup…</string>
+    <string name="health_summary_ok">Your alarms are set up to ring</string>
+    <string name="health_summary_warning">A few things could get in the way</string>
+    <string name="health_summary_error">Something may stop your alarm</string>
+    <string name="health_summary_counts">%1$d problems · %2$d warnings</string>
+    <string name="health_checks">Checks</string>
+    <string name="health_test_title">Test alarm</string>
+    <string name="health_test_body">Rings through the real alarm path, exactly as a morning alarm would. For the full test, lock your phone right after pressing the button and wait.</string>
+    <string name="health_test_10">Ring in 10 seconds</string>
+    <string name="health_test_60">Ring in 1 minute</string>
+    <string name="health_test_armed">Test alarm will ring at %1$s.</string>
+    <string name="health_diagnostics">Diagnostics</string>
+    <string name="health_diagnostics_hint">A plain-text report for troubleshooting. It never contains alarm labels, and it only leaves the phone if you share it yourself.</string>
+    <string name="health_copy">Copy report</string>
+    <string name="health_copied">Report copied</string>
+    <string name="health_share">Share report</string>
+    <string name="health_show_events">Show recent events</string>
+    <string name="health_hide_events">Hide recent events</string>
+    <string name="health_no_events">Nothing logged yet.</string>
+    <string name="health_clear_log">Clear log</string>
+
+    <!-- Backup screen -->
+    <string name="backup_title">Backup and restore</string>
+    <string name="backup_intro">Your alarms, profiles, settings, world clocks and holidays can be saved to a file on this phone and restored later, for example on a new device. Nothing is uploaded anywhere.</string>
+    <string name="backup_export_title">Save a backup</string>
+    <string name="backup_export_body">Choose where to put the file in the next step.</string>
+    <string name="backup_include_history">Include wake-up history</string>
+    <string name="backup_export_button">Save to a file</string>
+    <string name="backup_export_done">Backup saved.</string>
+    <string name="backup_export_failed">Could not save the backup: %1$s</string>
+    <string name="backup_restore_title">Restore from a backup</string>
+    <string name="backup_restore_body">Replaces your current alarms and settings with the contents of a WakeNudge backup file.</string>
+    <string name="backup_restore_button">Restore</string>
+    <string name="backup_confirm_title">Replace everything with this backup?</string>
+    <string name="backup_confirm_body">Your current alarms, profiles and settings will be replaced. This cannot be undone, so save a backup first if you are unsure.</string>
+    <string name="backup_restore_done">Restored %1$d alarms and %2$d profiles.</string>
+    <string name="backup_restore_failed">Could not restore: %1$s</string>
 </resources>

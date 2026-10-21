@@ -45,7 +45,10 @@ import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.ui.alarms.AlarmsScreen
 import com.riyadm.wakenudge.ui.edit.AlarmEditScreen
 import com.riyadm.wakenudge.ui.edit.missionSlots
+import com.riyadm.wakenudge.ui.backup.BackupScreen
 import com.riyadm.wakenudge.ui.clock.WorldClockScreen
+import com.riyadm.wakenudge.ui.health.HealthBadge
+import com.riyadm.wakenudge.ui.health.HealthScreen
 import com.riyadm.wakenudge.ui.morning.MorningScreen
 import com.riyadm.wakenudge.ui.onboarding.OnboardingScreen
 import com.riyadm.wakenudge.ui.settings.AboutScreen
@@ -161,6 +164,7 @@ private fun AppNavHost(nav: NavHostController) {
                 onOpenHealth = { nav.navigate(HealthRoute) },
                 onOpenSettings = { nav.navigate(SettingsRoute) },
                 onOpenGroups = { nav.navigate(GroupsRoute) },
+                healthBadge = { HealthBadge() },
             )
         }
         composable<WorldClockRoute>(enterTransition = tabEnter, exitTransition = tabExit, popEnterTransition = tabEnter, popExitTransition = tabExit) { WorldClockScreen() }
@@ -194,5 +198,7 @@ private fun AppNavHost(nav: NavHostController) {
         composable<GroupsRoute> { GroupsScreen(onBack = { nav.popBackStack() }) }
         composable<ExceptionsRoute> { ExceptionsScreen(onBack = { nav.popBackStack() }) }
         composable<AboutRoute> { AboutScreen(onBack = { nav.popBackStack() }) }
+        composable<HealthRoute> { HealthScreen(onBack = { nav.popBackStack() }) }
+        composable<BackupRoute> { BackupScreen(onBack = { nav.popBackStack() }) }
     }
 }
