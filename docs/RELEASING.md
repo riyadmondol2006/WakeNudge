@@ -24,6 +24,9 @@ Every push to `main` becomes a release. There is no release branch, no tag to pu
 Add `[skip release]` to the message of the commit you push (the newest one in the push) to skip step 2, for example for
 a pure docs change.
 
+Runs for `main` go one at a time and a started release is never cancelled. If you push again while one is running, only
+the newest waiting run goes next: its release covers the commits of any run that was dropped in between.
+
 ### Release assets
 
 | File | What it is |
@@ -113,9 +116,9 @@ or paste the output of `base64 -w0 wakenudge.jks` into the web form. Keep an off
 passwords (a password manager). **The APK's signing key can never be replaced without breaking updates for people who
 installed it**: Android refuses to update an app signed with a different key.
 
-The workflow only hands secrets to the steps that need them, passes them as environment variables (never on a command
-line), relies on GitHub masking them in logs, and deletes the decoded keystore at the end of the job. Forks and pull
-requests never get the secrets.
+Only the `release` job reads the secrets, and it only runs for pushes to `main` in this repository (not in forks, not for
+pull requests). It hands them to the individual steps that need them, passes them as environment variables (never on a
+command line), relies on GitHub masking them in logs, and deletes the decoded keystore at the end of the job.
 
 ### Rotating
 
