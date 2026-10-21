@@ -9,7 +9,6 @@ abstract: >-
 authors:
   - name: "riyadm (riyadmondol2006)"
 repository-code: "https://github.com/riyadmondol2006/WakeNudge"
-url: "https://riyadmondol2006.github.io/WakeNudge/"
 license: Apache-2.0
 keywords:
   - android

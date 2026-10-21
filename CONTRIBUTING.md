@@ -68,18 +68,6 @@ real alarms with real audio, so use a test device, not the phone you sleep with.
 
 Short imperative subject, then a paragraph on *why* if it is not obvious.
 
-## Docs and the website
-
-The GitHub Pages site lives in `docs/`. `docs/privacy.html` is generated from [PRIVACY.md](PRIVACY.md); after changing the
-policy run:
-
-```bash
-python3 -I scripts/build-privacy-page.py
-```
-
-If you replace the screenshots in `fastlane/metadata/android/en-US/images/phoneScreenshots/`, also run
-`python3 -I scripts/build-site-assets.py` to refresh the small copies the website uses (needs Pillow).
-
 ## Security
 
 If you find a way to make an alarm silently fail, or to read the user's data from another app, please use

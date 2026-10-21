@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://riyadmondol2006.github.io/WakeNudge/sitemap.xml
