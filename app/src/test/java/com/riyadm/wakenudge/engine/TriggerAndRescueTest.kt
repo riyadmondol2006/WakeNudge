@@ -187,6 +187,19 @@ class RingCrashGuardTest {
         assertFalse(guard.onCrash(RuntimeException()))
     }
 
+    @Test fun `a refused foreground start lines up a retry for that very request and counts the attempts`() {
+        val request = RingRequest(5, 11, 42, RingKind.SNOOZE_RETURN, attempt = 1)
+        assertTrue(guard.retrySoon(request, "test"))
+        verify { pending.setAlarmClock(TriggerKind.RING_RETRY, 5, clock.now + RingRetry.DELAY_MS, RingRetry.encode(RingKind.SNOOZE_RETURN, 1), 11, 42) }
+    }
+
+    @Test fun `no retry for timers, test alarms, the silent sunrise or after the attempt limit`() {
+        assertFalse(guard.retrySoon(RingRequest(5, -1, 1, RingKind.TIMER), "t"))
+        assertFalse(guard.retrySoon(RingRequest(5, -1, 1, RingKind.TEST), "t"))
+        assertFalse(guard.retrySoon(RingRequest(5, 1, 1, RingKind.PRIMARY, phase = RingPhase.SUNRISE), "t"))
+        assertFalse(guard.retrySoon(RingRequest(5, 1, 1, RingKind.PRIMARY, attempt = RingRetry.MAX_ATTEMPTS), "t"))
+    }
+
     @Test fun `the rescue is reported as not armed when the OS refuses it`() {
         every { pending.setAlarmClock(any(), any(), any(), any(), any(), any()) } returns false
         ringing()

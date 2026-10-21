@@ -67,6 +67,22 @@ class RingCrashGuard @Inject constructor(
         return rescue(session, "crash: ${error.javaClass.simpleName}")
     }
 
+    /**
+     * The service could not become a foreground service (the system refused). It keeps going as it can, but may be
+     * killed, so the same ring is armed to start again from an alarm trigger, where the system does allow it. Harmless
+     * if the first attempt keeps ringing: a retry never rings over something that is already ringing.
+     */
+    fun retrySoon(request: RingRequest, reason: String): Boolean {
+        if (request.kind == RingKind.TIMER || request.kind == RingKind.TEST || request.phase != RingPhase.RINGING) return false
+        if (request.attempt >= RingRetry.MAX_ATTEMPTS) return false
+        val armed = pending.setAlarmClock(
+            TriggerKind.RING_RETRY, request.alarmId, time.nowMillis() + RingRetry.DELAY_MS,
+            index = RingRetry.encode(request.kind, request.attempt), eventId = request.eventId, payloadAt = request.scheduledAt,
+        )
+        diagnostics.warn("Rescue", "alarm ${request.alarmId}: retry ${if (armed) "armed" else "could NOT be armed"} ($reason)")
+        return armed
+    }
+
     /** Arms a one-shot ring for [session]; false when it is not worth it (silent phase, test, timer) or loops. */
     fun rescue(session: RingSession, reason: String): Boolean {
         if (session.phase != RingPhase.RINGING || session.isTimer || session.isTest) return false

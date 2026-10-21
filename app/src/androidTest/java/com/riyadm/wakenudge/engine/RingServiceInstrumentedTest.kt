@@ -29,6 +29,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -59,7 +60,11 @@ class RingServiceInstrumentedTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context: Context = instrumentation.targetContext
 
-    @Before fun setUp() = hilt.inject()
+    @Before fun setUp() {
+        hilt.inject()
+        runtime.setRegisteredTriggers(emptyMap())
+        runtime.clearRingCrashes()
+    }
 
     @After fun tearDown() = runBlocking {
         context.stopService(Intent(context, RingService::class.java))
@@ -68,6 +73,8 @@ class RingServiceInstrumentedTest {
         val ids = alarms.getAlarms().map { it.id } + history.recent(100).map { it.alarmId } + RingIds.TEST_ALARM_ID
         for (id in ids.toSet()) for (kind in TriggerKind.entries) for (i in 0..3) if (pending.isScheduled(kind, id, i)) pending.cancel(kind, id, i)
         runtime.testAlarmJson = null
+        runtime.setRegisteredTriggers(emptyMap())
+        runtime.clearRingCrashes()
     }
 
     private fun quietAlarm(id: Long = RingIds.TEST_ALARM_ID) = Alarm(
@@ -133,6 +140,7 @@ class RingServiceInstrumentedTest {
 
         val dump = shell("dumpsys activity services ${context.packageName}/com.riyadm.wakenudge.engine.RingService")
         assertTrue("service record present:\n$dump", dump.contains("RingService"))
+        assumeTrue("this Android version words the service dump differently", dump.contains("stopIfKilled="))
         // START_REDELIVER_INTENT (and START_STICKY) leave stopIfKilled=false: after a kill the system restarts the
         // service and delivers the original request again. START_NOT_STICKY, the previous behaviour, says true.
         assertTrue("the service must not be marked 'stop if killed':\n$dump", dump.contains("stopIfKilled=false"))

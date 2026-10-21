@@ -154,6 +154,11 @@ class AlarmAudioEngine @Inject constructor(
         if (gen != generation) return
 
         safely("volume plan", Unit) { applyVolumePlan() }
+        safely("mute check", Unit) {
+            // Do Not Disturb "total silence" and some volume locks mute the alarm stream and no app can undo that;
+            // all that can be done is to say so, in the diagnostics and on the Alarm Health screen.
+            if (audioManager.isStreamMute(AudioManager.STREAM_ALARM)) noteProblem("the alarm stream is muted by the system (Do Not Disturb or a volume lock)")
+        }
         rampStartedAt = SystemClock.elapsedRealtime()
         startRamp(gen)
         startWatch(gen)
@@ -357,15 +362,12 @@ class AlarmAudioEngine @Inject constructor(
         try {
             val withinBudget = recoveries.tryRecover(SystemClock.elapsedRealtime())
             diagnostics.warn("Audio", "Recovering playback: $reason")
-            val result = if (withinBudget) {
-                runCatching { main?.release() }
-                main = null
-                runCatching { enhancer?.release() }
-                enhancer = null
-                playWithFallback(fallbackCandidates(), gen, reason, fallbackFrom = 0)
-            } else {
-                PlayResult.FAILED
-            }
+            // The player that failed is released either way; a broken one must not keep the beeper company.
+            runCatching { main?.release() }
+            main = null
+            runCatching { enhancer?.release() }
+            enhancer = null
+            val result = if (withinBudget) playWithFallback(fallbackCandidates(), gen, reason, fallbackFrom = 0) else PlayResult.FAILED
             when {
                 gen != generation -> return
                 result == PlayResult.FAILED -> startBeeper(reason)
@@ -684,7 +686,7 @@ class AlarmAudioEngine @Inject constructor(
         const val RAMP_TICK_MS = 120L
         const val DUCK_GAIN = 0.3f
         const val WATCH_TICK_MS = 1_000L
-        const val PREPARE_TIMEOUT_MS = 3_000L
+        const val PREPARE_TIMEOUT_MS = 4_000L
         const val BEEP_PERIOD_MS = 1_200L
         const val BEEPER_RETRY_MS = 15_000L
         const val MAX_LAYER_FAILURES = 3

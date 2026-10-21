@@ -61,6 +61,8 @@ class RuntimeState @Inject constructor(@DeviceProtected context: Context) {
         prefs.edit(commit = true) { putString(K_RING_CRASHES, kept.joinToString(",")) }
     }
 
+    internal fun clearRingCrashes() = prefs.edit(commit = true) { remove(K_RING_CRASHES) }
+
     /** The last time playback needed a fallback (broken file, dead player, emergency beeper): "epoch|what happened". */
     var lastAudioProblem: String
         get() = prefs.getString(K_AUDIO_PROBLEM, "") ?: ""
