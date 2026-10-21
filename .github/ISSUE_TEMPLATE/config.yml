@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability (private)
+    url: https://github.com/riyadmondol2006/WakeNudge/security/policy
+    about: An alarm that can be made to fail silently, or a way to read WakeNudge data from another app. Please do not use a public issue.
+  - name: Read the FAQ first
+    url: https://github.com/riyadmondol2006/WakeNudge#faq
+    about: Answers about offline use, updates, heavy sleepers, battery settings and which phones were tested.
