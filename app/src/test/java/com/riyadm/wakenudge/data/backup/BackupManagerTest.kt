@@ -78,6 +78,30 @@ class BackupManagerTest {
         assertEquals(StopwatchState(), restored.store.contents.settings.stopwatch)
     }
 
+    @Test fun `update-check state belongs to the installation and is not exported`() = runTest {
+        val installed = Sample.settings.copy(updateChecksEnabled = false, lastUpdateCheckAt = 1_650_000_000_123, skippedUpdateVersion = "1.0.9")
+        val json = BackupRig(Sample.file.copy(settings = installed)).manager.export(includeHistory = false)
+        assertFalse(json.contains("1.0.9"))
+        assertFalse(json.contains("1650000000123"))
+        val restored = BackupRig().also { it.manager.import(json).success() }.store.contents.settings
+        assertEquals(Sample.settings, restored)
+    }
+
+    @Test fun `a backup file cannot dictate update-check state`() = runTest {
+        val json = BackupCodec.encode(Sample.file.copy(settings = Sample.settings.copy(updateChecksEnabled = false, skippedUpdateVersion = "9.9.9", lastUpdateCheckAt = 5)))
+        val restored = BackupRig().also { it.manager.import(json).success() }.store.contents.settings
+        assertEquals(AppSettings().updateChecksEnabled, restored.updateChecksEnabled)
+        assertEquals("", restored.skippedUpdateVersion)
+        assertEquals(0L, restored.lastUpdateCheckAt)
+    }
+
+    @Test fun `a backup written before update checks existed still restores`() = runTest {
+        val old = """{"app":"WakeNudge","formatVersion":1,"settings":{"onboardingDone":true,"themeMode":"DARK"},"alarms":[]}"""
+        val restored = BackupRig().also { it.manager.import(old).success() }.store.contents.settings
+        assertTrue(restored.onboardingDone)
+        assertEquals(AppSettings().updateChecksEnabled, restored.updateChecksEnabled)
+    }
+
     @Test fun `an empty backup restores to an empty app`() = runTest {
         val rig = BackupRig(Sample.file)
         val empty = BackupRig().manager.export(includeHistory = false)

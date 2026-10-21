@@ -100,4 +100,14 @@ class BackupSanitizerTest {
         assertEquals(0, cleaned.bedtime.daysMask)
         assertEquals(120, cleaned.bedtime.sleepGoalMinutes)
     }
+
+    @Test fun `update-check state in a file is not taken over and does not warn`() {
+        val dictated = Sample.settings.copy(updateChecksEnabled = false, lastUpdateCheckAt = 1_700_000_000_000, skippedUpdateVersion = "99.0.0")
+        val result = sanitize(BackupFile(settings = dictated))
+        assertEquals(true, result.file.settings.updateChecksEnabled)
+        assertEquals(0L, result.file.settings.lastUpdateCheckAt)
+        assertEquals("", result.file.settings.skippedUpdateVersion)
+        assertTrue(result.warnings.toString(), result.warnings.isEmpty())
+        assertEquals(result.file, sanitize(result.file).file)
+    }
 }

@@ -45,8 +45,8 @@ class BackupManager @Inject constructor(
         val file = current.copy(
             appVersion = BuildConfig.VERSION_NAME,
             createdAt = time.nowMillis(),
-            // A running stopwatch is a moment in time, not configuration.
-            settings = current.settings.copy(stopwatch = StopwatchState()),
+            // A running stopwatch is a moment in time, and update-check state belongs to this installation: neither is configuration.
+            settings = current.settings.copy(stopwatch = StopwatchState()).withoutUpdateState(),
         )
         return withContext(Dispatchers.Default) { BackupCodec.encode(file) }
     }

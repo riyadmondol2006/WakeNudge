@@ -10,9 +10,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.AlarmOn
+import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +28,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -33,6 +41,8 @@ import com.riyadm.wakenudge.ui.components.SettingRow
 import com.riyadm.wakenudge.ui.components.SettingsGroup
 import com.riyadm.wakenudge.ui.theme.Blobs
 import com.riyadm.wakenudge.ui.theme.PolygonShape
+import com.riyadm.wakenudge.ui.update.updatesSection
+import com.riyadm.wakenudge.update.ProjectLinks
 
 private val Libraries = listOf(
     "AndroidX Core, Activity, Lifecycle, Navigation, DataStore, Room" to "Apache-2.0",
@@ -47,7 +57,23 @@ private val Libraries = listOf(
 
 @Composable
 fun AboutScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
+    AboutContent(onBack = onBack, modifier = modifier, updates = { updatesSection() })
+}
+
+/**
+ * The About page. [updates] adds the "Updates" section, which only the GitHub APK has; [openLink] is how a link row
+ * reaches the browser (the default hands the address to the system).
+ */
+@Composable
+internal fun AboutContent(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    openLink: ((String) -> Unit)? = null,
+    updates: LazyListScope.() -> Unit = {},
+) {
     val scheme = MaterialTheme.colorScheme
+    val context = LocalContext.current
+    val open: (String) -> Unit = openLink ?: { url -> ProjectLinks.open(context, url) }
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -76,6 +102,15 @@ fun AboutScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                 }
             }
             item {
+                SectionTitle(stringResource(R.string.about_project))
+                SettingsGroup {
+                    item { shape -> LinkRow(Icons.Outlined.Code, stringResource(R.string.about_source_code), ProjectLinks.REPO, shape, open) }
+                    item { shape -> LinkRow(Icons.Outlined.BugReport, stringResource(R.string.about_report_problem), ProjectLinks.ISSUES, shape, open) }
+                    item { shape -> LinkRow(Icons.Outlined.PrivacyTip, stringResource(R.string.about_privacy_policy), ProjectLinks.PRIVACY_POLICY, shape, open) }
+                }
+            }
+            updates()
+            item {
                 SectionTitle(stringResource(R.string.about_privacy))
                 SettingsGroup {
                     item { shape -> SettingRow(title = stringResource(R.string.about_offline), subtitle = stringResource(R.string.about_offline_body), shape = shape) }
@@ -99,4 +134,14 @@ fun AboutScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+/** A row that opens a web address in the browser; the address is shown so it is never a surprise where it goes. */
+@Composable
+private fun LinkRow(icon: ImageVector, title: String, url: String, shape: Shape, open: (String) -> Unit) {
+    SettingRow(
+        title = title, subtitle = ProjectLinks.display(url), icon = icon, shape = shape,
+        onClick = { open(url) },
+        trailing = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, stringResource(R.string.link_opens_browser), Modifier.size(20.dp)) },
+    )
 }
