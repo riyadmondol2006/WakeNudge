@@ -4,12 +4,12 @@ An alarm clock is judged on the one morning it fails, so testing is split by wha
 
 | Layer | Where it runs | What it proves |
 |---|---|---|
-| **JVM unit tests** (364) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
-| **Fuzz tests** (12, part of the 364) | Your computer | 20,000 seeded random alarm/clock/zone combinations never crash the scheduler or yield a time in the past; corrupted and hostile backup files are rejected or sanitised, never half-applied |
-| **Instrumented engine tests** (102) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
-| **Instrumented UI tests** (17) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions |
+| **JVM unit tests** (421 for the `play` build, 507 for `github`) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
+| **Fuzz tests** (12, part of the JVM tests) | Your computer | 20,000 seeded random alarm/clock/zone combinations never crash the scheduler or yield a time in the past; corrupted and hostile backup files are rejected or sanitised, never half-applied |
+| **Instrumented engine tests** (about 120, with the migration tests) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
+| **Instrumented UI tests** (about 30 on the `play` build, plus 25 more for the GitHub-only update popup) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions |
 
-Run the JVM tests with `./gradlew :app:testPlayDebugUnitTest`. For the instrumented tests see the warning in the README:
+Run the JVM tests with `./gradlew :app:testPlayDebugUnitTest :app:testGithubDebugUnitTest`. For the instrumented tests see the warning in the README:
 **target exactly one device**.
 
 ## "How will real people break it?" suites
@@ -66,13 +66,22 @@ Hardware: **Google Pixel 6 Pro, Android 17 (API 37)**. No other physical device 
 - Widgets and the Quick Settings tile are **registered** with Android (three `AppWidgetProvider`s and the tile service
   resolve). Their layouts are covered by JVM tests of the data they show.
 
+- **The full instrumented suite of the `play` build: 142 tests, run on the device** after the final changes (the engine,
+  reliability, abuse, migration, category, ring-screen and mission-flow classes, including the 47 added by the reliability
+  audit: audio focus loss, dying players, a real `RingService`, failing storage, refused starts, clock changes and crash
+  rescue). The GitHub-only update tests (25: popup, switch, links, backup restore) ran on the `github` build. One audio
+  test asserted a diagnostics note a few milliseconds before the engine wrote it and failed once in a while; the
+  assertions now wait for the note, and the class passed on four repeated runs. Room's migrations from versions 1 and 2
+  are tested on a real database.
+- Strict alarms: the ring screen offers the Emergency stop by default and hides it when an alarm has it switched off;
+  turning it off asks for confirmation; the snooze switch on its card works without opening the card.
+
 ## Not verified. Please be sceptical here
 
 These could not be done safely or at all in the development setup. They are the first things to test on your own phone.
 
 | Scenario | Why it matters / status |
 |---|---|
-| The **47 instrumented tests added by the reliability audit** (audio resilience, real `RingService`, failing storage, OS refusals, clock changes, crash rescue) | Written and compiled, **not yet run on the Pixel** (it was offline). Their JVM counterparts pass. Run them before trusting the device-level claims in this file |
 | A real **process kill during a ring** (`START_REDELIVER_INTENT`) and a real **crash of the ring screen** (`RingCrashGuard` rescue) | The service flag is checked with `dumpsys` and the rescue trigger is armed and replayed in tests, but the OS restarting a killed process and the second-long gap in sound were not observed |
 | **Android 15+ foreground-service limits** (media services from a boot receiver; `onTimeout`) | The refused-start retry and fallback notification are tested with a simulated refusal; the real restriction and a real timeout were not provoked |
 | **Notifications blocked, ring channel muted or full-screen permission revoked** | The sound path does not use any of them (tested with no ring screen); the decision and the direct launch of the screen are tested, but the system was not put in those states |
