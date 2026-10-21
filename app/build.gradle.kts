@@ -1,4 +1,5 @@
 import com.android.build.api.artifact.SingleArtifact
+import java.io.StringReader
 import java.util.Properties
 
 plugins {
@@ -16,6 +17,58 @@ val keystoreProps = Properties().apply {
 }
 fun signingValue(propKey: String, envKey: String): String? =
     keystoreProps.getProperty(propKey) ?: System.getenv(envKey)
+
+// CI sets WAKENUDGE_REQUIRE_SIGNING=true when it builds a release, so a missing or incomplete key stops the build instead
+// of quietly producing an unsigned (or debug-signed) artifact.
+val requireSigning = providers.environmentVariable("WAKENUDGE_REQUIRE_SIGNING").orNull == "true"
+
+// --- Versioning (see docs/RELEASING.md and scripts/compute-version.sh, which implements the same rules) -------------
+// versionName = <major>.<minor>.<N> and versionCode = N. major.minor come from version.properties; N is the number of
+// commits reachable from HEAD, which only ever grows on `main` (what Google Play needs from a versionCode). CI computes
+// both once and passes them in as WAKENUDGE_VERSION_CODE / WAKENUDGE_VERSION_NAME, so the build and the release agree.
+// Precedence: Gradle property (-Pwakenudge.versionCode / -Pwakenudge.versionName), then the env var, then git. Without
+// git (a source tarball) the code is 1 and the name <major>.<minor>.0.
+val versionProps = Properties().apply {
+    val text = providers.fileContents(rootProject.layout.projectDirectory.file("version.properties")).asText
+    load(StringReader(checkNotNull(text.orNull) { "version.properties is missing from the repository root" }))
+}
+fun versionOverride(gradleProperty: String, envVar: String): String? =
+    providers.gradleProperty(gradleProperty).orElse(providers.environmentVariable(envVar)).orNull?.trim()?.takeIf { it.isNotEmpty() }
+
+val versionMajor = versionProps.getProperty("major")?.trim()?.toIntOrNull()
+val versionMinor = versionProps.getProperty("minor")?.trim()?.toIntOrNull()
+check(versionMajor != null && versionMinor != null) { "version.properties needs numeric major= and minor= entries" }
+
+// Only asked for when no override is given. providers.exec keeps this configuration-cache safe: the cache re-runs git
+// and is discarded when the commit count changes.
+val gitCommitCount: Int? by lazy {
+    runCatching {
+        providers.exec {
+            workingDir = rootDir
+            commandLine("git", "rev-list", "--count", "HEAD")
+            isIgnoreExitValue = true
+        }.standardOutput.asText.get().trim().toInt()
+    }.getOrNull()?.takeIf { it > 0 }
+}
+
+val maxVersionCode = 2_100_000_000 // Google Play rejects anything above this
+val buildNumber: Int? = versionOverride("wakenudge.versionCode", "WAKENUDGE_VERSION_CODE")?.let { raw ->
+    raw.takeIf { Regex("[1-9][0-9]{0,9}").matches(it) }?.toLongOrNull()?.takeIf { it <= maxVersionCode }?.toInt()
+        ?: throw GradleException("versionCode '$raw' must be an integer between 1 and $maxVersionCode")
+} ?: gitCommitCount
+val appVersionCode: Int = buildNumber ?: 1
+val appVersionName: String = versionOverride("wakenudge.versionName", "WAKENUDGE_VERSION_NAME")?.also {
+    if (!Regex("[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.]+)?").matches(it)) {
+        throw GradleException("versionName '$it' must look like 1.2.3")
+    }
+} ?: "$versionMajor.$versionMinor.${buildNumber ?: 0}"
+
+tasks.register("printVersion") {
+    group = "help"
+    description = "Prints the versionName and versionCode this build uses."
+    val line = "versionName=$appVersionName versionCode=$appVersionCode"
+    doLast { println(line) }
+}
 
 /**
  * Fails the build if the merged manifest of a variant requests network permissions. WakeNudge is offline-only; the one
@@ -52,8 +105,8 @@ android {
         applicationId = "com.riyadm.wakenudge"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
         testInstrumentationRunner = "com.riyadm.wakenudge.HiltTestRunner"
         vectorDrawables.useSupportLibrary = true
         buildConfigField("String", "REPO_URL", "\"https://github.com/riyadmondol2006/WakeNudge\"")
@@ -82,6 +135,13 @@ android {
                 keyAlias = signingValue("keyAlias", "WAKENUDGE_KEY_ALIAS")
                 keyPassword = signingValue("keyPassword", "WAKENUDGE_KEY_PASSWORD")
             }
+        }
+        if (requireSigning) {
+            val release = findByName("release")
+            check(
+                release != null && release.storeFile?.isFile == true &&
+                    !release.storePassword.isNullOrEmpty() && !release.keyAlias.isNullOrEmpty() && !release.keyPassword.isNullOrEmpty(),
+            ) { "WAKENUDGE_REQUIRE_SIGNING is set but the release signing key is missing or incomplete (keystore file, store password, key alias and key password are all needed)" }
         }
     }
 
