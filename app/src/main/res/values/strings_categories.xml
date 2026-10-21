@@ -40,4 +40,7 @@
     <string name="cat_notice">Heads-up %1$s before</string>
     <string name="cat_deletes">Deleted after ringing</string>
     <string name="cat_defaults">Default</string>
+
+    <string name="cat_snooze_switch">Allow snooze</string>
+    <string name="cat_no_emergency_stop">No emergency stop</string>
 </resources>

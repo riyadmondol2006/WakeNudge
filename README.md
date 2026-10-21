@@ -38,8 +38,9 @@ or NFC tag on the other side of the room, steps, squats and more. After you dism
 again if you drifted back to sleep. A built-in **Alarm Health** screen and a real **test alarm** tell you whether your
 phone is set up to ring.
 
-It runs entirely on your phone, follows your wallpaper colours with Material You, and an **Emergency stop** is always
-one press-and-hold away, so it can never trap you.
+It runs entirely on your phone, follows your wallpaper colours with Material You, and by default an **Emergency stop** is
+one press-and-hold away, so it never traps you. For an alarm you really must obey you can switch the Emergency stop
+(and snooze) off, per alarm.
 
 ## Download
 
@@ -90,7 +91,7 @@ Real captures from a Pixel 6 Pro in the dark theme. WakeNudge also has light and
 | **Ten wake-up missions** | Math, memory, typing, QR/barcode, NFC, shake, steps, squats, puzzles and photo matching. Chain several, pick the difficulty, preview each one. |
 | **Still-awake check** | Dismissed and went back to sleep? WakeNudge asks "Still awake?" after 1 to 30 minutes and rings again if you do not answer. It survives restarts. |
 | **Loud, then louder** | An **Extra Loud strength slider** (you choose how much punch to add), a volume ramp of up to 10 minutes, and a sound that intensifies after 40 seconds without interaction. A separate **backup alarm** rings later if nothing happens. |
-| **Anti-oversleep, with an exit** | Snooze limits (optionally shrinking), hold-to-dismiss, accidental-dismissal protection and an optional edit lock before the alarm. Every restriction can be bypassed with the **Emergency stop**. |
+| **Anti-oversleep, with an exit** | Snooze limits (optionally shrinking), hold-to-dismiss, accidental-dismissal protection and an optional edit lock before the alarm. Every restriction can be bypassed with the **Emergency stop**, which is on by default; **strict alarms** can turn it, and snooze, off per alarm (missions your phone cannot do still offer Continue, and the ring timeout still ends the alarm). |
 | **Alarm Health and test alarm** | Checks notifications, full-screen permission, exact alarms, battery restrictions, Do Not Disturb and audio routing, explains each fix, and rings a real test alarm. |
 | **Offline, no ads, no tracking** | No accounts, no analytics, no ad SDKs. The Play build has no network permission at all. See [Privacy](#privacy). |
 | **Open source** | Apache License 2.0, Kotlin and Jetpack Compose, with a large automated test suite. |
@@ -177,7 +178,7 @@ Both are built from this repository. Read the full [privacy policy](PRIVACY.md).
 
 Many alarm apps with wake-up challenges are closed source and show ads or ask for an account or a subscription, while
 many open-source clocks stay deliberately minimal. WakeNudge aims to combine the two: a reliable alarm, real wake-up
-missions, a safety net that cannot trap you, and code you can read, build and audit yourself. It is made by one
+missions, a safety net that cannot trap you unless you ask it to, and code you can read, build and audit yourself. It is made by one
 developer, with original code, sounds and artwork.
 
 ## FAQ

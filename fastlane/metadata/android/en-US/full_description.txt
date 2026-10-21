@@ -21,7 +21,7 @@ A SOUND THAT WAKES YOU UP
 • Hearing-safety limit on headphones. Your alarm volume is restored afterwards
 
 STOP OVERSLEEPING
-Snooze limits that shrink, hold-to-dismiss, protection against accidental dismissal, optional lock on last-minute edits, extra backup rings, and a morning dashboard with history and streaks. Everything can be switched off, and an Emergency stop is always one press-and-hold away, so the app never traps you.
+Snooze limits that shrink, hold-to-dismiss, protection against accidental dismissal, optional lock on last-minute edits, extra backup rings, and a morning dashboard with history and streaks. Everything can be switched off. By default an Emergency stop is one press-and-hold away, so the app never traps you, and for a strict alarm you can turn it (and snooze) off per alarm.
 
 PLAN YOUR DAYS
 Unlimited alarms with labels and repeat days, groups like Work and Weekend, skip next ring, vacation mode, holiday and calendar exceptions, bedtime reminders and a sleep planner based on sleep cycles.

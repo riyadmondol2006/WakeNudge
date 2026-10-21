@@ -8,6 +8,7 @@ import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.WbTwilight
@@ -398,8 +399,20 @@ fun AntiOversleepSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> A
     val a = alarm.antiOversleep
     fun set(block: (com.riyadm.wakenudge.domain.model.AntiOversleepSettings) -> com.riyadm.wakenudge.domain.model.AntiOversleepSettings) =
         onChange { it.copy(antiOversleep = block(it.antiOversleep)) }
+    var confirmEmergencyOff by remember { mutableStateOf(false) }
     if (showTitle) SectionTitle(stringResource(R.string.section_anti_oversleep))
     SettingsGroup {
+        item { shape ->
+            SwitchRow(
+                title = stringResource(R.string.ao_emergency_stop),
+                subtitle = stringResource(if (a.emergencyStopEnabled) R.string.ao_emergency_stop_on else R.string.ao_emergency_stop_off),
+                icon = Icons.Outlined.Shield,
+                checked = a.emergencyStopEnabled,
+                // Switching it ON is always safe and immediate; switching it OFF makes the alarm strict, so ask first.
+                onCheckedChange = { on -> if (on) set { it.copy(emergencyStopEnabled = true) } else confirmEmergencyOff = true },
+                shape = shape, enabled = enabled,
+            )
+        }
         item { shape ->
             StepperRow(
                 title = stringResource(R.string.ao_hold),
@@ -463,10 +476,20 @@ fun AntiOversleepSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> A
         }
     }
     Text(
-        stringResource(R.string.ao_emergency_note),
+        stringResource(if (a.emergencyStopEnabled) R.string.ao_emergency_note else R.string.ao_emergency_note_off),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
     )
+    if (confirmEmergencyOff) {
+        com.riyadm.wakenudge.ui.components.ConfirmDialog(
+            title = stringResource(R.string.ao_emergency_off_title),
+            text = stringResource(R.string.ao_emergency_off_body),
+            confirmLabel = stringResource(R.string.ao_emergency_off_confirm),
+            onConfirm = { set { it.copy(emergencyStopEnabled = false) }; confirmEmergencyOff = false },
+            onDismiss = { confirmEmergencyOff = false },
+            destructive = true,
+        )
+    }
 }
 
 @Composable

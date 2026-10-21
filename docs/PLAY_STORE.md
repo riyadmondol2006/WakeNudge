@@ -258,7 +258,7 @@ and taps through the screens. Findings from reading the code paths and from a sm
 - Denied permissions are handled: `PermissionGate` offers **Allow** or **Open app settings**; the full-screen and battery
   shortcuts are wrapped in `runCatching`.
 - There is no mission trap: defaults are no missions and a plain tap to dismiss, the ring times out after 10 minutes, and
-  **Emergency stop** (press and hold) always bypasses missions. Back is swallowed only while an alarm rings.
+  **Emergency stop** (press and hold) bypasses missions (on by default; a user can switch it off for a strict alarm, in which case a mission this phone cannot perform still offers Continue and the ring timeout still ends the alarm). Back is swallowed only while an alarm rings.
 - Things worth knowing, none blocking: the system logs `AppOps: attributionTag  not declared in manifest` lines while
   the app runs (platform noise, no effect); the Android 17 logs show background-audio warnings that do not mute alarm
   audio (see [PERMISSIONS.md](PERMISSIONS.md)).

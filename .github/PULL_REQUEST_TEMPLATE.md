@@ -7,7 +7,7 @@
 - [ ] `./gradlew :app:testPlayDebugUnitTest :app:lintPlayDebug :app:verifyOfflineManifestPlayDebug :app:verifyOfflineManifestGithubDebug` passes locally
 - [ ] A bug fix comes with a test that fails without it (scheduling code uses `TimeSource`, never `System.currentTimeMillis()`)
 - [ ] **Offline rule:** no new permission, network-capable dependency, analytics or remote config. The Play flavour still has no network permission
-- [ ] **A mission must never trap the user:** anything that can be impossible on some phone has a way out, and the Emergency stop still works
+- [ ] **A mission must never trap the user:** anything that can be impossible on some phone has a way out, and the Emergency stop still works wherever it is enabled
 - [ ] Anything that changes system state (alarm volume, brightness, ...) puts it back
 - [ ] New strings are in `res/values/strings*.xml` (with plurals where a number is shown) and the UI was tried with large fonts, RTL and TalkBack
 - [ ] No placeholders: no TODO-shaped UI, mock buttons or dead settings

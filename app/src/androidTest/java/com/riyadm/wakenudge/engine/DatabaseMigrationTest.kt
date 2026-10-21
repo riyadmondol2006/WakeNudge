@@ -54,6 +54,36 @@ class DatabaseMigrationTest {
         db.close()
     }
 
+    @Test fun version2To3KeepsTheEmergencyStopOnForExistingAlarms() {
+        helper.createDatabase(TEST_DB, 2).apply {
+            insertAlarm(mapOf("id" to 7, "label" to "Old", "hour" to 6, "minute" to 0, "ao_backupEnabled" to 1))
+            close()
+        }
+        val db = helper.runMigrationsAndValidate(TEST_DB, 3, true, *Migrations.ALL)
+        db.query("SELECT label, ao_emergencyStopEnabled, ao_backupEnabled FROM alarms").use { c ->
+            assertEquals(1, c.count)
+            c.moveToFirst()
+            assertEquals("Old", c.getString(0))
+            assertEquals("an existing alarm keeps the Emergency stop it always had", 1, c.getInt(1))
+            assertEquals(1, c.getInt(2))
+        }
+        db.close()
+    }
+
+    @Test fun anInstallFromVersion1ReachesVersion3WithEverythingIntact() {
+        helper.createDatabase(TEST_DB, 1).apply {
+            insertAlarm(mapOf("id" to 3, "label" to "First install", "hour" to 5, "minute" to 15, "vol_extraLoud" to 1))
+            close()
+        }
+        val db = helper.runMigrationsAndValidate(TEST_DB, 3, true, *Migrations.ALL)
+        db.query("SELECT label, vol_extraLoud, vol_extraLoudPercent, ao_emergencyStopEnabled FROM alarms").use { c ->
+            c.moveToFirst()
+            assertEquals("First install", c.getString(0))
+            assertEquals(1, c.getInt(1)); assertEquals(100, c.getInt(2)); assertEquals(1, c.getInt(3))
+        }
+        db.close()
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }
