@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Project links: shown in every build, Play included. -->
+    <string name="onboarding_open_source">Open source · %1$s</string>
+    <string name="onboarding_open_source_cd">Open source. The code is at %1$s</string>
+    <string name="onboarding_website_cd">Website. %1$s</string>
+    <string name="link_opens_browser">Opens in your browser</string>
+    <string name="link_no_browser">No app found to open this link.</string>
+    <string name="about_project">Open source</string>
+    <string name="about_website">Website</string>
+    <string name="about_source_code">Source code on GitHub</string>
+    <string name="about_report_problem">Report a problem</string>
+    <string name="about_privacy_policy">Privacy policy</string>
+</resources>

@@ -95,7 +95,27 @@ data class AppSettings(
     /** Whether to bring the screen back to the alarm UI if the user wanders away while it rings. */
     val keepRingScreenFront: Boolean = true,
     val emergencyStopHoldSeconds: Int = 3,
+    /** GitHub APK only: look for a newer release once a day. The Play build never reads this or the two below. */
+    val updateChecksEnabled: Boolean = true,
+    /** Epoch millis of the last check GitHub answered; 0 when there has not been one. */
+    val lastUpdateCheckAt: Long = 0,
+    /** The version (MAJOR.MINOR.PATCH) the user chose "Skip this version" for; empty when none. */
+    val skippedUpdateVersion: String = "",
 ) {
+    /**
+     * The three update fields describe this installation, not the user's alarm setup, so a backup neither carries
+     * them nor changes them: a restore must not quietly switch update checks on or off, or forget a skipped version.
+     */
+    fun withUpdateStateOf(installed: AppSettings): AppSettings = copy(
+        updateChecksEnabled = installed.updateChecksEnabled,
+        lastUpdateCheckAt = installed.lastUpdateCheckAt,
+        skippedUpdateVersion = installed.skippedUpdateVersion,
+    )
+
+    /** This settings object as a backup records it: update state back at its defaults. */
+    fun withoutUpdateState(): AppSettings = withUpdateStateOf(AppSettings())
+
+
     fun firstDayOfWeek(systemFirstDay: DayOfWeek): DayOfWeek = when (weekStart) {
         WeekStart.SYSTEM -> systemFirstDay
         WeekStart.MONDAY -> DayOfWeek.MONDAY

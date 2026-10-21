@@ -342,7 +342,7 @@ object BackupSanitizer {
                 // A running stopwatch is a moment in time, not configuration.
                 stopwatch = StopwatchState(),
                 emergencyStopHoldSeconds = int(s.emergencyStopHoldSeconds, 1..10),
-            )
+            ).withoutUpdateState() // Installation state (see AppSettings.withUpdateStateOf); a file must not dictate it.
         }
 
         private fun bedtime(b: BedtimeSettings): BedtimeSettings {
