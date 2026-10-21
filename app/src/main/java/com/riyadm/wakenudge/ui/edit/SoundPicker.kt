@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
@@ -34,14 +36,19 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.domain.model.SoundMode
 import com.riyadm.wakenudge.domain.model.SoundSettings
@@ -106,7 +113,12 @@ fun SoundPickerSheet(
     val resources = LocalResources.current
     val haptics = LocalWakeHaptics.current
     val playing by previewer.playing.collectAsState()
+    val failed by previewer.failed.collectAsState()
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // Whatever way the sheet goes away (dismiss, back, the app being hidden), the preview must not outlive it.
+    DisposableEffect(previewer) { onDispose { previewer.stop() } }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { previewer.stop() }
 
     fun persist(uri: Uri) {
         runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
@@ -116,19 +128,24 @@ fun SoundPickerSheet(
         if (result.resultCode == Activity.RESULT_OK) {
             @Suppress("DEPRECATION")
             val uri: Uri? = result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
-            if (uri != null) onChange(sound.copy(mode = SoundMode.SINGLE, source = SoundSource.SYSTEM, uri = uri.toString()))
+            if (uri != null) {
+                onChange(sound.copy(mode = SoundMode.SINGLE, source = SoundSource.SYSTEM, uri = uri.toString()))
+                previewer.playUri(uri.toString(), toggle = false)
+            }
         }
     }
     val singleFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             persist(uri)
             onChange(sound.copy(mode = SoundMode.SINGLE, source = SoundSource.CUSTOM, uri = uri.toString()))
+            previewer.playUri(uri.toString(), toggle = false)
         }
     }
     val playlistFiles = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isNotEmpty()) {
             uris.forEach(::persist)
             onChange(sound.copy(mode = SoundMode.RANDOM_CUSTOM, playlist = (sound.playlist + uris.map { it.toString() }).distinct()))
+            previewer.playUri(uris.first().toString(), toggle = false)
         }
     }
 
@@ -146,11 +163,19 @@ fun SoundPickerSheet(
                             title = stringResource(R.string.sound_mode),
                             options = SoundMode.entries.toList(),
                             selected = sound.mode,
-                            onSelect = { onChange(sound.copy(mode = it)) },
+                            onSelect = { previewer.stop(); onChange(sound.copy(mode = it)) },
                             optionLabel = { stringResource(soundModeLabel(it)) },
                             shape = shape,
                         )
                     }
+                }
+                val streamSilent = remember(playing) { previewer.alarmStreamSilent }
+                if (failed != null) {
+                    PickerHint(stringResource(R.string.sound_preview_failed), isError = true)
+                } else if (streamSilent) {
+                    PickerHint(stringResource(R.string.sound_preview_silent))
+                } else {
+                    PickerHint(stringResource(R.string.sound_preview_tip))
                 }
             }
             when (sound.mode) {
@@ -162,7 +187,11 @@ fun SoundPickerSheet(
                                 tone = tone,
                                 selected = sound.source == SoundSource.BUNDLED && sound.bundledId == tone.id,
                                 playing = playing == tone.id,
-                                onSelect = { haptics.tick(); onChange(sound.copy(mode = SoundMode.SINGLE, source = SoundSource.BUNDLED, bundledId = tone.id)) },
+                                onSelect = {
+                                    haptics.tick()
+                                    onChange(sound.copy(mode = SoundMode.SINGLE, source = SoundSource.BUNDLED, bundledId = tone.id))
+                                    previewer.playBundled(tone.id, toggle = false)
+                                },
                                 onPreview = { previewer.playBundled(tone.id) },
                             )
                         }
@@ -214,7 +243,10 @@ fun SoundPickerSheet(
                                 val current = if (sound.randomPool.isEmpty()) BundledTones.all.map { it.id }.toSet() else sound.randomPool
                                 val next = if (tone.id in current) current - tone.id else current + tone.id
                                 // Never allow an empty pool by unticking the last tone; empty means "all" in storage.
-                                if (next.isNotEmpty()) onChange(sound.copy(randomPool = if (next.size == BundledTones.all.size) emptySet() else next))
+                                if (next.isNotEmpty()) {
+                                    onChange(sound.copy(randomPool = if (next.size == BundledTones.all.size) emptySet() else next))
+                                    if (tone.id in next) previewer.playBundled(tone.id, toggle = false) else if (playing == tone.id) previewer.stop()
+                                }
                             },
                             onPreview = { previewer.playBundled(tone.id) },
                         )
@@ -249,16 +281,32 @@ fun SoundPickerSheet(
 
 @Composable
 private fun ToneRow(tone: BundledTone, selected: Boolean, playing: Boolean, onSelect: () -> Unit, onPreview: () -> Unit, multi: Boolean = false) {
+    val rowModifier = if (multi) {
+        Modifier.toggleable(value = selected, role = Role.Checkbox, onValueChange = { onSelect() })
+    } else {
+        Modifier.selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+    }
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        rowModifier.fillMaxWidth().padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (multi) Checkbox(checked = selected, onCheckedChange = { onSelect() }) else RadioButton(selected = selected, onClick = onSelect)
+        // The row is the single touch target; the control is only the indicator.
+        if (multi) Checkbox(checked = selected, onCheckedChange = null, modifier = Modifier.padding(12.dp)) else RadioButton(selected = selected, onClick = null, modifier = Modifier.padding(12.dp))
         Text(stringResource(tone.nameRes), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
         IconButton(onClick = onPreview) {
             Icon(if (playing) Icons.Filled.Stop else Icons.Filled.PlayArrow, stringResource(R.string.cd_preview_sound))
         }
     }
+}
+
+@Composable
+private fun PickerHint(text: String, isError: Boolean = false) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodySmall,
+        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+    )
 }
 
 private fun soundModeLabel(mode: SoundMode) = when (mode) {

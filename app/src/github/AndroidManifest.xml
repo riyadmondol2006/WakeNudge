@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Only the GitHub APK: used to ask api.github.com whether a newer release exists. The Play build never has it. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+</manifest>

@@ -17,19 +17,30 @@ val keystoreProps = Properties().apply {
 fun signingValue(propKey: String, envKey: String): String? =
     keystoreProps.getProperty(propKey) ?: System.getenv(envKey)
 
-/** Fails the build if the merged manifest of any variant requests network permissions: WakeNudge is offline-only. */
+/**
+ * Fails the build if the merged manifest of a variant requests network permissions. WakeNudge is offline-only; the one
+ * exception is the `github` flavour (the APK on GitHub Releases), which may hold INTERNET to look for a newer release.
+ * Nothing but INTERNET is ever allowed, and the Play flavour must stay completely offline.
+ */
 abstract class VerifyOfflineManifestTask : DefaultTask() {
     @get:InputFile
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val mergedManifest: RegularFileProperty
 
+    @get:Input
+    abstract val allowInternet: Property<Boolean>
+
     @TaskAction
     fun verify() {
         val text = mergedManifest.get().asFile.readText()
         val declared = Regex("""<uses-permission[^>]*android:name="([^"]+)"""").findAll(text).map { it.groupValues[1] }.toSet()
-        val forbidden = setOf("android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE", "android.permission.ACCESS_WIFI_STATE")
+        val forbidden = buildSet {
+            if (!allowInternet.get()) add("android.permission.INTERNET")
+            add("android.permission.ACCESS_NETWORK_STATE")
+            add("android.permission.ACCESS_WIFI_STATE")
+        }
         val offending = declared.intersect(forbidden)
-        check(offending.isEmpty()) { "Network permissions are forbidden in WakeNudge but the merged manifest declares: $offending" }
+        check(offending.isEmpty()) { "Network permissions are not allowed in this WakeNudge variant but the merged manifest declares: $offending" }
     }
 }
 
@@ -45,6 +56,21 @@ android {
         versionName = "1.0.0"
         testInstrumentationRunner = "com.riyadm.wakenudge.HiltTestRunner"
         vectorDrawables.useSupportLibrary = true
+        buildConfigField("String", "REPO_URL", "\"https://github.com/riyadmondol2006/WakeNudge\"")
+    }
+
+    // Two ways to ship the same app. `play` is the Play Store bundle: no network permission, no update code.
+    // `github` is the APK on GitHub Releases: it may check GitHub for a newer release (the user can switch that off).
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("play") {
+            dimension = "distribution"
+            buildConfigField("boolean", "UPDATE_CHECKS", "false")
+        }
+        create("github") {
+            dimension = "distribution"
+            buildConfigField("boolean", "UPDATE_CHECKS", "true")
+        }
     }
 
     signingConfigs {
@@ -113,6 +139,7 @@ androidComponents {
         val capName = variant.name.replaceFirstChar { it.uppercase() }
         val verify = tasks.register<VerifyOfflineManifestTask>("verifyOfflineManifest$capName") {
             mergedManifest.set(variant.artifacts.get(SingleArtifact.MERGED_MANIFEST))
+            allowInternet.set(variant.flavorName == "github")
         }
         tasks.matching { it.name == "check" }.configureEach { dependsOn(verify) }
     }

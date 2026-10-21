@@ -43,7 +43,7 @@ import kotlin.math.roundToInt
 
 /** Alarm sound, volume and vibration: shared by the alarm editor and the "new alarm defaults" screen. */
 @Composable
-fun SoundSection(alarm: Alarm, enabled: Boolean, previewer: SoundPreviewer, onChange: ((Alarm) -> Alarm) -> Unit) {
+fun SoundSection(alarm: Alarm, enabled: Boolean, previewer: SoundPreviewer, onChange: ((Alarm) -> Alarm) -> Unit, showVoice: Boolean = true) {
     var showPicker by remember { mutableStateOf(false) }
     SectionTitle(stringResource(R.string.section_sound))
     SettingsGroup {
@@ -57,7 +57,7 @@ fun SoundSection(alarm: Alarm, enabled: Boolean, previewer: SoundPreviewer, onCh
                 onClick = { showPicker = true },
             )
         }
-        item { shape ->
+        if (showVoice) item { shape ->
             val voice = alarm.voice
             SwitchRow(
                 title = stringResource(R.string.voice_title),
@@ -69,7 +69,7 @@ fun SoundSection(alarm: Alarm, enabled: Boolean, previewer: SoundPreviewer, onCh
                 enabled = enabled,
             )
         }
-        if (alarm.voice.enabled) {
+        if (showVoice && alarm.voice.enabled) {
             item { shape ->
                 SwitchRow(
                     title = stringResource(R.string.voice_announce_time),
@@ -252,7 +252,7 @@ fun VibrationSection(alarm: Alarm, enabled: Boolean, vibrator: AlarmVibrator, on
     }
 }
 
-private fun vibrationLabel(p: VibrationPattern) = when (p) {
+internal fun vibrationLabel(p: VibrationPattern) = when (p) {
     VibrationPattern.CLASSIC -> R.string.vib_classic
     VibrationPattern.PULSE -> R.string.vib_pulse
     VibrationPattern.HEARTBEAT -> R.string.vib_heartbeat
@@ -264,9 +264,9 @@ private fun vibrationLabel(p: VibrationPattern) = when (p) {
 }
 
 @Composable
-fun SnoozeSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -> Unit, snoozeMissions: @Composable () -> Unit) {
+fun SnoozeSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -> Unit, snoozeMissions: @Composable () -> Unit, showTitle: Boolean = true) {
     val s = alarm.snooze
-    SectionTitle(stringResource(R.string.section_snooze))
+    if (showTitle) SectionTitle(stringResource(R.string.section_snooze))
     SettingsGroup {
         item { shape ->
             SwitchRow(
@@ -389,11 +389,11 @@ fun WakeCheckSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm
 }
 
 @Composable
-fun AntiOversleepSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -> Unit) {
+fun AntiOversleepSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -> Unit, showTitle: Boolean = true) {
     val a = alarm.antiOversleep
     fun set(block: (com.riyadm.wakenudge.domain.model.AntiOversleepSettings) -> com.riyadm.wakenudge.domain.model.AntiOversleepSettings) =
         onChange { it.copy(antiOversleep = block(it.antiOversleep)) }
-    SectionTitle(stringResource(R.string.section_anti_oversleep))
+    if (showTitle) SectionTitle(stringResource(R.string.section_anti_oversleep))
     SettingsGroup {
         item { shape ->
             StepperRow(
@@ -494,8 +494,8 @@ fun SunriseSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) 
 }
 
 @Composable
-fun ExtrasSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -> Unit) {
-    SectionTitle(stringResource(R.string.section_extras))
+fun ExtrasSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -> Unit, showTitle: Boolean = true) {
+    if (showTitle) SectionTitle(stringResource(R.string.section_extras))
     SettingsGroup {
         if (alarm.isRepeating) {
             item { shape ->

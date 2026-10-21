@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.BeachAccess
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -46,6 +47,7 @@ import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.ui.components.SectionTitle
 import com.riyadm.wakenudge.ui.components.SettingsGroup
 import com.riyadm.wakenudge.ui.components.SwitchRow
+import com.riyadm.wakenudge.ui.components.ValueRow
 import com.riyadm.wakenudge.ui.components.TextInputDialog
 import com.riyadm.wakenudge.ui.util.Formatters
 import java.time.Instant
@@ -57,6 +59,7 @@ import java.time.ZoneOffset
 fun ExceptionsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: ExceptionsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var picking by remember { mutableStateOf(false) }
+    var pickResume by remember { mutableStateOf(false) }
     var pendingDay by remember { mutableStateOf<Long?>(null) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         viewModel.onPermissionResult()
@@ -78,6 +81,26 @@ fun ExceptionsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewMode
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             item {
+                SectionTitle(stringResource(R.string.vacation_section))
+                SettingsGroup {
+                    item { shape ->
+                        SwitchRow(
+                            title = stringResource(R.string.settings_vacation), subtitle = stringResource(R.string.settings_vacation_hint),
+                            icon = Icons.Outlined.BeachAccess, checked = state.vacation.enabled,
+                            onCheckedChange = { on -> viewModel.setVacation(on, if (on) state.vacation.resumeEpochDay else null) }, shape = shape,
+                        )
+                    }
+                    if (state.vacation.enabled) {
+                        item { shape ->
+                            ValueRow(
+                                title = stringResource(R.string.settings_vacation_resume),
+                                value = state.vacation.resumeEpochDay?.let { Formatters.dateShort(LocalDate.ofEpochDay(it)) } ?: stringResource(R.string.settings_vacation_manual),
+                                shape = shape, onClick = { pickResume = true },
+                            )
+                        }
+                    }
+                }
+                SectionTitle(stringResource(R.string.exceptions_title_days))
                 Text(stringResource(R.string.exceptions_hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp))
                 SectionTitle(stringResource(R.string.exceptions_calendar))
                 SettingsGroup {
@@ -137,6 +160,22 @@ fun ExceptionsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewMode
                 }
             }
         }
+    }
+    if (pickResume) {
+        val initial = (state.vacation.resumeEpochDay?.let(LocalDate::ofEpochDay) ?: LocalDate.now().plusDays(7)).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        val resumeState = rememberDatePickerState(initialSelectedDateMillis = initial)
+        DatePickerDialog(
+            onDismissRequest = { pickResume = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    resumeState.selectedDateMillis?.let { viewModel.setVacation(true, Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toEpochDay()) }
+                    pickResume = false
+                }) { Text(stringResource(R.string.action_ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.setVacation(true, null); pickResume = false }) { Text(stringResource(R.string.settings_vacation_manual)) }
+            },
+        ) { DatePicker(resumeState) }
     }
     if (picking) {
         val state0 = rememberDatePickerState(initialSelectedDateMillis = LocalDate.now().atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
