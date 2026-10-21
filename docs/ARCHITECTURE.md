@@ -178,3 +178,34 @@ Material 3 (stable 1.4) with an "expressive" layer built in-house, because the M
 in the stable artifact: spring specs (`WakeMotion`), blob/cookie shapes from `graphics-shapes`, a custom animated time
 picker, wavy progress, and an expressive switch and day chips. Navigation uses type-safe Navigation-Compose routes and a
 `NavigationSuiteScaffold` that adapts between bottom bar and rail.
+
+## Two builds, one codebase
+
+`app/build.gradle.kts` defines a `distribution` flavour dimension:
+
+| Flavour | Network permission | What is different |
+|---|---|---|
+| `play` | none | `NoUpdateChecker` is bound; no HTTP code, update strings or `INTERNET` exist in the build. |
+| `github` | `INTERNET` only | `UpdateManager` asks `api.github.com` for the latest release (at most once a day, on app open, never during a ring) and offers a popup that opens the release page in the browser. The user can switch it off in About, then Updates. |
+
+The shared code only knows the `UpdateChecker` interface (`update/`); each flavour's source set binds it with a Hilt
+module. The `verifyOfflineManifest<Variant>` tasks fail the build if the merged manifest of a variant declares anything
+beyond what its flavour allows, and a JVM test (`OfflineClaimsTest`) checks that no user-facing text claims the app has
+no internet access where the build has some.
+
+## Database migrations
+
+Room's schema is exported to `app/schemas/`. Every schema change bumps `WakeNudgeDatabase.version`, adds an explicit
+`Migration` in `data/db/Migrations.kt` and is covered by `DatabaseMigrationTest`, which builds a real database of the
+previous version, migrates it and checks that no alarm is lost. There is deliberately no destructive fallback:
+an alarm clock must never lose alarms because the app updated. (Settings live in DataStore as one JSON document; new
+fields only need a default.)
+
+## Alarm options, as the user sees them
+
+Alarm options are grouped into the same six categories in the editor and in "New alarm defaults"
+(`ui/edit/EditCategories.kt`): wake-up challenge, sound and light, volume and vibration, snooze, oversleep protection and
+schedule rules. Choosing a tone in the sound picker plays it immediately (`SoundPreviewer`, alarm stream, stopped
+whenever the picker goes away). Extra Loud is a strength (`VolumeSettings.extraLoudPercent`) that `VolumePlanner`
+turns into a proportion of the full boost, and it is never applied on headphones while hearing protection is on.
+
