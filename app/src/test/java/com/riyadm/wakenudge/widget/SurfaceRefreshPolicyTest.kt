@@ -1,7 +1,14 @@
 package com.riyadm.wakenudge.widget
 
+import com.riyadm.wakenudge.domain.model.Alarm
+import com.riyadm.wakenudge.domain.model.AppSettings
+import com.riyadm.wakenudge.domain.model.StopwatchState
+import com.riyadm.wakenudge.domain.model.TimeFormat
+import java.time.DayOfWeek
 import java.time.Duration
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.util.Locale
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import org.junit.Assert.assertEquals
@@ -107,5 +114,57 @@ class SurfaceRefreshPolicyTest {
         ledger.record("w", "b", 5)
         assertFalse(ledger.isCurrent("w", "a", 6))
         assertTrue(ledger.isCurrent("w", "b", 6))
+    }
+
+    // ---- what makes a widget's picture change -------------------------------------------------------------------------
+
+    private val setting = RenderSetting(Locale.US, is24Hour = false, zone = utc)
+    private val today = LocalDate.of(2026, 10, 21)
+    private val alarm = Alarm(id = 1, hour = 7, minute = 30, label = "Work")
+    private val model = WidgetModel(
+        settings = AppSettings(),
+        today = today,
+        firstDay = DayOfWeek.MONDAY,
+        outlook = AlarmOutlook(next = null, note = OutlookNote.AllOff),
+        alarms = listOf(alarm),
+        groupsOff = emptySet(),
+    )
+
+    private fun nextAlarmPicture(m: WidgetModel, s: RenderSetting = setting, ids: Set<Int> = setOf(1)) =
+        Picture.of(m, drawsOutlook = true, drawsAlarms = false, setting = s, widgetIds = ids)
+
+    private fun listPicture(m: WidgetModel, s: RenderSetting = setting, ids: Set<Int> = setOf(1)) =
+        Picture.of(m, drawsOutlook = false, drawsAlarms = true, setting = s, widgetIds = ids)
+
+    @Test fun `unrelated settings such as a stopwatch lap do not redraw any widget`() {
+        val lapped = model.copy(settings = model.settings.copy(stopwatch = StopwatchState(running = true, startedAtMillis = 5, laps = listOf(1, 2))))
+        assertEquals(nextAlarmPicture(model), nextAlarmPicture(lapped))
+        assertEquals(listPicture(model), listPicture(lapped))
+    }
+
+    @Test fun `the next-alarm widget ignores the alarm list and the list ignores the outlook`() {
+        val edited = model.copy(alarms = listOf(alarm.copy(label = "Gym")))
+        assertEquals(nextAlarmPicture(model), nextAlarmPicture(edited))
+        assertFalse(listPicture(model) == listPicture(edited))
+
+        val newOutlook = model.copy(outlook = AlarmOutlook(next = null, note = OutlookNote.NoAlarms))
+        assertEquals(listPicture(model), listPicture(newOutlook))
+        assertFalse(nextAlarmPicture(model) == nextAlarmPicture(newOutlook))
+    }
+
+    @Test fun `a new day, time format, colour mode, language, clock style, zone or widget redraws`() {
+        val base = nextAlarmPicture(model)
+        assertFalse(base == nextAlarmPicture(model.copy(today = today.plusDays(1))))
+        assertFalse(base == nextAlarmPicture(model.copy(settings = model.settings.copy(timeFormat = TimeFormat.H24))))
+        assertFalse(base == nextAlarmPicture(model.copy(settings = model.settings.copy(dynamicColor = false))))
+        assertFalse(base == nextAlarmPicture(model, setting.copy(locale = Locale.GERMANY)))
+        assertFalse(base == nextAlarmPicture(model, setting.copy(is24Hour = true)))
+        assertFalse(base == nextAlarmPicture(model, setting.copy(zone = ZoneId.of("Asia/Dhaka"))))
+        assertFalse(base == nextAlarmPicture(model, ids = setOf(1, 2)))
+    }
+
+    @Test fun `a second identical look-up is the same picture`() {
+        assertEquals(nextAlarmPicture(model), nextAlarmPicture(model.copy()))
+        assertEquals(listPicture(model), listPicture(model.copy(alarms = listOf(alarm.copy()))))
     }
 }

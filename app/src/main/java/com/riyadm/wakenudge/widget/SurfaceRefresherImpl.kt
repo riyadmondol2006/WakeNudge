@@ -125,17 +125,8 @@ class SurfaceRefresherImpl @Inject constructor(
         val drawsOutlook: Boolean,
         val drawsAlarms: Boolean,
     ) {
-        fun pictureOf(model: WidgetModel, setting: RenderSetting, widgetIds: Set<Int>) = Picture(
-            timeFormat = model.settings.timeFormat,
-            dynamicColor = model.settings.dynamicColor,
-            today = model.today,
-            firstDay = model.firstDay,
-            outlook = model.outlook.takeIf { drawsOutlook },
-            alarms = if (drawsAlarms) model.alarms else emptyList(),
-            groupsOff = if (drawsAlarms) model.groupsOff else emptySet(),
-            setting = setting,
-            widgetIds = widgetIds,
-        )
+        fun pictureOf(model: WidgetModel, setting: RenderSetting, widgetIds: Set<Int>) =
+            Picture.of(model, drawsOutlook, drawsAlarms, setting, widgetIds)
     }
 
     private companion object {
@@ -170,7 +161,22 @@ internal data class Picture(
     val groupsOff: Set<Long>,
     val setting: RenderSetting,
     val widgetIds: Set<Int>,
-)
+) {
+    companion object {
+        /** Keeps only what a widget draws: a stopwatch lap or an edited sound must not redraw the next-alarm widget. */
+        fun of(model: WidgetModel, drawsOutlook: Boolean, drawsAlarms: Boolean, setting: RenderSetting, widgetIds: Set<Int>) = Picture(
+            timeFormat = model.settings.timeFormat,
+            dynamicColor = model.settings.dynamicColor,
+            today = model.today,
+            firstDay = model.firstDay,
+            outlook = model.outlook.takeIf { drawsOutlook },
+            alarms = if (drawsAlarms) model.alarms else emptyList(),
+            groupsOff = if (drawsAlarms) model.groupsOff else emptySet(),
+            setting = setting,
+            widgetIds = widgetIds,
+        )
+    }
+}
 
 /** Remembers the picture each widget was last given, and when, so an unchanged one is not drawn again. */
 internal class RenderLedger(private val maxAgeMs: Long) {
