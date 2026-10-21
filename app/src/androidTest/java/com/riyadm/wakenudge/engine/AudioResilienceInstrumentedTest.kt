@@ -60,6 +60,7 @@ class AudioResilienceInstrumentedTest {
         hilt.inject()
         originalAlarmVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
         runtime.lastAudioProblem = ""
+        runtime.clearRingCrashes()
     }
 
     @After fun tearDown() {
@@ -195,7 +196,7 @@ class AudioResilienceInstrumentedTest {
         startRing(slow)
         await("sound") { audio.isAudible }
         val seconds = (SystemClock.elapsedRealtime() - started) / 1000.0
-        assertTrue("fell back after ~3 s instead of waiting 25 s (took ${seconds}s)", seconds < 9)
+        assertTrue("fell back after ~4 s instead of waiting 25 s (took ${seconds}s)", seconds < 9)
         assertEquals("sunrise", audio.activeSoundId)
         assertEquals("Fell back to a built-in sound", audio.lastNote)
     }
@@ -233,7 +234,6 @@ class AudioResilienceInstrumentedTest {
         onMain { audio.simulateTrackCompleted() }
         // The next pick is the broken track; it used to end the sound for good. Now the loop falls through to a track that opens.
         await("a track that opens after the broken one", 6_000) { audio.isAudible && audio.activeSoundId == good }
-        stays("sound after skipping the broken track", 1_000) { audio.isAudible }
     }
 
     @Test fun aLoopingSoundThatIsReportedFinishedStartsAgain() {

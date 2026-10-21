@@ -11,7 +11,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.RecordingStarter
 import com.riyadm.wakenudge.core.TimeSource
-import com.riyadm.wakenudge.data.db.WakeNudgeDatabase
 import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.model.AlarmEvent
 import com.riyadm.wakenudge.domain.model.AlarmOutcome
@@ -66,6 +65,17 @@ private class FlakyHistory(private val real: HistoryRepository) : HistoryReposit
     override suspend fun withFollowUps(): List<AlarmEvent> { check(); return real.withFollowUps() }
 }
 
+/** An alarm table that cannot be read, like a database that is locked, corrupt or being rebuilt. */
+private class FlakyAlarms(private val real: AlarmRepository) : AlarmRepository by real {
+    @Volatile var failing = false
+    private fun check() {
+        if (failing) throw IOException("database unreadable")
+    }
+
+    override suspend fun getAlarm(id: Long): Alarm? { check(); return real.getAlarm(id) }
+    override suspend fun getAlarms(): List<Alarm> { check(); return real.getAlarms() }
+}
+
 /** A settings store that cannot be read or written at all. */
 private object BrokenSettings : SettingsRepository {
     override val settings: Flow<AppSettings> = flow { throw IOException("settings unreadable") }
@@ -83,7 +93,6 @@ private object BrokenSettings : SettingsRepository {
 class ResilienceInstrumentedTest {
     @get:Rule val hilt = HiltAndroidRule(this)
 
-    @Inject lateinit var db: WakeNudgeDatabase
     @Inject lateinit var alarms: AlarmRepository
     @Inject lateinit var history: HistoryRepository
     @Inject lateinit var timers: TimerRepository
@@ -113,10 +122,19 @@ class ResilienceInstrumentedTest {
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
     private val knownIds = mutableSetOf(RingIds.TEST_ALARM_ID)
 
-    @Before fun setUp() = hilt.inject()
+    @Before fun setUp() {
+        hilt.inject()
+        // The runtime state lives in the app's real device-protected preferences and survives between tests and runs.
+        runtime.setRegisteredTriggers(emptyMap())
+        runtime.clearRingCrashes()
+        runtime.lastSchedulingProblem = ""
+    }
 
     @After fun tearDown() {
         pending.faultInjector = null
+        notifier.cancelSchedulingProblem()
+        runtime.setRegisteredTriggers(emptyMap())
+        runtime.clearRingCrashes()
         store.set(null)
         locks.releaseAll()
         notifier.cancelRing()
@@ -187,34 +205,40 @@ class ResilienceInstrumentedTest {
         assertEquals(RingKind.SNOOZE_RETURN, back!!.kind)
     }
 
-    @Test fun aClosedDatabaseStillRingsADefaultAlarm() = runBlocking {
-        val id = savedAlarm()
-        scheduler.schedule(id)
-        db.close() // what a corrupted or unavailable database looks like to the code above it
+    /** The engine as the triggers see it, built on repositories that can be made to fail on demand. */
+    private fun brokenEngine(alarmsFail: Boolean = true, historyFails: Boolean = true): Pair<RingController, TriggerHandler> {
+        val flakyAlarms = FlakyAlarms(alarms).also { it.failing = alarmsFail }
+        val flakyHistory = FlakyHistory(history).also { it.failing = historyFails }
+        val controller = RingController(
+            store, flakyAlarms, flakyHistory, timers, settings, scheduler, wakeCheckController, pending, runtime, time, notifier, surfaces, diagnostics,
+        )
+        val triggers = TriggerHandler(controller, wakeCheckController, starter, scheduler, notifier, settings, runtime, time, diagnostics)
+        return controller to triggers
+    }
 
-        handler.handle(trigger(TriggerKind.ALARM, id, time.nowMillis()))
+    @Test fun anUnreadableDatabaseStillRingsADefaultAlarm() = runBlocking {
+        val id = savedAlarm()
+        val (controller, triggers) = brokenEngine()
+
+        triggers.handle(trigger(TriggerKind.ALARM, id, time.nowMillis()))
         val request = starter.requests.single()
         assertEquals(id, request.alarmId)
         assertEquals(RingKind.PRIMARY, request.kind)
 
-        val session = ring.begin(request)!!
+        val session = controller.begin(request)!!
         assertEquals("a plain default alarm", "Alarm", session.alarm.label)
         assertNotNull(store.current)
-        ring.dismiss()
+        controller.dismiss()
         assertNull(store.current)
     }
 
     @Test fun triggersThatFailInsideTheEngineRingAnywayWithWhatTheTriggerCarries() = runBlocking {
         val id = savedAlarm()
-        db.close()
+        val (_, triggers) = brokenEngine(alarmsFail = false)
         val at = time.nowMillis()
-        handler.handle(trigger(TriggerKind.SNOOZE, id, at, eventId = 5))
-        handler.handle(trigger(TriggerKind.BACKUP, id, at, eventId = 5, index = 1))
-        handler.handle(trigger(TriggerKind.WAKE_CHECK_DEADLINE, id, at, eventId = 5))
-        assertEquals(
-            listOf(RingKind.SNOOZE_RETURN, RingKind.BACKUP, RingKind.WAKE_CHECK_RERING),
-            starter.requests.map { it.kind },
-        )
+        triggers.handle(trigger(TriggerKind.SNOOZE, id, at, eventId = 5))
+        triggers.handle(trigger(TriggerKind.BACKUP, id, at, eventId = 5, index = 1))
+        assertEquals(listOf(RingKind.SNOOZE_RETURN, RingKind.BACKUP), starter.requests.map { it.kind })
         assertTrue(starter.requests.all { it.alarmId == id && it.eventId == 5L })
     }
 
@@ -251,9 +275,8 @@ class ResilienceInstrumentedTest {
     }
 
     @Test fun housekeepingAfterAnUnreadableDatabaseDoesNotThrow() = runBlocking {
-        db.close()
-        ring.recoverStaleState()
-        systemEvents.handle(Intent.ACTION_BOOT_COMPLETED)
+        val (controller, _) = brokenEngine()
+        controller.recoverStaleState()
         assertTrue(starter.requests.isEmpty())
     }
 

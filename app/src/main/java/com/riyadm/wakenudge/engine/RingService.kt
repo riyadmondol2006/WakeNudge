@@ -69,7 +69,7 @@ class RingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Must reach startForeground() immediately, whatever else happens.
-        goForeground(notifier.ringPlaceholder())
+        val promoted = goForeground(notifier.ringPlaceholder())
         val request = intent?.takeIf { it.action == ACTION_BEGIN }?.toRequest()
         if (request == null) {
             locks.releaseHandoff()
@@ -77,13 +77,16 @@ class RingService : Service() {
             return START_NOT_STICKY
         }
         stoppedOnPurpose = false
+        // Refused (e.g. Android 15 forbids media services from a boot receiver): carry on, but line up a retry from an alarm trigger.
+        if (!promoted) rescue.retrySoon(request, "startForeground was refused")
         locks.acquireRing()
         locks.releaseHandoff() // our own lock holds the CPU from here
         scope.launch {
             val session = controller.begin(request)
             if (session == null) {
                 diagnostics.warn("Service", "no session for $request")
-                shutdown()
+                // Another ring may already be going on in this service: only an idle service shuts down.
+                if (store.current == null) shutdown() else observe()
                 return@launch
             }
             guard("ring notification") { goForeground(notifier.ring(session)) }
@@ -145,7 +148,13 @@ class RingService : Service() {
                     previous = null
                     if (next != null) {
                         scope.launch {
-                            val session = controller.begin(next)
+                            // A queued ring whose alarm has vanished is skipped; the ones behind it still get their turn.
+                            var candidate: RingRequest? = next
+                            var session: RingSession? = null
+                            while (candidate != null && session == null) {
+                                session = controller.begin(candidate)
+                                if (session == null) candidate = controller.takeQueued()
+                            }
                             if (session == null) shutdown() else guard("ring notification") { goForeground(notifier.ring(session)) }
                         }
                     } else {
@@ -251,14 +260,13 @@ class RingService : Service() {
         }
     }
 
-    private fun goForeground(notification: android.app.Notification) {
-        runCatching {
-            ServiceCompat.startForeground(this, NotificationIds.RING, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
-        }.onFailure {
-            runtime.lastServiceStartFailure = "${System.currentTimeMillis()}: startForeground ${it.javaClass.simpleName}: ${it.message}"
-            diagnostics.error("Service", "startForeground failed", it)
-        }
-    }
+    /** Returns whether the service really became a foreground service. */
+    private fun goForeground(notification: android.app.Notification): Boolean = runCatching {
+        ServiceCompat.startForeground(this, NotificationIds.RING, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+    }.onFailure {
+        runtime.lastServiceStartFailure = "${System.currentTimeMillis()}: startForeground ${it.javaClass.simpleName}: ${it.message}"
+        diagnostics.error("Service", "startForeground failed", it)
+    }.isSuccess
 
     private fun shutdown() {
         stoppedOnPurpose = true
