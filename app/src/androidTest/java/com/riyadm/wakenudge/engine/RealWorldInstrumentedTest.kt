@@ -167,8 +167,12 @@ class RealWorldInstrumentedTest {
     }
 
     @Test fun triggersForDeletedAlarmsAndTimersAreHarmless() = runBlocking {
-        for (kind in TriggerKind.entries) handler.handle(trigger(kind, 31337, time.nowMillis(), eventId = 77))
-        assertTrue(starter.requests.isEmpty())
+        // RING_RETRY is the rescue trigger of a ring that was cut off and rings by design (see the retry tests);
+        // every other kind for an alarm, event or timer that no longer exists must stay silent.
+        for (kind in TriggerKind.entries.filter { it != TriggerKind.RING_RETRY }) {
+            handler.handle(trigger(kind, 31337, time.nowMillis(), eventId = 77))
+        }
+        assertTrue(starter.requests.toString(), starter.requests.isEmpty())
     }
 
     @Test fun garbageBroadcastsAreIgnored() = runBlocking {

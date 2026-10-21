@@ -121,7 +121,9 @@ class RingServiceInstrumentedTest {
 
         await("the service to start sounding") { store.current != null && audio.isAudible }
         assertTrue("the ring wake lock is held while ringing", locks.ringHeld)
-        assertFalse("nobody is looking at a ring screen", store.isUiVisible.value)
+        // The service opens the ring screen itself, so make "nobody is looking" real the way a user would: go home.
+        shell("input keyevent KEYCODE_HOME")
+        await("the ring screen to leave the foreground") { !store.isUiVisible.value }
         Thread.sleep(2_500) // the ring screen is absent for the whole time: the sound must not depend on it
         assertTrue(audio.isAudible)
         assertNotNull(store.current)
@@ -140,10 +142,12 @@ class RingServiceInstrumentedTest {
 
         val dump = shell("dumpsys activity services ${context.packageName}/com.riyadm.wakenudge.engine.RingService")
         assertTrue("service record present:\n$dump", dump.contains("RingService"))
-        assumeTrue("this Android version words the service dump differently", dump.contains("stopIfKilled="))
-        // START_REDELIVER_INTENT (and START_STICKY) leave stopIfKilled=false: after a kill the system restarts the
-        // service and delivers the original request again. START_NOT_STICKY, the previous behaviour, says true.
-        assertTrue("the service must not be marked 'stop if killed':\n$dump", dump.contains("stopIfKilled=false"))
+        assumeTrue("this Android version words the service dump differently", dump.contains("startCommandResult="))
+        // START_REDELIVER_INTENT is 3. The system then keeps the delivered start ("Delivered Starts") and, after a kill,
+        // restarts the service with that very intent. (stopIfKilled=true is how AOSP records it, so it is no evidence
+        // either way.) START_NOT_STICKY, the previous behaviour, is 2 and keeps nothing.
+        assertTrue("the service must ask to be restarted with its intent:\n$dump", dump.contains("startCommandResult=3"))
+        assertTrue("the delivered ring request must be kept for redelivery:\n$dump", dump.contains("Delivered Starts") && dump.contains("RING_BEGIN"))
         ring.dismiss()
     }
 
