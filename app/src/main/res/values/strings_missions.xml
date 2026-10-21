@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Wake-up missions. Every name starts with mission_. -->
+
+    <!-- Names and one-line descriptions (alarm editor) -->
+    <string name="mission_title_math">Math</string>
+    <string name="mission_title_memory">Memory</string>
+    <string name="mission_title_typing">Typing</string>
+    <string name="mission_title_qr">QR code or barcode</string>
+    <string name="mission_title_nfc">NFC tag</string>
+    <string name="mission_title_shake">Shake</string>
+    <string name="mission_title_steps">Steps</string>
+    <string name="mission_title_squats">Squats</string>
+    <string name="mission_title_puzzle">Puzzle</string>
+    <string name="mission_title_photo">Photo</string>
+
+    <string name="mission_desc_math">Solve arithmetic problems on a big built-in keypad.</string>
+    <string name="mission_desc_memory">Watch tiles light up, then repeat the pattern as it grows.</string>
+    <string name="mission_desc_typing">Type a phrase exactly as shown.</string>
+    <string name="mission_desc_qr">Scan a QR code or barcode you registered somewhere away from your bed.</string>
+    <string name="mission_desc_nfc">Tap an NFC tag you placed somewhere away from your bed.</string>
+    <string name="mission_desc_shake">Shake your phone until the counter is full.</string>
+    <string name="mission_desc_steps">Walk a number of steps, counted on the phone.</string>
+    <string name="mission_desc_squats">Do squats while holding the phone against your chest.</string>
+    <string name="mission_desc_puzzle">Slide tiles into order, find numbers one to N, or trace a pattern.</string>
+    <string name="mission_desc_photo">Go to a place you photographed and point the camera at it.</string>
+
+    <string name="mission_unsupported_camera">This phone has no camera, so this mission cannot be used here.</string>
+    <string name="mission_unsupported_nfc">This phone has no NFC chip, so NFC tags cannot be read.</string>
+    <string name="mission_unsupported_motion">This phone has no motion sensor, so this mission cannot be used here.</string>
+    <string name="mission_unsupported_generic">This mission is not available on this phone.</string>
+
+    <!-- Host -->
+    <string name="mission_step_of">Mission %1$d of %2$d</string>
+    <string name="mission_preview_label">Preview</string>
+    <string name="mission_skip">Skip</string>
+    <string name="mission_continue">Continue</string>
+    <string name="mission_close_preview">Close preview</string>
+    <string name="mission_all_done">All done!</string>
+    <string name="mission_chip_done">completed</string>
+    <string name="mission_chip_current">in progress</string>
+    <string name="mission_chip_upcoming">up next</string>
+    <string name="mission_not_set_up_title">Not set up yet</string>
+    <string name="mission_not_set_up_body">%1$s needs a one-time setup. Open this alarm\'s mission settings and set it up first.</string>
+    <string name="mission_counter_description">%1$d of %2$d</string>
+
+    <!-- Permissions and camera -->
+    <string name="mission_allow_access">Allow access</string>
+    <string name="mission_open_app_settings">Open app settings</string>
+    <string name="mission_permission_denied_forever">%1$s\n\nThe permission is switched off, so Android will not ask again. You can turn it on in the app settings.</string>
+    <string name="mission_camera_permission_title">Camera access needed</string>
+    <string name="mission_camera_permission_scan">WakeNudge uses the camera only to read the code on this screen. Nothing is recorded or sent anywhere.</string>
+    <string name="mission_camera_permission_photo">WakeNudge uses the camera to compare what it sees with your reference photo, right on this phone. Nothing is recorded, saved or sent anywhere.</string>
+    <string name="mission_camera_failed_title">Camera unavailable</string>
+    <string name="mission_camera_failed_body">The camera could not be started. Close other apps that use it and try again.</string>
+    <string name="mission_torch_on">Turn flashlight on</string>
+    <string name="mission_torch_off">Turn flashlight off</string>
+
+    <!-- Math -->
+    <string name="mission_math_progress">Problem %1$d of %2$d</string>
+    <string name="mission_math_answer_hint">Your answer</string>
+    <string name="mission_math_delete">Delete</string>
+    <string name="mission_math_submit">Submit answer</string>
+
+    <!-- Memory -->
+    <string name="mission_memory_progress">Round %1$d of %2$d</string>
+    <string name="mission_memory_watch">Watch the pattern</string>
+    <string name="mission_memory_your_turn">Your turn: tile %1$d of %2$d</string>
+    <string name="mission_memory_done">Pattern complete</string>
+    <string name="mission_memory_tile">Tile %1$d</string>
+
+    <!-- Typing -->
+    <string name="mission_typing_progress">Phrase %1$d of %2$d</string>
+    <string name="mission_typing_field_label">Type the phrase above</string>
+    <string name="mission_typing_start">Start typing, and take your time</string>
+    <string name="mission_typing_on_track">Looking good</string>
+    <string name="mission_typing_mistake">Check character %1$d</string>
+
+    <!-- QR / barcode -->
+    <string name="mission_scan_prompt">Scan your code</string>
+    <string name="mission_scan_target">Looking for: %1$s</string>
+    <string name="mission_scan_target_unknown">Look for the code you registered.</string>
+    <string name="mission_scan_progress">Scan %1$d of %2$d</string>
+    <string name="mission_scan_searching">Point the camera at the code</string>
+    <string name="mission_scan_found">Got it!</string>
+    <string name="mission_scan_wrong">That is not your code. Look for the one you registered.</string>
+    <string name="mission_setup_qr_title">Register a code</string>
+    <string name="mission_setup_qr_prompt">Scan the code to use</string>
+    <string name="mission_setup_qr_hint">Any QR code or barcode works: a sticker, a product, a printed page. Put it somewhere you can only reach once you are out of bed.</string>
+    <string name="mission_setup_qr_found">%1$s found</string>
+    <string name="mission_setup_qr_found_body">Content: %1$s</string>
+    <string name="mission_setup_use_code">Use this code</string>
+    <string name="mission_setup_scan_another">Scan another</string>
+
+    <!-- NFC -->
+    <string name="mission_nfc_prompt">Tap your NFC tag</string>
+    <string name="mission_nfc_hint">Hold the back of your phone against the tag.</string>
+    <string name="mission_nfc_progress">Tap %1$d of %2$d</string>
+    <string name="mission_nfc_waiting">Waiting for the tag…</string>
+    <string name="mission_nfc_found">Tag found!</string>
+    <string name="mission_nfc_wrong">That is a different tag. Find the one you registered.</string>
+    <string name="mission_nfc_missing_title">No NFC on this phone</string>
+    <string name="mission_nfc_off_title">NFC is switched off</string>
+    <string name="mission_nfc_off_body">Turn NFC on in your phone\'s settings so it can read your tag.</string>
+    <string name="mission_nfc_open_settings">Open NFC settings</string>
+    <string name="mission_nfc_locked_title">Tapping does nothing?</string>
+    <string name="mission_nfc_locked_body">Some phones do not read NFC tags while the screen is locked. If nothing happens, unlock your phone and tap the tag again.</string>
+    <string name="mission_nfc_unlock">Unlock phone</string>
+    <string name="mission_setup_nfc_title">Register an NFC tag</string>
+    <string name="mission_setup_nfc_prompt">Tap the tag to use</string>
+    <string name="mission_setup_nfc_hint">Use a sticker or card you can put somewhere you can only reach once you are out of bed.</string>
+    <string name="mission_setup_nfc_found">Tag found</string>
+    <string name="mission_setup_nfc_found_body">Tag ID %1$s</string>
+    <string name="mission_setup_nfc_use">Use this tag</string>
+    <string name="mission_setup_nfc_try_another">Try another tag</string>
+    <string name="mission_setup_nfc_random_title">This tag cannot be used</string>
+    <string name="mission_setup_nfc_random_body">It sends a different ID on every tap, so it could never be recognised again. Try a normal NFC sticker or card.</string>
+
+    <!-- Shake, steps, squats -->
+    <string name="mission_shake_prompt">Shake your phone!</string>
+    <string name="mission_shake_hint">Quick, firm shakes count. Gentle movements do not.</string>
+    <plurals name="mission_shake_caption">
+        <item quantity="one">of %1$d shake</item>
+        <item quantity="other">of %1$d shakes</item>
+    </plurals>
+    <plurals name="mission_steps_prompt">
+        <item quantity="one">Walk %1$d step</item>
+        <item quantity="other">Walk %1$d steps</item>
+    </plurals>
+    <plurals name="mission_steps_caption">
+        <item quantity="one">of %1$d step</item>
+        <item quantity="other">of %1$d steps</item>
+    </plurals>
+    <plurals name="mission_squats_caption">
+        <item quantity="one">of %1$d squat</item>
+        <item quantity="other">of %1$d squats</item>
+    </plurals>
+    <string name="mission_steps_source_counter">Counting with your phone\'s step counter. Steps can show up a few seconds late.</string>
+    <string name="mission_steps_source_detector">Counting with your phone\'s step sensor. Steps can show up a few seconds late.</string>
+    <string name="mission_steps_source_motion">Counting with the motion sensor, which is less precise. Keep the phone in your hand or pocket and walk normally.</string>
+    <string name="mission_steps_permission_title">Allow step counting</string>
+    <string name="mission_steps_permission_rationale">Android needs your permission before an app can read the step counter. Steps are counted on this phone and never leave it.</string>
+    <string name="mission_steps_use_motion">Count with the motion sensor instead</string>
+    <string name="mission_squats_prompt">Squat down, then stand up</string>
+    <string name="mission_squats_hint">Hold your phone against your chest or in both hands, and move slowly and steadily.</string>
+    <string name="mission_squats_cue_ready">Get ready…</string>
+    <string name="mission_squats_cue_down">Squat down</string>
+    <string name="mission_squats_cue_up">Now stand up</string>
+    <string name="mission_squats_cue_done">Great work</string>
+
+    <!-- Puzzle -->
+    <string name="mission_puzzle_progress">Puzzle %1$d of %2$d</string>
+    <string name="mission_puzzle_sliding_prompt">Put the tiles in order</string>
+    <string name="mission_puzzle_sliding_hint">Tap a tile or swipe it towards the empty space. Number 1 goes in the top-left corner.</string>
+    <string name="mission_puzzle_tile">Tile %1$d</string>
+    <string name="mission_puzzle_tiles_placed">%1$d of %2$d tiles in place</string>
+    <string name="mission_puzzle_grid_prompt">Find %1$d</string>
+    <string name="mission_puzzle_grid_done">All found!</string>
+    <string name="mission_puzzle_grid_hint">Tap the numbers from 1 to %1$d in order.</string>
+    <string name="mission_puzzle_grid_progress">%1$d of %2$d found</string>
+    <string name="mission_puzzle_number">Number %1$d</string>
+    <string name="mission_puzzle_pattern_prompt">Trace the pattern</string>
+    <string name="mission_puzzle_pattern_hint">Drag your finger through the dots in numbered order, starting at 1.</string>
+    <string name="mission_puzzle_pattern_progress">%1$d of %2$d dots</string>
+    <string name="mission_puzzle_pattern_description">Trace the dots in this order: %1$s</string>
+    <string-array name="mission_dot_names">
+        <item>top left</item>
+        <item>top middle</item>
+        <item>top right</item>
+        <item>middle left</item>
+        <item>center</item>
+        <item>middle right</item>
+        <item>bottom left</item>
+        <item>bottom middle</item>
+        <item>bottom right</item>
+    </string-array>
+
+    <!-- Photo -->
+    <string name="mission_photo_prompt">Find your spot</string>
+    <string name="mission_photo_hint">Point the camera at the place you photographed, from the same angle.</string>
+    <string name="mission_photo_progress">Place %1$d of %2$d</string>
+    <string name="mission_photo_searching">Keep looking…</string>
+    <string name="mission_photo_hold">Hold steady…</string>
+    <string name="mission_photo_matched">Matched!</string>
+    <string name="mission_photo_percent">%1$d%%</string>
+    <string name="mission_photo_needed">Need %1$d%%</string>
+    <string name="mission_photo_meter_description">Match %1$d percent, %2$d percent needed. %3$s</string>
+    <string name="mission_photo_reference_description">Reference photo of the place to find</string>
+    <string name="mission_photo_broken_title">Reference photo unreadable</string>
+    <string name="mission_photo_broken_body">The saved photo for this mission is damaged. Open the alarm and take the photo again.</string>
+    <string name="mission_setup_photo_title">Register a photo</string>
+    <string name="mission_setup_photo_prompt">Frame the place to find</string>
+    <string name="mission_setup_photo_hint">Pick a spot away from your bed, like the bathroom sink or the coffee machine. You will have to point the camera at it to turn the alarm off.</string>
+    <string name="mission_setup_photo_tip">Hold the phone the way you will hold it in the morning, then press the button.</string>
+    <string name="mission_setup_photo_too_plain">There is too little detail in this view. Is the lens covered or the room too dark? Try a spot with more going on, or use the flashlight.</string>
+    <string name="mission_setup_photo_capture">Take reference photo</string>
+    <string name="mission_setup_photo_review">Use this photo?</string>
+    <string name="mission_setup_photo_review_hint">Only a tiny fingerprint of the view is kept on this phone. It cannot be turned back into a photo.</string>
+    <string name="mission_setup_photo_use">Use this photo</string>
+    <string name="mission_setup_photo_retake">Retake</string>
+
+    <string name="mission_setup_cancel">Cancel</string>
+
+    <!-- Typing phrases. Easy: about 25 lowercase characters. Medium: about 50. Hard: about 90 with capitals and punctuation, case-sensitive. -->
+    <string-array name="mission_phrases_easy">
+        <item>good morning sunshine</item>
+        <item>the sun is up today</item>
+        <item>time to start the day</item>
+        <item>coffee smells wonderful</item>
+        <item>a fresh new morning</item>
+        <item>let the light come in</item>
+        <item>birds are singing outside</item>
+        <item>stretch and take a breath</item>
+        <item>today is going to be good</item>
+        <item>open the window wide</item>
+        <item>one small step at a time</item>
+        <item>drink a glass of water</item>
+        <item>breakfast is waiting for you</item>
+        <item>feet on the floor now</item>
+        <item>smile and say hello</item>
+        <item>the whole day is yours</item>
+    </string-array>
+    <string-array name="mission_phrases_medium">
+        <item>every morning is a chance to begin again today</item>
+        <item>a glass of water and a deep breath will help you</item>
+        <item>the early light is soft and the house is quiet</item>
+        <item>your bed will still be here tonight, so get up now</item>
+        <item>put on some music and let the morning find you</item>
+        <item>a short walk before breakfast clears the head</item>
+        <item>the kettle is on and the sky is turning gold</item>
+        <item>wiggle your toes, roll your shoulders, and stand up</item>
+        <item>the plan for today starts with one simple step</item>
+        <item>open the curtains and let the daylight wake you</item>
+        <item>someone is lucky to have you awake and smiling</item>
+        <item>good things happen to people who get up and try</item>
+        <item>a calm start makes for a gentle, steady day</item>
+        <item>fresh air and sunshine are waiting by the door</item>
+    </string-array>
+    <string-array name="mission_phrases_hard">
+        <item>Good morning! The coffee is brewing, the birds are singing, and a brand-new day has begun.</item>
+        <item>Rise up, Sleepyhead: the sun has climbed over the hills, and your day is ready for you.</item>
+        <item>Take three deep breaths, stretch your arms to the ceiling, and then step into the morning light.</item>
+        <item>Now is a great time to begin; even a tiny effort this minute will make today feel wonderful.</item>
+        <item>Water, sunlight, and a little movement: that is the recipe for a bright and focused morning.</item>
+        <item>Remember, nobody ever regretted getting up early; they only regretted staying in bed too long.</item>
+        <item>A journey of a thousand miles begins with one step, and yours begins right out of bed.</item>
+        <item>The alarm has done its job; now it is your turn to say Hello, world! and mean it.</item>
+        <item>Pour some tea, open the window, and listen: the whole neighborhood is waking up with you.</item>
+        <item>Today\'s list is short: wake up, drink water, smile, and take the first small step.</item>
+        <item>Great days start with great habits, so stand up, shake out your hands, and breathe deeply.</item>
+        <item>Look outside, count to ten, and enjoy this quiet moment before the busy day begins.</item>
+    </string-array>
+</resources>
