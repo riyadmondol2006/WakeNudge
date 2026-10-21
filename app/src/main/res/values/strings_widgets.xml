@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Widget picker -->
+    <string name="widget_next_alarm_label">Next alarm</string>
+    <string name="widget_next_alarm_description">When your next alarm rings, with a quick way to skip it.</string>
+    <string name="widget_clock_label">Clock and next alarm</string>
+    <string name="widget_clock_description">A large live clock with the date and your next alarm.</string>
+    <string name="widget_alarm_list_label">Alarm list</string>
+    <string name="widget_alarm_list_description">Your alarms at a glance, with a switch for each one.</string>
+
+    <!-- Static sample content for the widget picker previews -->
+    <string name="widget_preview_time">7:00 AM</string>
+    <string name="widget_preview_date">Wednesday, 12 November</string>
+    <string name="widget_preview_list_label">Gym</string>
+    <string name="widget_preview_list_time">6:30 PM</string>
+    <string name="widget_line_time_day_preview">Tomorrow · Wake up</string>
+
+    <!-- Next-alarm wording shared by the widgets and the quick settings tile -->
+    <string name="widget_day_today">Today</string>
+    <string name="widget_day_tomorrow">Tomorrow</string>
+    <string name="widget_status_no_alarms">No alarms</string>
+    <string name="widget_status_all_off">All alarms are off</string>
+    <string name="widget_status_nothing_upcoming">Nothing upcoming</string>
+    <string name="widget_note_skipping">Skipping %1$s</string>
+    <string name="widget_note_day_off">No alarm on %1$s (day off)</string>
+    <string name="widget_note_vacation">Vacation mode · resumes %1$s</string>
+    <string name="widget_note_vacation_indefinite">Vacation mode is on</string>
+    <string name="widget_line_time_day">%1$s · %2$s</string>
+    <string name="widget_line_time_day_label">%1$s · %2$s · %3$s</string>
+
+    <!-- Buttons -->
+    <string name="widget_action_skip_next">Skip next</string>
+    <string name="widget_action_turn_off">Turn off</string>
+    <string name="widget_action_add_alarm">Add alarm</string>
+    <string name="widget_alarm_icon_description">Alarm</string>
+    <string name="widget_add_icon_description">Add alarm</string>
+    <string name="widget_switch_description">Alarm at %1$s</string>
+    <plurals name="widget_locked_minutes">
+        <item quantity="one">Protected: this alarm is locked for %d more minute.</item>
+        <item quantity="other">Protected: this alarm is locked for %d more minutes.</item>
+    </plurals>
+
+    <!-- Alarm list widget -->
+    <string name="widget_list_title">Alarms</string>
+    <string name="widget_list_empty">No alarms yet</string>
+    <plurals name="widget_list_more">
+        <item quantity="one">+%d more in the app</item>
+        <item quantity="other">+%d more in the app</item>
+    </plurals>
+    <string name="widget_repeat_once">Once</string>
+    <string name="widget_repeat_daily">Every day</string>
+    <string name="widget_repeat_weekdays">Weekdays</string>
+    <string name="widget_repeat_weekends">Weekends</string>
+    <string name="widget_item_skipping_next">%1$s · skipping next</string>
+    <string name="widget_item_group_off">%1$s · group is off</string>
+    <string name="widget_item_label_separator">%1$s · %2$s</string>
+
+    <!-- Quick settings tile -->
+    <string name="tile_label">Alarms</string>
+    <string name="tile_subtitle_no_alarms">No alarms</string>
+    <string name="tile_subtitle_vacation">Vacation</string>
+    <string name="tile_subtitle_resumes">Resumes %1$s</string>
+    <string name="tile_subtitle_next_day">%1$s %2$s</string>
+    <string name="tile_description">Alarms are on. Tap to switch vacation mode on and pause them all.</string>
+    <string name="tile_description_vacation">Vacation mode is on. Tap to resume your alarms.</string>
+    <string name="tile_preferences_label">WakeNudge alarms</string>
+</resources>
