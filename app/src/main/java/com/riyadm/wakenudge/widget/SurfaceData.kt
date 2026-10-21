@@ -86,6 +86,8 @@ interface SurfaceEntryPoint {
     fun surfaces(): SurfaceRefresher
     fun time(): TimeSource
     fun refreshSignal(): RefreshSignal
+    fun refresher(): SurfaceRefresherImpl
+    fun rollover(): SurfaceRollover
 }
 
 fun Context.surfaceEntry(): SurfaceEntryPoint =
