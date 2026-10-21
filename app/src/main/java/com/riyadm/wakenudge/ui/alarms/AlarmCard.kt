@@ -190,7 +190,7 @@ private fun extraBadges(item: AlarmItem): String {
     val parts = buildList {
         if (a.missions.isNotEmpty()) add(pluralStringResource(R.plurals.badge_missions, a.missions.size, a.missions.size))
         if (a.wakeCheck.enabled) add(stringResource(R.string.badge_wake_check))
-        if (a.volume.extraLoud) add(stringResource(R.string.badge_extra_loud))
+        if (a.volume.extraLoudStrength > 0) add(stringResource(R.string.badge_extra_loud))
         if (a.sunrise.enabled) add(stringResource(R.string.badge_sunrise))
         item.group?.let { add(it.name) }
     }

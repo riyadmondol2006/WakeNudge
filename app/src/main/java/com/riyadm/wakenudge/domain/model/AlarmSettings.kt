@@ -36,10 +36,16 @@ data class VolumeSettings(
     val level: Int = 80,
     val rampSeconds: Int = 30,
     val rampStartPercent: Int = 15,
+    /** Whether the Extra Loud boost is on. Kept as its own flag so alarms saved before the strength slider keep working. */
     val extraLoud: Boolean = false,
+    /** How much of the full boost to apply, 1..100 (100 = what Extra Loud always did). Only used while [extraLoud] is on. */
+    val extraLoudPercent: Int = 100,
     val useMaxSystemVolume: Boolean = false,
     val escalateWhenIgnored: Boolean = true,
 ) {
+    /** The boost strength the user actually gets: 0 when off, otherwise 1..100. */
+    val extraLoudStrength: Int get() = if (extraLoud) extraLoudPercent.coerceIn(1, 100) else 0
+
     companion object {
         const val MAX_RAMP_SECONDS = 600
         const val ESCALATION_INACTIVITY_SECONDS = 40

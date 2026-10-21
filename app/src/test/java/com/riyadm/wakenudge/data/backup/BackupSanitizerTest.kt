@@ -8,6 +8,7 @@ import com.riyadm.wakenudge.domain.model.SoundSettings
 import com.riyadm.wakenudge.domain.model.SoundSource
 import com.riyadm.wakenudge.domain.model.VibrationPattern
 import com.riyadm.wakenudge.domain.model.VibrationSettings
+import com.riyadm.wakenudge.domain.model.VolumeSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -32,6 +33,17 @@ class BackupSanitizerTest {
         )
         val once = sanitize(messy).file
         assertEquals(once, sanitize(once).file)
+    }
+
+    @Test fun `extra loud strength from a backup is clamped and old backups keep full strength`() {
+        val file = BackupFile(
+            alarms = listOf(
+                Alarm(id = 1, volume = VolumeSettings(extraLoud = true, extraLoudPercent = 9_999)),
+                Alarm(id = 2, volume = VolumeSettings(extraLoud = true, extraLoudPercent = -40)),
+                Alarm(id = 3, volume = VolumeSettings(extraLoud = true)),
+            ),
+        )
+        assertEquals(listOf(100, 1, 100), sanitize(file).file.alarms.map { it.volume.extraLoudStrength })
     }
 
     @Test fun `a custom vibration pattern with no usable timings falls back to pulse`() {

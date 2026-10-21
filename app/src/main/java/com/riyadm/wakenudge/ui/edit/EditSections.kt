@@ -146,13 +146,18 @@ fun VolumeSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -
             }
         }
         item { shape ->
-            SwitchRow(
+            // One control for on/off and strength: all the way left is off, otherwise how much of the boost to add.
+            val strength = v.extraLoudStrength
+            SliderRow(
                 title = stringResource(R.string.volume_extra_loud),
                 subtitle = stringResource(R.string.volume_extra_loud_hint),
-                icon = Icons.Outlined.VolumeUp,
-                checked = v.extraLoud,
-                onCheckedChange = { on -> set { it.copy(extraLoud = on) } },
-                shape = shape, enabled = enabled,
+                valueText = if (strength == 0) stringResource(R.string.state_off) else "$strength%",
+                value = strength.toFloat(),
+                onValueChange = { x ->
+                    val percent = (x / 5).roundToInt() * 5
+                    set { if (percent <= 0) it.copy(extraLoud = false) else it.copy(extraLoud = true, extraLoudPercent = percent) }
+                },
+                valueRange = 0f..100f, steps = 19, shape = shape, enabled = enabled,
             )
         }
         item { shape ->

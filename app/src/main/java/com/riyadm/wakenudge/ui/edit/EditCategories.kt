@@ -233,8 +233,9 @@ fun categorySummary(category: AlarmCategory, alarm: Alarm, perAlarm: Boolean): S
             val v = alarm.volume
             val level = if (v.level == 0) stringResource(R.string.cat_system_volume) else "${v.level}%"
             val fade = if (v.rampSeconds > 0) stringResource(R.string.cat_fade_in, fadeLabel(v.rampSeconds)) else null
+            val loud = if (v.extraLoudStrength > 0) stringResource(R.string.cat_extra_loud, v.extraLoudStrength) else null
             val vibration = if (alarm.vibration.enabled) stringResource(vibrationLabel(alarm.vibration.pattern)) else stringResource(R.string.cat_vibration_off)
-            listOfNotNull(level, fade, vibration).joinToString(separator)
+            listOfNotNull(level, loud, fade, vibration).joinToString(separator)
         }
         AlarmCategory.SNOOZE -> {
             val s = alarm.snooze
