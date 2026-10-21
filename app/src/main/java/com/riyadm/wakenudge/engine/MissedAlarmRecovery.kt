@@ -10,6 +10,7 @@ import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
 import com.riyadm.wakenudge.engine.notify.Notifier
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 
 /**
  * Alarms that should have gone off while the phone was powered down. Shortly after the scheduled time the alarm
@@ -32,27 +33,38 @@ class MissedAlarmRecovery @Inject constructor(
         val now = time.nowMillis()
         for ((alarmId, at) in before) {
             if (at >= now - GRACE_MS || alarmId < 0) continue
-            val alarm = alarms.getAlarm(alarmId) ?: continue
-            if (!alarm.enabled && alarm.isRepeating) continue
-            if (history.findOccurrence(alarmId, at) != null) continue
+            // One alarm that cannot be examined (database trouble) must not hide the others that are overdue.
+            try {
+                processOne(alarmId, at, now)
+            } catch (c: CancellationException) {
+                throw c
+            } catch (t: Throwable) {
+                diagnostics.error("Recovery", "could not examine overdue alarm $alarmId", t)
+            }
+        }
+    }
 
-            val lateBy = now - at
-            if (lateBy <= LATE_RING_WINDOW_MS) {
-                diagnostics.warn("Recovery", "alarm $alarmId was due ${lateBy / 1000}s ago while off: ringing now")
-                ring.onAlarmFired(alarmId, at)?.let(launcher::start)
-            } else {
-                diagnostics.warn("Recovery", "alarm $alarmId was due ${lateBy / 60_000} min ago while off: marking missed")
-                history.start(
-                    AlarmEvent(
-                        alarmId = alarmId, label = alarm.label, scheduledAt = at, firedAt = at, endedAt = now,
-                        outcome = AlarmOutcome.MISSED, missionsTotal = alarm.missions.size,
-                    ),
-                )
-                notifier.showMissed(alarm, at)
-                if (!alarm.isRepeating) {
-                    alarms.setEnabled(alarmId, false)
-                    scheduler.schedule(alarmId)
-                }
+    private suspend fun processOne(alarmId: Long, at: Long, now: Long) {
+        val alarm = alarms.getAlarm(alarmId) ?: return
+        if (!alarm.enabled && alarm.isRepeating) return
+        if (history.findOccurrence(alarmId, at) != null) return
+
+        val lateBy = now - at
+        if (lateBy <= LATE_RING_WINDOW_MS) {
+            diagnostics.warn("Recovery", "alarm $alarmId was due ${lateBy / 1000}s ago while off: ringing now")
+            ring.onAlarmFired(alarmId, at)?.let(launcher::start)
+        } else {
+            diagnostics.warn("Recovery", "alarm $alarmId was due ${lateBy / 60_000} min ago while off: marking missed")
+            history.start(
+                AlarmEvent(
+                    alarmId = alarmId, label = alarm.label, scheduledAt = at, firedAt = at, endedAt = now,
+                    outcome = AlarmOutcome.MISSED, missionsTotal = alarm.missions.size,
+                ),
+            )
+            notifier.showMissed(alarm, at)
+            if (!alarm.isRepeating) {
+                alarms.setEnabled(alarmId, false)
+                scheduler.schedule(alarmId)
             }
         }
     }

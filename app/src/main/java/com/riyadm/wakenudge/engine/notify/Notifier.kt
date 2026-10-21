@@ -47,11 +47,14 @@ object Channels {
     const val TIMER_RUNNING = "timer_running_v1"
     const val TIMER_DONE = "timer_done_v1"
     const val BEDTIME = "bedtime_v1"
+    const val PROBLEMS = "problems_v1"
+    const val RING_FALLBACK = "ring_fallback_v1"
 }
 
 object NotificationIds {
     const val RING = 1001
     const val BEDTIME = 1002
+    const val SCHEDULING_PROBLEM = 1003
     fun snoozed(alarmId: Long) = 20_000 + (alarmId and 0xFFFF).toInt()
     fun upcoming(alarmId: Long) = 30_000 + (alarmId and 0xFFFF).toInt()
     fun wakeCheck(alarmId: Long) = 40_000 + (alarmId and 0xFFFF).toInt()
@@ -122,6 +125,14 @@ class Notifier @Inject constructor(
                     enableVibration(false)
                 },
                 channel(Channels.BEDTIME, R.string.channel_bedtime, R.string.channel_bedtime_desc, NotificationManager.IMPORTANCE_DEFAULT),
+                channel(Channels.PROBLEMS, R.string.channel_problems, R.string.channel_problems_desc, NotificationManager.IMPORTANCE_HIGH),
+                // Rings by itself: used only when the ring service could not be started and no app code can play the sound.
+                channel(Channels.RING_FALLBACK, R.string.channel_ring_fallback, R.string.channel_ring_fallback_desc, NotificationManager.IMPORTANCE_HIGH) {
+                    setSound(Settings.System.DEFAULT_ALARM_ALERT_URI, alarmAttrs)
+                    enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 600, 300, 600, 300, 600)
+                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                },
             ),
         )
     }
@@ -153,10 +164,16 @@ class Notifier @Inject constructor(
             .setOnlyAlertOnce(!alertAgain)
             .setShowWhen(true)
             .setWhen(session.scheduledAt.takeIf { it > 0 } ?: System.currentTimeMillis())
-            .setContentIntent(open)
-            .setFullScreenIntent(open, true)
+            .setContentIntent(if (session.safeMode) mainIntent(alarm.id) else open)
+        // Safe mode: the ring screen crashed more than once, so it is not launched on its own any more.
+        if (!session.safeMode) builder.setFullScreenIntent(open, true)
 
-        if (session.phase == RingPhase.RINGING) {
+        if (session.phase == RingPhase.RINGING && session.safeMode && !session.isTimer) {
+            if (SnoozePolicy.canSnooze(alarm.snooze, session.snoozeCount)) {
+                builder.addAction(0, context.getString(R.string.action_snooze), broadcast(Actions.SNOOZE, alarm.id))
+            }
+            builder.addAction(0, context.getString(R.string.action_dismiss), broadcast(Actions.DISMISS, alarm.id))
+        } else if (session.phase == RingPhase.RINGING) {
             if (session.isTimer) {
                 builder.addAction(0, context.getString(R.string.action_add_minute), broadcast(Actions.TIMER_ADD_MINUTE, session.timerId))
                 builder.addAction(0, context.getString(R.string.action_stop), broadcast(Actions.TIMER_STOP, session.timerId))
@@ -185,10 +202,28 @@ class Notifier @Inject constructor(
         post(NotificationIds.RING, ring(session, alertAgain))
     }
 
-    /** Last-resort heads-up when the foreground service could not be started. */
+    /** Last-resort alarm when the foreground service could not be started: the system itself plays the sound. */
     fun postRingFallback() {
-        post(NotificationIds.RING, ringPlaceholder())
+        post(NotificationIds.RING, ringFallback())
     }
+
+    /**
+     * A notification that sounds the alarm on its own: the alarm tone on the alarm stream, repeating until it is
+     * dismissed or replaced (FLAG_INSISTENT). Without the ring service nothing else could make a sound.
+     */
+    fun ringFallback(): Notification = NotificationCompat.Builder(context, Channels.RING_FALLBACK)
+        .setSmallIcon(R.drawable.ic_stat_alarm)
+        .setContentTitle(context.getString(R.string.notif_alarm_default_title))
+        .setCategory(NotificationCompat.CATEGORY_ALARM)
+        .setPriority(NotificationCompat.PRIORITY_MAX)
+        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+        .setOngoing(true)
+        .setSound(Settings.System.DEFAULT_ALARM_ALERT_URI, android.media.AudioManager.STREAM_ALARM)
+        .setVibrate(longArrayOf(0, 600, 300, 600, 300, 600))
+        .setContentIntent(ringActivityIntent())
+        .setFullScreenIntent(ringActivityIntent(), true)
+        .build()
+        .also { it.flags = it.flags or Notification.FLAG_INSISTENT }
 
     /** Placeholder shown within the 5-second foreground-service deadline, before the session is loaded. */
     fun ringPlaceholder(): Notification = NotificationCompat.Builder(context, Channels.RING)
@@ -329,6 +364,43 @@ class Notifier @Inject constructor(
             .setContentIntent(mainIntent(0, MainActivity.ACTION_SHOW_SLEEP))
         post(NotificationIds.BEDTIME, b.build())
     }
+
+    // ---- problems the user should hear about ---------------------------------------------------------------
+
+    /** Some alarms could not be armed (the OS refused or ran out of room); Alarm Health has the details. */
+    fun showSchedulingProblem(unarmed: Int) {
+        val b = NotificationCompat.Builder(context, Channels.PROBLEMS)
+            .setSmallIcon(R.drawable.ic_stat_alarm)
+            .setContentTitle(context.getString(R.string.notif_scheduling_problem_title))
+            .setContentText(context.resources.getQuantityString(R.plurals.notif_scheduling_problem_text, unarmed, unarmed))
+            .setCategory(NotificationCompat.CATEGORY_ERROR)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(mainIntent(0))
+        post(NotificationIds.SCHEDULING_PROBLEM, b.build())
+    }
+
+    fun cancelSchedulingProblem() = manager.cancel(NotificationIds.SCHEDULING_PROBLEM)
+
+    // ---- can the ring screen appear by itself? ---------------------------------------------------------------
+
+    /**
+     * Whether the full-screen alarm may fail to appear on its own: notifications are off, the ring channel is blocked
+     * or the full-screen permission was revoked. The sound does not depend on any of it, but the ring service then
+     * opens the screen itself as a best effort and lights the display.
+     */
+    fun ringScreenMayNotAppear(): Boolean {
+        val enabled = runCatching { manager.areNotificationsEnabled() }.getOrDefault(true)
+        val nm = context.getSystemService(NotificationManager::class.java)
+        val importance = runCatching { nm.getNotificationChannel(Channels.RING)?.importance }.getOrNull()
+        val fullScreen = Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE || runCatching { nm.canUseFullScreenIntent() }.getOrDefault(true)
+        return RingUiFallback.mayNotAppear(Build.VERSION.SDK_INT, enabled, importance, fullScreen)
+    }
+
+    /** The intent the ring screen is launched with (same flags the notification uses). */
+    fun ringScreenIntent(): Intent =
+        Intent(context, RingActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
 
     // ---- plumbing ------------------------------------------------------------------------------------------
 

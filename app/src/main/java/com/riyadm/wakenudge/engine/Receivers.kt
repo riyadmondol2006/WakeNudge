@@ -1,6 +1,5 @@
 package com.riyadm.wakenudge.engine
 
-import android.app.AlarmManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -57,6 +56,7 @@ interface EngineEntryPoint {
     fun time(): TimeSource
     fun audio(): AlarmAudioEngine
     fun diagnostics(): DiagnosticsLog
+    fun systemEvents(): SystemEventHandler
 }
 
 internal fun Context.engine(): EngineEntryPoint =
@@ -74,30 +74,8 @@ class AlarmReceiver : BroadcastReceiver() {
 class SystemEventsReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
-        val e = context.engine()
-        runAsync {
-            e.notifier().ensureChannels()
-            when (action) {
-                Intent.ACTION_BOOT_COMPLETED,
-                Intent.ACTION_LOCKED_BOOT_COMPLETED,
-                "android.intent.action.QUICKBOOT_POWERON",
-                Intent.ACTION_MY_PACKAGE_REPLACED,
-                -> {
-                    val before = e.runtime().registeredTriggers()
-                    e.audio().restoreSystemVolumeIfStale()
-                    e.scheduler().rescheduleAll("system:$action")
-                    e.ring().recoverStaleState()
-                    if (action != Intent.ACTION_MY_PACKAGE_REPLACED) e.recovery().process(before)
-                }
-                Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED -> {
-                    e.time().refreshZone()
-                    e.scheduler().rescheduleAll("system:$action")
-                }
-                AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED ->
-                    e.scheduler().rescheduleAll("exact-alarm-permission")
-                else -> e.diagnostics().info("System", "ignored $action")
-            }
-        }
+        val handler = context.engine().systemEvents()
+        runAsync { handler.handle(action) }
     }
 }
 

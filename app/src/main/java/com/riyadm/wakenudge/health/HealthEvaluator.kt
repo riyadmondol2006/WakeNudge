@@ -66,6 +66,10 @@ class HealthEvaluator(private val res: HealthResources) {
         add(lastRing(s))
         add(watchdog(s))
         add(serviceFailure(s))
+        schedulingProblem(s)?.let(::add)
+        audioProblem(s)?.let(::add)
+        ringCrash(s)?.let(::add)
+        batterySaver(s)?.let(::add)
         tts(s)?.let(::add)
         vibrator(s)?.let(::add)
         oemHint(s)?.let(::add)
@@ -329,6 +333,45 @@ class HealthEvaluator(private val res: HealthResources) {
             R.string.health_detail_service_failed, s.lastServiceStartFailure.take(MAX_FAILURE_TEXT),
             fix = HealthFixKind.APP_DETAILS to R.string.health_fix_app_details,
         )
+    }
+
+    // ---- things the engine noticed while running -----------------------------------------------------------------
+
+    /** Only recent problems are shown: a fixed one should not nag for ever. Returns the text after the timestamp. */
+    private fun recentProblem(record: String, now: Long): Pair<Long, String>? {
+        if (record.isBlank()) return null
+        val at = record.substringBefore('|').toLongOrNull() ?: return null
+        if (now - at > HealthSnapshot.PROBLEM_MEMORY_MS) return null
+        return at to record.substringAfter('|').take(MAX_FAILURE_TEXT)
+    }
+
+    private fun schedulingProblem(s: HealthSnapshot): HealthItem? {
+        val (at, text) = recentProblem(s.schedulingProblem, s.nowMillis) ?: return null
+        return item(
+            "scheduling_problem", Severity.WARNING, R.string.health_title_scheduling_problem,
+            R.string.health_detail_scheduling_problem, res.dateTime(at), text,
+        )
+    }
+
+    private fun audioProblem(s: HealthSnapshot): HealthItem? {
+        val (at, text) = recentProblem(s.audioProblem, s.nowMillis) ?: return null
+        return item(
+            "audio_problem", Severity.WARNING, R.string.health_title_audio_problem,
+            R.string.health_detail_audio_problem, res.dateTime(at), text,
+        )
+    }
+
+    private fun ringCrash(s: HealthSnapshot): HealthItem? {
+        if (s.lastRingCrashAt <= 0 || s.nowMillis - s.lastRingCrashAt > HealthSnapshot.PROBLEM_MEMORY_MS) return null
+        return item(
+            "ring_crash", Severity.WARNING, R.string.health_title_ring_crash,
+            R.string.health_detail_ring_crash, res.dateTime(s.lastRingCrashAt),
+        )
+    }
+
+    private fun batterySaver(s: HealthSnapshot): HealthItem? {
+        if (!s.batterySaver) return null
+        return item("battery_saver", Severity.INFO, R.string.health_title_battery_saver, R.string.health_detail_battery_saver)
     }
 
     // ---- features that only matter when used ---------------------------------------------------------------------
