@@ -21,7 +21,7 @@ class MissedAlarmRecovery @Inject constructor(
     private val alarms: AlarmRepository,
     private val history: HistoryRepository,
     private val ring: RingController,
-    private val launcher: RingServiceLauncher,
+    private val launcher: RingStarter,
     private val scheduler: AlarmScheduler,
     private val notifier: Notifier,
     private val time: TimeSource,
