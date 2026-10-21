@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Text and backdrop colours for the RemoteViews clock face; they track the Glance Material 3 tokens. -->
+    <color name="widget_clock_text">#FF1C1B20</color>
+    <color name="widget_clock_text_variant">#FF48454F</color>
+    <color name="widget_surface">#FFFCF8FF</color>
+</resources>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_clock_text">#FFE5E1E9</color>
+    <color name="widget_clock_text_variant">#FFC9C4D0</color>
+    <color name="widget_surface">#FF141218</color>
+</resources>
