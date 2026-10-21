@@ -228,11 +228,11 @@ perform offers Continue.
 </details>
 
 <details>
-<summary><strong>How do updates work on GitHub versus Google Play?</strong></summary>
+<summary><strong>How do updates work?</strong></summary>
 
 The GitHub APK shows a popup when a newer release exists and you install it from the release page; you can switch the
-check off in About, then Updates. The Play build has no update code, so Google Play will deliver updates once it is
-published.
+check off in About, then Updates. The check contacts GitHub at most once a day and sends nothing about you or your
+alarms.
 </details>
 
 <details>
