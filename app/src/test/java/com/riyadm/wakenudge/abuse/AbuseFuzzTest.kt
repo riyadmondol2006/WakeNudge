@@ -233,7 +233,7 @@ class AbuseFuzzTest {
             repeat(r.nextInt(1, 12)) {
                 when (r.nextInt(5)) {
                     0 -> if (mutated.isNotEmpty()) mutated.setCharAt(r.nextInt(mutated.length), "{}[]\":,0123456789-nulltrue\\ \n".random(r))
-                    1 -> mutated.setLength(r.nextInt(1, mutated.length + 1))
+                    1 -> if (mutated.isNotEmpty()) mutated.setLength(r.nextInt(1, mutated.length + 1))
                     2 -> mutated.insert(r.nextInt(mutated.length + 1), listOf("999999999999999999999", "-1", "null", "\"\"", "[]", "{}", "1e999", "😀").random(r))
                     3 -> if (mutated.isNotEmpty()) mutated.deleteCharAt(r.nextInt(mutated.length))
                     else -> mutated.insert(r.nextInt(mutated.length + 1), "\u0000￿\uD800")
