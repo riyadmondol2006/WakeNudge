@@ -66,6 +66,7 @@ import com.riyadm.wakenudge.ui.settings.SettingsScreen
 import com.riyadm.wakenudge.ui.sleep.SleepScreen
 import com.riyadm.wakenudge.ui.stopwatch.StopwatchScreen
 import com.riyadm.wakenudge.ui.timer.TimerScreen
+import com.riyadm.wakenudge.ui.update.UpdatePromptHost
 import com.riyadm.wakenudge.ui.nav.AboutRoute
 import com.riyadm.wakenudge.ui.nav.AppearanceSettingsRoute
 import com.riyadm.wakenudge.ui.nav.AudioSettingsRoute
@@ -102,7 +103,13 @@ fun WakeNudgeRoot(viewModel: MainViewModel) {
     val s = settings ?: return
     WakeNudgeTheme(themeMode = s.themeMode, dynamicColor = s.dynamicColor, haptics = s.haptics) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            if (!s.onboardingDone) OnboardingScreen(onFinish = viewModel::finishOnboarding) else MainNav(viewModel)
+            if (!s.onboardingDone) {
+                OnboardingScreen(onFinish = viewModel::finishOnboarding)
+            } else {
+                MainNav(viewModel)
+                // After onboarding only; empty in the Play build. The alarm screen is a separate activity and never sees it.
+                UpdatePromptHost()
+            }
         }
     }
 }

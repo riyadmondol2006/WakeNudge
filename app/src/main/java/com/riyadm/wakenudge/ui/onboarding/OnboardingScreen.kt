@@ -17,6 +17,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,11 +28,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -41,6 +45,7 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.WifiOff
 import androidx.compose.material3.Button
@@ -63,23 +68,35 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import com.riyadm.wakenudge.BuildConfig
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.ui.components.rememberReduceMotion
 import com.riyadm.wakenudge.ui.theme.Blobs
 import com.riyadm.wakenudge.ui.theme.LocalWakeHaptics
 import com.riyadm.wakenudge.ui.theme.PolygonShape
 import com.riyadm.wakenudge.ui.theme.WakeMotion
+import com.riyadm.wakenudge.update.ProjectLinks
 import kotlinx.coroutines.launch
 
 private const val PAGES = 5
 
+/** [openLink] is how the "Open source" line reaches the browser; the default hands the address to the system. */
 @Composable
-fun OnboardingScreen(onFinish: () -> Unit, modifier: Modifier = Modifier) {
+fun OnboardingScreen(onFinish: () -> Unit, modifier: Modifier = Modifier, openLink: ((String) -> Unit)? = null) {
+    val context = LocalContext.current
+    val open: (String) -> Unit = openLink ?: { url -> ProjectLinks.open(context, url) }
     val pager = rememberPagerState(pageCount = { PAGES })
     val scope = rememberCoroutineScope()
     val haptics = LocalWakeHaptics.current
@@ -92,10 +109,15 @@ fun OnboardingScreen(onFinish: () -> Unit, modifier: Modifier = Modifier) {
         }
         HorizontalPager(pager, Modifier.weight(1f)) { page ->
             when (page) {
-                0 -> InfoPage(Icons.Outlined.AlarmOn, Blobs.Sunny, R.string.onboarding_welcome_title, R.string.onboarding_welcome_body, MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+                0 -> InfoPage(
+                    Icons.Outlined.AlarmOn, Blobs.Sunny, R.string.onboarding_welcome_title, R.string.onboarding_welcome_body,
+                    MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer,
+                    footer = { ProjectLinkLines(open) },
+                )
                 1 -> InfoPage(Icons.Outlined.Lock, Blobs.Cookie, R.string.onboarding_reliable_title, R.string.onboarding_reliable_body, MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
                 2 -> InfoPage(Icons.Outlined.Psychology, Blobs.Clover, R.string.onboarding_missions_title, R.string.onboarding_missions_body, MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
-                3 -> InfoPage(Icons.Outlined.WifiOff, Blobs.Flower, R.string.onboarding_privacy_title, R.string.onboarding_privacy_body, MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+                // The GitHub APK may go online for the update check, so it must not claim to be "offline" with this icon.
+                3 -> InfoPage(if (BuildConfig.UPDATE_CHECKS) Icons.Outlined.PrivacyTip else Icons.Outlined.WifiOff, Blobs.Flower, R.string.onboarding_privacy_title, R.string.onboarding_privacy_body, MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
                 else -> PermissionsPage()
             }
         }
@@ -127,12 +149,17 @@ private fun InfoPage(
     body: Int,
     container: androidx.compose.ui.graphics.Color,
     onContainer: androidx.compose.ui.graphics.Color,
+    footer: (@Composable () -> Unit)? = null,
 ) {
     val reduce = rememberReduceMotion()
     val t = rememberInfiniteTransition(label = "onb")
     val spin by t.animateFloat(0f, 360f, infiniteRepeatable(tween(40_000, easing = LinearEasing), RepeatMode.Restart), label = "spin")
     val orbit by t.animateFloat(0f, 360f, infiniteRepeatable(tween(18_000, easing = LinearEasing), RepeatMode.Restart), label = "orbit")
-    Column(Modifier.fillMaxSize().padding(horizontal = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+    // Scrolls, so the text and the link under it stay reachable at the largest font size on a small phone.
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
+    ) {
         Box(Modifier.size(280.dp), contentAlignment = Alignment.Center) {
             // Small satellites circle the hero shape for a bit of life.
             listOf(0f to MaterialTheme.colorScheme.tertiary, 120f to MaterialTheme.colorScheme.secondary, 240f to MaterialTheme.colorScheme.primary).forEach { (phase, color) ->
@@ -155,7 +182,54 @@ private fun InfoPage(
             stringResource(body), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp),
         )
+        footer?.invoke()
     }
+}
+
+/** The two understated lines under the welcome text: the source code and the website. */
+@Composable
+private fun ProjectLinkLines(open: (String) -> Unit) {
+    val repo = ProjectLinks.display(ProjectLinks.REPO)
+    val site = ProjectLinks.display(ProjectLinks.SITE)
+    Column(Modifier.padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        LinkLine(
+            text = stringResource(R.string.onboarding_open_source, repo), address = repo,
+            description = stringResource(R.string.onboarding_open_source_cd, repo),
+            onClick = { open(ProjectLinks.REPO) },
+        )
+        LinkLine(
+            text = site, address = site,
+            description = stringResource(R.string.onboarding_website_cd, site),
+            onClick = { open(ProjectLinks.SITE) },
+        )
+    }
+}
+
+/** One line of quiet text with [address] picked out as the link: a full-size touch target, wrapping at large fonts. */
+@Composable
+private fun LinkLine(text: String, address: String, description: String, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val styled = buildAnnotatedString {
+        append(text)
+        val start = text.indexOf(address)
+        if (start >= 0) {
+            addStyle(
+                SpanStyle(color = scheme.primary, fontWeight = FontWeight.Medium, textDecoration = TextDecoration.Underline),
+                start, start + address.length,
+            )
+        }
+    }
+    Text(
+        styled,
+        style = MaterialTheme.typography.bodyMedium,
+        color = scheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .defaultMinSize(minHeight = 48.dp)
+            .clickable(onClickLabel = stringResource(R.string.link_opens_browser), role = Role.Button, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 12.dp)
+            .semantics { contentDescription = description },
+    )
 }
 
 /** The only permission that really matters for an alarm app, plus the two settings that make it dependable. */

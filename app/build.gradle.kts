@@ -110,6 +110,7 @@ android {
         testInstrumentationRunner = "com.riyadm.wakenudge.HiltTestRunner"
         vectorDrawables.useSupportLibrary = true
         buildConfigField("String", "REPO_URL", "\"https://github.com/riyadmondol2006/WakeNudge\"")
+        buildConfigField("String", "SITE_URL", "\"https://wakenudge.site\"")
     }
 
     // Two ways to ship the same app. `play` is the Play Store bundle: no network permission, no update code.

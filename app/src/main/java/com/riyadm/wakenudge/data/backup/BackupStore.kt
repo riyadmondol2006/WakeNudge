@@ -70,8 +70,9 @@ class RoomBackupStore @Inject constructor(
             file.history?.let { history.replaceAll(it) }
             // Their follow-up state described alarms that were just replaced.
             wakeChecks.clear()
-            // Last, so a failure to write the settings rolls the database changes back too.
-            settings.replace(file.settings)
+            // Last, so a failure to write the settings rolls the database changes back too. Update-check state stays as
+            // this installation has it: a restored file must not switch checks on or off or forget a skipped version.
+            settings.update { installed -> file.settings.withUpdateStateOf(installed) }
         }
         (previousIds + file.alarms.map { it.id }).distinct().forEach(::retireFollowUps)
     }
