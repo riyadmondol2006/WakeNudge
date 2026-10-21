@@ -92,9 +92,14 @@ class RingController @Inject constructor(
         afterFire(alarm, scheduledAt)
 
         val existing = history.findOccurrence(alarmId, scheduledAt)
-        if (existing != null && existing.outcome != AlarmOutcome.RINGING) {
-            diagnostics.warn("Ring", "duplicate trigger for $alarmId@$scheduledAt ignored")
-            return@withLock null
+        if (existing != null) {
+            // Already handled, already on screen, or deliberately snoozed: a replayed trigger must not ring again.
+            val onScreen = store.current?.alarm?.id == alarmId
+            val snoozed = existing.snoozeUntil > now
+            if (existing.outcome != AlarmOutcome.RINGING || onScreen || snoozed) {
+                diagnostics.warn("Ring", "duplicate trigger for $alarmId@$scheduledAt ignored")
+                return@withLock null
+            }
         }
         val eventId = existing?.id ?: history.start(
             AlarmEvent(alarmId = alarmId, label = alarm.label, scheduledAt = scheduledAt, firedAt = now, missionsTotal = alarm.missions.size),

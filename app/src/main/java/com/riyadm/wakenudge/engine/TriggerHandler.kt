@@ -15,7 +15,7 @@ import javax.inject.Singleton
 class TriggerHandler @Inject constructor(
     private val ring: RingController,
     private val wakeChecks: WakeCheckController,
-    private val launcher: RingServiceLauncher,
+    private val launcher: RingStarter,
     private val scheduler: AlarmScheduler,
     private val notifier: Notifier,
     private val settings: SettingsRepository,

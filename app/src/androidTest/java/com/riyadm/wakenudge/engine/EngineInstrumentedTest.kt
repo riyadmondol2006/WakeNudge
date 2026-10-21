@@ -64,7 +64,7 @@ class EngineInstrumentedTest {
 
     @After fun tearDown() = runBlocking {
         alarms.getAlarms().forEach { scheduler.cancel(it.id) }
-        for (kind in TriggerKind.entries) for (id in -2L..30L) for (i in 0..3) pending.cancel(kind, id, i)
+        for (id in history.recent(500).map { it.alarmId }.toSet() + RingIds.TEST_ALARM_ID) for (kind in TriggerKind.entries) for (i in 0..3) pending.cancel(kind, id, i)
         store.set(null)
     }
 

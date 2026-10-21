@@ -80,10 +80,21 @@ class AbuseInstrumentedTest {
 
     @After fun tearDown() = runBlocking {
         TimeZone.setDefault(originalZone)
-        alarms.getAlarms().forEach { scheduler.cancel(it.id) }
-        for (kind in TriggerKind.entries) for (id in -3000L..600L) for (i in 0..3) if (pending.isScheduled(kind, id, i)) pending.cancel(kind, id, i)
+        cancelEverything()
         store.set(null)
         while (ring.takeQueued() != null) Unit
+    }
+
+    /** Cancels everything the test could have armed; ids come from what actually exists, not from a blind range. */
+    private suspend fun cancelEverything() {
+        val ids = alarms.getAlarms().map { it.id } + history.recent(500).map { it.alarmId } + RingIds.TEST_ALARM_ID
+        for (id in ids.toSet()) {
+            scheduler.cancel(id)
+            for (kind in TriggerKind.entries) for (i in 0..3) if (pending.isScheduled(kind, id, i)) pending.cancel(kind, id, i)
+        }
+        for (t in timers.getTimers()) {
+            pending.cancel(TriggerKind.TIMER, t.id)
+        }
     }
 
     private fun alarmIn(minutes: Long, block: Alarm.() -> Alarm = { this }): Alarm {

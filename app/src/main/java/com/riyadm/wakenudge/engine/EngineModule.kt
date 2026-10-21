@@ -19,6 +19,13 @@ abstract class EngineModule {
     @Binds abstract fun activeRing(impl: ActiveRingQueryImpl): ActiveRingQuery
 }
 
+/** Kept in its own module so instrumented tests can swap the real service launcher for a recording fake. */
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class StarterModule {
+    @Binds abstract fun starter(impl: RingServiceLauncher): RingStarter
+}
+
 @Singleton
 class ActiveRingQueryImpl @Inject constructor(
     private val store: RingSessionStore,

@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
@@ -105,6 +106,23 @@ class RobustUiTest {
         }
         compose.waitForIdle()
         assertEquals("RTL users must be able to dismiss", 1, dismissed.get())
+    }
+
+    @Test fun aMissionThatCannotBeDoneNeverTrapsTheUser() {
+        var done = 0
+        compose.setContent {
+            WakeNudgeTheme {
+                // A QR mission whose code was never registered (setup skipped, or the alarm was restored from a backup).
+                com.riyadm.wakenudge.missions.MissionHost(
+                    listOf(com.riyadm.wakenudge.domain.model.MissionConfig(com.riyadm.wakenudge.domain.model.MissionType.QR_BARCODE)),
+                    onComplete = { done++ },
+                )
+            }
+        }
+        compose.onNodeWithText("Not set up yet").assertIsDisplayed()
+        compose.onNodeWithText("Continue").performClick()
+        compose.waitForIdle()
+        assertEquals(1, done)
     }
 
     @Test fun alarmCardCopesWithAHostileLabelAndHugeFonts() {

@@ -9,6 +9,11 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** Starts a ring for a request. A seam so recovery and trigger handling can be tested without real audio. */
+fun interface RingStarter {
+    fun start(request: RingRequest)
+}
+
 /** Starts [RingService] for a request and reports honestly when the OS refuses. */
 @Singleton
 class RingServiceLauncher @Inject constructor(
@@ -16,8 +21,8 @@ class RingServiceLauncher @Inject constructor(
     private val runtime: RuntimeState,
     private val notifier: Notifier,
     private val diagnostics: DiagnosticsLog,
-) {
-    fun start(request: RingRequest) {
+) : RingStarter {
+    override fun start(request: RingRequest) {
         val intent = Intent(context, RingService::class.java)
             .setAction(RingService.ACTION_BEGIN)
             .putExtra(RingService.EXTRA_ALARM_ID, request.alarmId)

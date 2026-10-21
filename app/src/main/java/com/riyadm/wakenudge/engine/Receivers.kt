@@ -48,7 +48,7 @@ interface EngineEntryPoint {
     fun recovery(): MissedAlarmRecovery
     fun ring(): RingController
     fun ringStore(): RingSessionStore
-    fun launcher(): RingServiceLauncher
+    fun launcher(): RingStarter
     fun wakeChecks(): WakeCheckController
     fun timers(): TimerController
     fun alarmActions(): AlarmActions
