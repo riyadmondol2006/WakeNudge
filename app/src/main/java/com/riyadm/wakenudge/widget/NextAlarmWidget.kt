@@ -17,7 +17,6 @@ import androidx.glance.LocalSize
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.components.FilledButton
@@ -59,7 +58,7 @@ class NextAlarmWidget : GlanceAppWidget() {
     }
 }
 
-class NextAlarmWidgetReceiver : GlanceAppWidgetReceiver() {
+class NextAlarmWidgetReceiver : SurfaceWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = NextAlarmWidget()
 }
 

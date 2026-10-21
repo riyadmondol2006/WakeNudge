@@ -17,7 +17,6 @@ import androidx.glance.LocalContext
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.Switch
 import androidx.glance.appwidget.SwitchDefaults
 import androidx.glance.appwidget.action.actionRunCallback
@@ -57,7 +56,7 @@ class AlarmListWidget : GlanceAppWidget() {
     }
 }
 
-class AlarmListWidgetReceiver : GlanceAppWidgetReceiver() {
+class AlarmListWidgetReceiver : SurfaceWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = AlarmListWidget()
 }
 
