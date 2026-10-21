@@ -4,8 +4,8 @@
 #
 #   WakeNudge-<version>.apk           github flavour (sideload)
 #   WakeNudge-<version>.aab           play flavour (what is uploaded to Google Play)
-#   mapping-<version>.txt             R8 mapping of the play build, to de-obfuscate Play crash reports
-#   mapping-<version>-github.txt      R8 mapping of the github build (only shipped when it differs from the play one)
+#   mapping-<version>.txt.gz          R8 mapping of the play build (gzipped: the raw file is ~77 MB), to de-obfuscate Play crash reports
+#   mapping-<version>-github.txt.gz   R8 mapping of the github build (only shipped when it differs from the play one)
 #   SHA256SUMS.txt
 #
 # Usage: scripts/stage-release.sh --version-name 1.0.57 --cert-sha256 AA:BB:.. --apk F --aab F --mapping-play F \
@@ -43,11 +43,11 @@ rm -rf "$out"
 mkdir -p "$out"
 cp "$apk" "$out/WakeNudge-$version_name.apk"
 cp "$aab" "$out/WakeNudge-$version_name.aab"
-cp "$mapping_play" "$out/mapping-$version_name.txt"
+gzip -9 -n -c "$mapping_play" > "$out/mapping-$version_name.txt.gz"
 github_mapping_note=""
 if [[ -n $mapping_github && -f $mapping_github ]] && ! cmp -s "$mapping_play" "$mapping_github"; then
-  cp "$mapping_github" "$out/mapping-$version_name-github.txt"
-  github_mapping_note=" \`mapping-$version_name-github.txt\` is the equivalent for the APK."
+  gzip -9 -n -c "$mapping_github" > "$out/mapping-$version_name-github.txt.gz"
+  github_mapping_note=" \`mapping-$version_name-github.txt.gz\` is the equivalent for the APK."
 fi
 (cd "$out" && files=(*) && sha256sum -- "${files[@]}" > SHA256SUMS.txt)
 
@@ -89,7 +89,7 @@ max_lines=60
   echo
   echo "Check a download with \`sha256sum --check SHA256SUMS.txt\`, and the APK signature with \`apksigner verify --print-certs WakeNudge-$version_name.apk\`."
   echo
-  echo "\`mapping-$version_name.txt\` de-obfuscates crash reports of the Play build and is not needed to use the app.$github_mapping_note"
+  echo "\`mapping-$version_name.txt.gz\` (gzip) de-obfuscates crash reports of the Play build and is not needed to use the app.$github_mapping_note"
 } > "$notes_file"
 
 echo "Staged $(find "$out" -type f | wc -l) files in $out and wrote $notes_file (since ${previous_tag:-the beginning})"

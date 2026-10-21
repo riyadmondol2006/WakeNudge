@@ -33,8 +33,8 @@ the newest waiting run goes next: its release covers the commits of any run that
 |---|---|
 | `WakeNudge-<version>.apk` | `github` flavour. Sideload it. Holds `INTERNET` (and nothing else network-related) so the app can look for newer releases. |
 | `WakeNudge-<version>.aab` | `play` flavour. This is what you upload to Google Play. No network permission, ever. |
-| `mapping-<version>.txt` | R8 mapping of the play build, for de-obfuscating Play crash reports. |
-| `mapping-<version>-github.txt` | R8 mapping of the github build; only attached when it differs from the play one. |
+| `mapping-<version>.txt.gz` | R8 mapping of the play build (gzipped, the raw file is about 77 MB), for de-obfuscating Play crash reports. |
+| `mapping-<version>-github.txt.gz` | R8 mapping of the github build; only attached when it differs from the play one. |
 | `SHA256SUMS.txt` | Checksums of everything above. |
 
 The release notes list the commits since the previous `v*` tag, the signing certificate SHA-256 and short install
@@ -147,7 +147,7 @@ add release notes, review and roll out.
   gets a higher number, the bundle from the newest release is always acceptable; you can skip any releases you do not
   want on Play.
 - **Mapping file:** AGP embeds the R8 mapping in the bundle, so Play can de-obfuscate crashes without further steps.
-  `mapping-<version>.txt` is the same file, kept for your own use.
+  `mapping-<version>.txt.gz` is the same file (gzipped), kept for your own use.
 
 ## Re-running and recovering
 
