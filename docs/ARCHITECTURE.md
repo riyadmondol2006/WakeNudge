@@ -187,7 +187,7 @@ picker, wavy progress, and an expressive switch and day chips. Navigation uses t
 | Flavour | Network permission | What is different |
 |---|---|---|
 | `play` | none | `NoUpdateChecker` is bound; no HTTP code, update strings or `INTERNET` exist in the build. |
-| `github` | `INTERNET` only | `UpdateManager` asks `api.github.com` for the latest release (at most once a day, on app open, never during a ring) and offers a popup that opens the release page in the browser. The user can switch it off in About, then Updates. |
+| `github` | `INTERNET` only | `UpdateManager` asks `api.github.com` for the latest release (at most once an hour, on app open, never during a ring) and offers a popup that opens the release page in the browser. The user can switch it off in About, then Updates. |
 
 The shared code only knows the `UpdateChecker` interface (`update/`); each flavour's source set binds it with a Hilt
 module. The `verifyOfflineManifest<Variant>` tasks fail the build if the merged manifest of a variant declares anything

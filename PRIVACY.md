@@ -15,11 +15,11 @@ app does with information. Short version: **everything stays on your phone.**
 - **Google Play version:** the app has **no internet permission**. It cannot send anything anywhere, and the build
   fails if that ever changes.
 - **GitHub version** (an APK downloaded from the project's GitHub Releases page, not from Google Play): the only
-  network feature is a once-a-day check for a newer release. See "Update check in the GitHub version" below. You can
-  switch it off.
+  network feature is a check for a newer release, at most once an hour. See "Update check in the GitHub version"
+  below. You can switch it off.
 <!-- site:omit-end -->
 <!-- site:only
-- **Network:** the app's only network feature is a once-a-day check for a newer release. See "Update check in the
+- **Network:** the app's only network feature is a check for a newer release, at most once an hour. See "Update check in the
   GitHub version" below. You can switch it off.
 -->
 - There are **no accounts, no ads, no analytics, no crash reporting, no advertising ID and no tracking** of any
@@ -71,7 +71,7 @@ This section applies to the APK from GitHub Releases, the version this website o
 
 - The GitHub version holds Android's `INTERNET` permission for one purpose: asking `api.github.com` whether a newer
   release of WakeNudge exists. It is on by default and can be switched off in About, under Updates.
-- It runs at most once a day. The request carries no account, alarm data, settings, device identifier or advertising
+- It runs when you open the app, and at most once an hour. The request carries no account, alarm data, settings, device identifier or advertising
   ID. Like any web request it necessarily exposes your IP address and standard request headers (such as the
   user-agent) to GitHub, which handles them under
   [its own privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).

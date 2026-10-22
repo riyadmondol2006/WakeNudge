@@ -99,16 +99,30 @@ class UpdateManagerTest {
         assertEquals(start, r.settings.state.value.lastUpdateCheckAt)
     }
 
-    @Test fun `no second check within 24 hours and one once a day has passed`() = runTest {
+    @Test fun `no second check within the hour and one once the hour has passed`() = runTest {
         val r = rig()
         r.manager.checkIfDue()
-        r.time.millis = start + day - 1
+        r.time.millis = start + hour - 1
         r.manager.checkIfDue()
-        assertEquals("23h59m is too soon", 1, r.client.calls)
-        r.time.millis = start + day
+        assertEquals("59m59s is too soon", 1, r.client.calls)
+        r.time.millis = start + hour
         r.manager.checkIfDue()
-        assertEquals("exactly a day later is due", 2, r.client.calls)
-        assertEquals(start + day, r.settings.state.value.lastUpdateCheckAt)
+        assertEquals("exactly an hour later is due", 2, r.client.calls)
+        assertEquals(start + hour, r.settings.state.value.lastUpdateCheckAt)
+    }
+
+    @Test fun `a release published hours after the last look is offered the next time the app opens`() = runTest {
+        // The phone installed 1.0.58, looked at once ("up to date"), and the next release came out 10 hours later.
+        var latest = "1.0.58"
+        val r = rig(installed = "1.0.58", answer = { LookupResult.Found(release(latest)) })
+        r.manager.checkIfDue()
+        assertEquals(UpdateStatus.UpToDate, r.manager.status.value)
+        assertNull(r.manager.prompt.value)
+
+        latest = "1.0.59"
+        r.time.millis = start + 10 * hour + 30 * 60 * 1000
+        r.manager.checkIfDue()
+        assertEquals("the new release is announced without any manual step", release("1.0.59"), r.manager.prompt.value)
     }
 
     @Test fun `a last check in the future because the clock moved back counts as due`() = runTest {
@@ -122,8 +136,8 @@ class UpdateManagerTest {
         assertTrue(UpdateManager.isDue(0, start))
         assertTrue(UpdateManager.isDue(-5, start))
         assertTrue(!UpdateManager.isDue(start, start))
-        assertTrue(!UpdateManager.isDue(start - day + 1, start))
-        assertTrue(UpdateManager.isDue(start - day, start))
+        assertTrue(!UpdateManager.isDue(start - hour + 1, start))
+        assertTrue(UpdateManager.isDue(start - hour, start))
         assertTrue(UpdateManager.isDue(start + 1, start))
     }
 
@@ -147,7 +161,7 @@ class UpdateManagerTest {
         assertNull(r.manager.prompt.value)
     }
 
-    @Test fun `Check now works in a debug build with the switch off and ignores the 24 hour wait`() = runTest {
+    @Test fun `Check now works in a debug build with the switch off and ignores the hourly wait`() = runTest {
         val r = rig(autoCheck = false, settings = AppSettings(onboardingDone = true, updateChecksEnabled = false, lastUpdateCheckAt = start))
         r.manager.checkNow()
         assertEquals(1, r.client.calls)
@@ -237,7 +251,7 @@ class UpdateManagerTest {
         assertEquals("1.0.6", r.settings.state.value.skippedUpdateVersion)
         assertNull(r.manager.prompt.value)
 
-        // A new session (fresh manager, same stored settings) after the next daily check.
+        // A new session (fresh manager, same stored settings) after the next check.
         val sameRelease = rig(settings = r.settings.state.value.copy(lastUpdateCheckAt = 0))
         sameRelease.manager.checkIfDue()
         assertEquals(UpdateStatus.Available(release("1.0.6")), sameRelease.manager.status.value)
@@ -281,7 +295,7 @@ class UpdateManagerTest {
         val r = rig(answer = { LookupResult.Failed(FailureKind.OFFLINE, "UnknownHostException") })
         r.manager.checkIfDue()
         assertEquals(UpdateStatus.Failed(FailureKind.OFFLINE), r.manager.status.value)
-        assertEquals("the daily clock is untouched", 0L, r.settings.state.value.lastUpdateCheckAt)
+        assertEquals("the check clock is untouched", 0L, r.settings.state.value.lastUpdateCheckAt)
         assertNull(r.manager.prompt.value)
         assertTrue(r.log.entries.any { it.startsWith("W Update") && "OFFLINE" in it })
     }

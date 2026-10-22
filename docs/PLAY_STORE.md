@@ -226,7 +226,7 @@ photo fingerprint and a tiny reference thumbnail (never the full photo), referen
 exports them only by choice through the file picker.
 
 The GitHub build is not distributed through Play, so this form describes the Play build only. The GitHub build's
-once-a-day update check is described in [PRIVACY.md](../PRIVACY.md).
+update check (at most once an hour) is described in [PRIVACY.md](../PRIVACY.md).
 
 ## 7. Backup and data transfer (decision)
 

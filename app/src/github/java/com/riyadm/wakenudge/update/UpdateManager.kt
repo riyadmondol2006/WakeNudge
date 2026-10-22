@@ -56,7 +56,7 @@ class UpdateManager @Inject constructor(
         run(manual = false)
     }
 
-    /** The "Check now" button: ignores the switch, the 24 h wait and the debug rule, but runs in the background. */
+    /** The "Check now" button: ignores the switch, the hourly wait and the debug rule, but runs in the background. */
     fun checkNow() {
         scope.launch { run(manual = true) }
     }
@@ -146,7 +146,12 @@ class UpdateManager @Inject constructor(
 
     companion object {
         private const val TAG = "Update"
-        const val CHECK_INTERVAL_MS = 24L * 60 * 60 * 1000
+
+        /**
+         * How long a successful check holds off the next one. Short on purpose: with a day's wait, a phone that had
+         * looked in the morning never heard about a release published that afternoon until the next day.
+         */
+        const val CHECK_INTERVAL_MS = 60L * 60 * 1000
         const val RETRY_AFTER_FAILURE_MS = 60L * 60 * 1000
 
         /** A clock set back past the last check counts as due, otherwise checks could stall for years. */

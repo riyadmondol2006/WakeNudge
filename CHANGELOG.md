@@ -44,7 +44,7 @@ Releases are built and published automatically from `main` and numbered `MAJOR.M
 ### Two builds
 - `play`: no network permission and no update code
 - `github` (the APK on GitHub Releases): holds only `INTERNET`, used for an optional update notice that checks GitHub at
-  most once a day and can be switched off in About. The Welcome screen, About and Settings link to the source code and the website
+  most once an hour and can be switched off in About. The Welcome screen, About and Settings link to the source code and the website
 
 ### Design
 - Material You dynamic colour, light, dark and AMOLED themes, expressive shapes and spring motion, edge-to-edge

@@ -7,7 +7,7 @@ There are two builds of the same app (product flavour dimension `distribution`):
 | Build | Where it is published | Network |
 |---|---|---|
 | `play` | Google Play (Android App Bundle) | **None.** The merged manifest has no `INTERNET`, `ACCESS_NETWORK_STATE` or `ACCESS_WIFI_STATE`, and the code contains no update or network code. |
-| `github` | APK on GitHub Releases | Exactly one extra permission, `INTERNET`, used once a day at most to ask `api.github.com` whether a newer release exists (on by default, switch it off in About, under Updates). It sends nothing about you or your alarms and only opens the release page in your browser. No in-app installing, so no `REQUEST_INSTALL_PACKAGES`. |
+| `github` | APK on GitHub Releases | Exactly one extra permission, `INTERNET`, used at most once an hour (when the app is opened) to ask `api.github.com` whether a newer release exists (on by default, switch it off in About, under Updates). It sends nothing about you or your alarms and only opens the release page in your browser. No in-app installing, so no `REQUEST_INSTALL_PACKAGES`. |
 
 Both rules are enforced on the **merged** manifest of each variant by the `verifyOfflineManifest*` Gradle tasks (part
 of `check` and CI): `play` may declare none of the three network permissions, `github` may declare only `INTERNET`.

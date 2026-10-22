@@ -170,7 +170,7 @@ There are two ways to get WakeNudge, and they differ in exactly one respect:
 
 | Build | Network permission | What it does online |
 |---|---|---|
-| **APK from GitHub Releases** | `INTERNET` only | An **update popup** that checks GitHub at most once a day for a newer release. It sends nothing about you or your alarms, and you can switch it off in **About, then Updates**. |
+| **APK from GitHub Releases** | `INTERNET` only | An **update popup** that checks GitHub at most once an hour for a newer release. It sends nothing about you or your alarms, and you can switch it off in **About, then Updates**. |
 
 Both are built from this repository. Read the full [privacy policy](PRIVACY.md).
 
@@ -232,7 +232,7 @@ perform offers Continue.
 <summary><strong>How do updates work?</strong></summary>
 
 The GitHub APK shows a popup when a newer release exists and you install it from the release page; you can switch the
-check off in About, then Updates. The check contacts GitHub at most once a day and sends nothing about you or your
+check off in About, then Updates. The check contacts GitHub at most once an hour and sends nothing about you or your
 alarms.
 </details>
 
