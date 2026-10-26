@@ -57,9 +57,11 @@
     <string name="health_detail_channel_missing">The alarm notification channel does not exist yet. Open the app once so it can be created.</string>
     <string name="health_detail_channel_blocked">The alarm notification channel is blocked, so the alarm screen cannot be shown. Allow it and set its importance to Urgent.</string>
     <string name="health_detail_channel_lowered">The alarm notification channel was set below Urgent. Android may then show a quiet notification instead of the full-screen alarm screen. The sound itself is played by WakeNudge, so this does not mute alarms.</string>
+    <string name="health_detail_fallback_channel_blocked">The \"Alarm sound backup\" notifications are switched off. They are the alarm\'s last resort when Android will not let WakeNudge start its alarm service; switch them back on.</string>
     <string name="health_detail_channel_ok">Set to Urgent, so the alarm screen can open over the lock screen.</string>
     <string name="health_detail_full_screen_auto">Granted automatically on this version of Android.</string>
     <string name="health_detail_full_screen_off">Android 14 and later lets you revoke full-screen alerts. Without them the alarm screen does not open over the lock screen. The sound and the notification still appear.</string>
+    <string name="health_detail_exact_off_alarms">On this version of Android the alarms themselves need \"Alarms &amp; reminders\". It is switched off, so WakeNudge can only ask for an approximate wake-up, which Android may deliver up to an hour late. Allow it for WakeNudge.</string>
     <string name="health_detail_exact_off">Exact scheduling is not allowed. Alarms use Android\'s alarm-clock channel and are not affected, but timers, the sunrise glow and \"alarm in 30 minutes\" reminders can arrive late.</string>
 
     <!-- Power management -->
@@ -77,6 +79,7 @@
     <string name="health_detail_dnd_alarms_only">Do Not Disturb is set to Alarms only, which lets alarms through.</string>
     <string name="health_detail_dnd_priority_ok">Do Not Disturb is in Priority only mode and allows alarms.</string>
     <string name="health_detail_dnd_priority_blocks">Do Not Disturb is on and its settings do not allow alarms, so your alarm would be silent. Turn on Alarms under its priority exceptions.</string>
+    <string name="health_detail_dnd_mode_blocks">Do Not Disturb is on, and the schedule or mode that turned it on (Bedtime, Sleeping and the like) does not allow alarms: Android has muted the alarm sound, so your alarm would be silent. Allow alarms in that mode\'s settings.</string>
     <string name="health_detail_dnd_total_silence">Do Not Disturb is set to Total silence, which silences alarms too. Switch it to Alarms only or turn it off.</string>
     <string name="health_detail_dnd_unknown">Android did not report the Do Not Disturb state.</string>
     <string name="health_detail_volume_fixed">This device has a fixed volume; the system decides how loud alarms are.</string>

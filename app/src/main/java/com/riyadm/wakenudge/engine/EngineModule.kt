@@ -17,6 +17,7 @@ abstract class EngineModule {
     @Binds abstract fun scheduler(impl: AlarmSchedulerImpl): AlarmScheduler
     @Binds abstract fun surfaces(impl: SurfaceRefresherImpl): SurfaceRefresher
     @Binds abstract fun activeRing(impl: ActiveRingQueryImpl): ActiveRingQuery
+    @Binds abstract fun battery(impl: SystemBatteryGauge): BatteryGauge
 }
 
 /** Kept in its own module so instrumented tests can swap the real service launcher for a recording fake. */

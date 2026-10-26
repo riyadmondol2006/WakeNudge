@@ -38,17 +38,22 @@ class SystemEventHandler @Inject constructor(
                 val before = runtime.registeredTriggers()
                 step("alarm volume") { audio.restoreSystemVolumeIfStale() }
                 step("rescheduling") { scheduler.rescheduleAll("system:$action") }
+                val rescheduledBy = time.nowMillis()
                 step("housekeeping") { ring.recoverStaleState() }
-                if (action != Intent.ACTION_MY_PACKAGE_REPLACED) step("alarms due while off") { recovery.process(before) }
+                // Also after an app update: an alarm that fell due while the update was installing may never have been
+                // delivered, and the reschedule just moved it to its next ring. One that did ring is in the history and
+                // is not repeated.
+                step("alarms due while off") { recovery.process(before, dueBy = rescheduledBy) }
             }
             Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED -> {
                 step("time zone") { time.refreshZone() }
                 val before = runtime.registeredTriggers()
                 step("rescheduling") { scheduler.rescheduleAll("system:$action") }
+                val rescheduledBy = time.nowMillis()
                 // A clock set forward (by the user or by network time) can make an armed alarm overdue before the OS
                 // delivers it, and rescheduling would then have moved it to tomorrow. Anything that fell due is rung or
                 // recorded as missed here, exactly as after a reboot; an alarm the OS already delivered is not repeated.
-                step("alarms made overdue by the clock change") { recovery.process(before) }
+                step("alarms made overdue by the clock change") { recovery.process(before, dueBy = rescheduledBy) }
             }
             AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED ->
                 step("rescheduling") { scheduler.rescheduleAll("exact-alarm-permission") }

@@ -54,7 +54,7 @@ class RingAndMissionUiTest {
         WakeNudgeTheme {
             RingScreen(
                 session = session, settings = AppSettings(), actions = counters.actions(),
-                missionContent = { missions, onInteraction, onProgress, onComplete -> RingMissionContent(missions, onInteraction, onProgress, onComplete) },
+                missionContent = { missions, onInteraction, onProgress, onComplete, first -> RingMissionContent(missions, onInteraction, onProgress, onComplete, first) },
             )
         }
     }

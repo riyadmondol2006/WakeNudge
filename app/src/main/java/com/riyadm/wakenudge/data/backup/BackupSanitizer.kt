@@ -325,8 +325,13 @@ object BackupSanitizer {
             if (s.calendarExceptions.enabled && s.calendarExceptions.calendarIds.isNotEmpty()) {
                 warn(R.string.backup_warn_calendars)
             }
+            val resume = epochDay(s.vacation.resumeEpochDay)
+            // An unreadable resume day must not turn into "paused until switched off": that would silence every alarm
+            // with no end in sight. The vacation is switched off instead, and the user is told.
+            val brokenResume = s.vacation.enabled && s.vacation.resumeEpochDay != null && resume == null
+            if (brokenResume) warn(R.string.backup_warn_vacation)
             return s.copy(
-                vacation = VacationMode(s.vacation.enabled, epochDay(s.vacation.resumeEpochDay)),
+                vacation = if (brokenResume) VacationMode() else VacationMode(s.vacation.enabled, resume),
                 calendarExceptions = s.calendarExceptions.copy(calendarIds = s.calendarExceptions.calendarIds.take(MAX_CALENDARS).toSet()),
                 bedtime = bedtime(s.bedtime),
                 defaults = AlarmDefaults(
@@ -407,6 +412,10 @@ object BackupSanitizer {
                     missionsDone = int(event.missionsDone, 0..total),
                     missionsTotal = total,
                     wakeCheckReRings = int(event.wakeCheckReRings, 0..99),
+                    // A snooze or backup still pending in the file belonged to a ring on the old phone; on this one it
+                    // would re-arm and ring a restored alarm out of nowhere.
+                    snoozeUntil = 0,
+                    pendingBackups = emptyList(),
                 )
             }
         }

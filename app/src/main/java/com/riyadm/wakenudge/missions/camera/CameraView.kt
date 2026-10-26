@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.missions.camera
 
+import android.os.SystemClock
 import android.util.Size
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
@@ -23,14 +24,25 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.delay
+
+/** A camera that has delivered nothing for this long, while the screen is in front, is treated as unavailable. */
+private const val NO_FRAMES_MS = 8_000L
 
 /**
  * A live camera preview that also delivers every analysed frame to [onFrame] on a background thread (latest frame
  * only, so a slow analysis never builds a backlog). The frame is closed by this view after [onFrame] returns; do not
  * keep it. Everything is bound to the lifecycle and explicitly unbound on dispose, so leaving the screen always
  * releases the camera for the next app - important when the alarm screen is dismissed.
+ *
+ * A camera that another app is using, or that a device policy disabled, often binds without any error and then simply
+ * never delivers a frame. So [onUnavailable] also fires when no frame has arrived for [NO_FRAMES_MS] while the screen
+ * is in front, which covers every way a camera can fail to show up.
  *
  * @param analysisSize preferred analysis resolution; the camera picks the closest it supports.
  * @param torchOn whether the torch should be lit (ignored if the phone has none; see [onTorchAvailable]).
@@ -59,6 +71,7 @@ internal fun CameraAnalysisView(
         }
     }
     var camera by remember { mutableStateOf<Camera?>(null) }
+    val lastFrameAt = remember { AtomicLong(SystemClock.elapsedRealtime()) }
 
     DisposableEffect(lifecycleOwner, orientation, analysisSize) {
         val executor = Executors.newSingleThreadExecutor()
@@ -75,6 +88,7 @@ internal fun CameraAnalysisView(
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .build()
         analysis.setAnalyzer(executor) { image ->
+            lastFrameAt.set(SystemClock.elapsedRealtime())
             try {
                 latestFrameHandler(image)
             } catch (_: Exception) {
@@ -97,6 +111,7 @@ internal fun CameraAnalysisView(
                 } else {
                     cameraProvider.unbind(preview, analysis)
                     val bound = cameraProvider.bindToLifecycle(lifecycleOwner, selector, preview, analysis)
+                    lastFrameAt.set(SystemClock.elapsedRealtime())
                     camera = bound
                     latestTorchAvailable(bound.cameraInfo.hasFlashUnit())
                 }
@@ -110,6 +125,20 @@ internal fun CameraAnalysisView(
             provider?.unbind(preview, analysis)
             camera = null
             executor.shutdown()
+        }
+    }
+
+    // The screen going off pauses the camera; only time spent in front counts towards "no frames".
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { lastFrameAt.set(SystemClock.elapsedRealtime()) }
+    LaunchedEffect(camera) {
+        if (camera == null) return@LaunchedEffect
+        while (true) {
+            delay(1_000)
+            val inFront = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+            if (inFront && SystemClock.elapsedRealtime() - lastFrameAt.get() > NO_FRAMES_MS) {
+                latestUnavailable()
+                break
+            }
         }
     }
 

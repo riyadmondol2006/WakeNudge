@@ -60,6 +60,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -299,6 +300,20 @@ internal fun openAppSettings(context: Context) {
     runCatching { context.startActivity(intent) }
 }
 
+/**
+ * Set by [com.riyadm.wakenudge.missions.MissionHost] while an alarm really rings: lets a mission that turns out to be
+ * impossible right now (camera permission refused, camera broken or busy) let the user through, as the app promises,
+ * instead of leaving them with a ringing alarm and nothing to do. Null in previews and setup screens.
+ */
+internal val LocalMissionWayOut = staticCompositionLocalOf<(() -> Unit)?> { null }
+
+/** The Continue button of a mission that cannot be done right now; nothing outside a real ring. */
+@Composable
+internal fun ColumnScope.MissionWayOut() {
+    val wayOut = LocalMissionWayOut.current ?: return
+    MissionButton(stringResource(R.string.mission_continue), wayOut, Modifier.fillMaxWidth())
+}
+
 /** Increments each time the host activity resumes; lets a composable re-check things the user may have changed in system settings. */
 @Composable
 internal fun rememberResumeCount(): Int {
@@ -326,10 +341,12 @@ internal fun PermissionGate(
     val resumeCount = rememberResumeCount()
     var granted by remember { mutableStateOf(isPermissionGranted(context, permission)) }
     var permanentlyDenied by rememberSaveable { mutableStateOf(false) }
+    var denied by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(resumeCount) { granted = isPermissionGranted(context, permission) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         granted = isGranted
         if (!isGranted) {
+            denied = true
             // Before the first request shouldShowRequestPermissionRationale is false too, so this is only meaningful after a denial.
             permanentlyDenied = context.findActivity()?.let { !ActivityCompat.shouldShowRequestPermissionRationale(it, permission) } ?: true
         }
@@ -349,6 +366,8 @@ internal fun PermissionGate(
                     MissionButton(stringResource(R.string.mission_allow_access), { launcher.launch(permission) }, Modifier.fillMaxWidth())
                 }
                 extraActions()
+                // Asked and refused (or Android no longer asks): during a real alarm this mission cannot happen.
+                if (denied || permanentlyDenied) MissionWayOut()
             }
         }
     }

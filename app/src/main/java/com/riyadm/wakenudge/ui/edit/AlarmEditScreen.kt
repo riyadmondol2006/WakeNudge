@@ -31,6 +31,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -122,6 +123,18 @@ fun AlarmEditScreen(
                                 when (val r = viewModel.save()) {
                                     SaveOutcome.Saved -> { haptics.confirm(); onClose() }
                                     is SaveOutcome.Locked -> snackbar.showSnackbar(resources.getString(R.string.snackbar_locked, r.minutes))
+                                    SaveOutcome.Gone -> {
+                                        val choice = snackbar.showSnackbar(
+                                            resources.getString(R.string.edit_alarm_gone),
+                                            actionLabel = resources.getString(R.string.edit_save_as_new),
+                                            withDismissAction = true,
+                                        )
+                                        if (choice == SnackbarResult.ActionPerformed && viewModel.save(asNew = true) == SaveOutcome.Saved) {
+                                            haptics.confirm()
+                                            onClose()
+                                        }
+                                    }
+                                    SaveOutcome.Busy -> Unit
                                 }
                             }
                         },
@@ -205,8 +218,12 @@ fun AlarmEditScreen(
             onConfirm = {
                 scope.launch {
                     when (val r = viewModel.delete()) {
-                        SaveOutcome.Saved -> onClose()
-                        is SaveOutcome.Locked -> snackbar.showSnackbar(resources.getString(R.string.snackbar_locked, r.minutes))
+                        SaveOutcome.Saved, SaveOutcome.Gone -> onClose()
+                        is SaveOutcome.Locked -> {
+                            confirmDelete = false
+                            snackbar.showSnackbar(resources.getString(R.string.snackbar_locked, r.minutes))
+                        }
+                        SaveOutcome.Busy -> Unit
                     }
                 }
             },
@@ -248,9 +265,7 @@ private fun TimeCard(alarm: Alarm, upcoming: List<java.time.ZonedDateTime>, is24
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(vertical = 16.dp, horizontal = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.then(if (enabled) Modifier else Modifier.padding(0.dp))) {
-                AlarmTimePicker(alarm.hour, alarm.minute, is24, onChange = { h, m -> if (enabled) update { it.copy(hour = h, minute = m) } })
-            }
+            AlarmTimePicker(alarm.hour, alarm.minute, is24, onChange = { h, m -> if (enabled) update { it.copy(hour = h, minute = m) } }, enabled = enabled)
             val first = upcoming.firstOrNull()
             val now = java.time.ZonedDateTime.now()
             Text(

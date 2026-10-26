@@ -212,7 +212,7 @@ class ResilienceInstrumentedTest {
         val controller = RingController(
             store, flakyAlarms, flakyHistory, timers, settings, scheduler, wakeCheckController, pending, runtime, time, notifier, surfaces, diagnostics,
         )
-        val triggers = TriggerHandler(controller, wakeCheckController, starter, scheduler, notifier, settings, runtime, time, diagnostics)
+        val triggers = TriggerHandler(controller, wakeCheckController, starter, scheduler, notifier, settings, runtime, time, diagnostics, BatteryGauge { null })
         return controller to triggers
     }
 

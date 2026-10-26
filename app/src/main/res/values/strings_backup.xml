@@ -67,6 +67,7 @@
         <item quantity="other">Only the newest %d history entries were restored.</item>
     </plurals>
     <string name="backup_warn_settings_unreadable">The settings in the file could not be read, so the defaults were used.</string>
+    <string name="backup_warn_vacation">The vacation in the file had an unreadable end date, so vacation mode was switched off rather than pausing your alarms indefinitely.</string>
     <string name="backup_warn_calendars">Holiday calendars are identified by numbers that differ between devices. Check the calendar exceptions in Settings.</string>
     <string name="backup_warn_mission_qr">Alarm %1$s: its QR or barcode mission has no registered code. Set it up again before relying on it.</string>
     <string name="backup_warn_mission_nfc">Alarm %1$s: its NFC mission has no registered tag. Set it up again before relying on it.</string>

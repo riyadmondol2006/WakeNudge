@@ -17,13 +17,26 @@ data class TypingAnalysis(
 )
 
 /**
- * Comparison rules for the typing mission: HARD is case-sensitive and character-exact, EASY and MEDIUM ignore case.
- * Surrounding whitespace is always ignored.
+ * Comparison rules for the typing mission: HARD is case-sensitive, EASY and MEDIUM ignore case. Surrounding whitespace
+ * is always ignored, and so is the typographic form of a mark the user cannot choose: many keyboards type a curly
+ * apostrophe, a long dash or a non-breaking space by themselves, and that must not make a phrase impossible to finish.
  */
 class TypingValidator(val difficulty: Difficulty) {
     val caseSensitive: Boolean get() = difficulty == Difficulty.HARD
 
-    private fun same(a: Char, b: Char): Boolean = if (caseSensitive) a == b else a.lowercaseChar() == b.lowercaseChar()
+    private fun same(a: Char, b: Char): Boolean {
+        val x = plain(a)
+        val y = plain(b)
+        return if (caseSensitive) x == y else x.lowercaseChar() == y.lowercaseChar()
+    }
+
+    private fun plain(c: Char): Char = when (c) {
+        '\u2018', '\u2019', '\u201A', '\u201B', '\u02BC', '\u2032', '`', '\u00B4' -> '\''
+        '\u201C', '\u201D', '\u201E', '\u201F', '\u2033' -> '"'
+        '\u2010', '\u2011', '\u2012', '\u2013', '\u2014', '\u2212' -> '-'
+        '\u00A0', '\u2007', '\u202F' -> ' '
+        else -> c
+    }
 
     fun isCorrect(target: String, typed: String): Boolean = analyze(target, typed).isComplete
 

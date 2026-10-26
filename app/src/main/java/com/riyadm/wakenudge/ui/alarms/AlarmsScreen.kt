@@ -107,6 +107,24 @@ fun AlarmsScreen(
                 is AlarmsEvent.Skipped -> snackbar.showSnackbar(
                     resources.getString(if (event.epochDay == null) R.string.snackbar_switched_off else R.string.snackbar_skipped),
                 )
+                is AlarmsEvent.TurnedOn -> {
+                    // "In 9 h 40 min" reads as part of the sentence: "Alarm on. Rings in 9 h 40 min."
+                    val whenText = event.ringsAt?.let { Formatters.untilText(context, System.currentTimeMillis(), it).replaceFirstChar { c -> c.lowercaseChar() } }
+                    val text = when {
+                        event.groupTurnedOn != null && whenText != null -> resources.getString(R.string.snackbar_on_with_group, whenText, event.groupTurnedOn)
+                        whenText != null -> resources.getString(R.string.snackbar_on, whenText)
+                        else -> null
+                    }
+                    if (text != null) snackbar.showSnackbar(text)
+                }
+                is AlarmsEvent.Paused -> {
+                    val result = snackbar.showSnackbar(
+                        message = resources.getString(R.string.snackbar_paused),
+                        actionLabel = resources.getString(R.string.snackbar_undo),
+                        duration = SnackbarDuration.Long,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) viewModel.undoPause(event.previous)
+                }
                 is AlarmsEvent.Deleted -> {
                     val result = snackbar.showSnackbar(
                         message = resources.getString(R.string.snackbar_deleted),

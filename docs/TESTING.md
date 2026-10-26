@@ -4,10 +4,10 @@ An alarm clock is judged on the one morning it fails, so testing is split by wha
 
 | Layer | Where it runs | What it proves |
 |---|---|---|
-| **JVM unit tests** (421 for the `play` build, 508 for `github`) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
+| **JVM unit tests** (451 for the `play` build, 538 for `github`) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
 | **Fuzz tests** (12, part of the JVM tests) | Your computer | 20,000 seeded random alarm/clock/zone combinations never crash the scheduler or yield a time in the past; corrupted and hostile backup files are rejected or sanitised, never half-applied |
-| **Instrumented engine tests** (about 120, with the migration tests) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
-| **Instrumented UI tests** (about 30 on the `play` build, plus 25 more for the GitHub-only update popup) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions |
+| **Instrumented engine tests** (about 130, with the migration tests) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
+| **Instrumented UI tests** (about 35 on the `play` build, plus 25 more for the GitHub-only update popup) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions |
 
 Run the JVM tests with `./gradlew :app:testPlayDebugUnitTest :app:testGithubDebugUnitTest`. For the instrumented tests see the warning in the README:
 **target exactly one device**.
@@ -43,6 +43,35 @@ began life as a question; the ones that found real bugs are marked ✱ and were 
   - A **refused foreground-service start** left only a silent notification.
   - An alarm **made overdue by the clock being set forward** was moved to tomorrow by the reschedule instead of ringing.
   - A **refused `setAlarmClock`** left the alarm unarmed with nobody told.
+- ✱ Second audit: every engine path and screen read again as a half-awake user would break it (each fix has a test):
+  - **A force-stop** (or a phone maker's "clean up") made Android forget every alarm, and nothing re-armed them until a
+    reboot. The next app start now notices and re-registers everything.
+  - Switching on one alarm of a **switched-off group** armed only that alarm, although the whole group came back on;
+    **deleting a switched-off group** made its alarms ring.
+  - A **typed time** was saved as another one: the wheels reported every row they glided past (06:45 typed over 07:00
+    was saved as 06:55, reproduced on the device before the fix). A locked editor's wheels still turned.
+  - An editor left open while its alarm rang **re-enabled** the finished one-time alarm on save, undid a skip, or
+    re-created an alarm that had deleted itself; a double-tapped Save created **two alarms**.
+  - **"Skip next" tapped twice** skipped the following day too; moving an alarm later kept a skip meant for the old time.
+  - A **Stop or Dismiss that arrived just after another ring took over** ended that ring (missions skipped); volume keys
+    during the **silent sunrise glow** armed a snooze, or deleted a delete-after-use alarm before it rang.
+  - The **ring timeout and the backup** fall due in the same second by default: the timeout could end the ring the
+    backup had just taken over, and stopping the service could drop the backup's start.
+  - A **queued second alarm** kept the first alarm's sound, vibration and voice after the first was dismissed.
+  - After a crash, Android **redelivered rings the user had already handled**, and they rang again.
+  - A timer **started again while it rang** was reset to idle when the ring ended, so its countdown never rang.
+  - **Delete-after-use** alarms never got their still-awake check.
+  - **Rotating, or tapping Back,** mid-way through a chain of missions started it over; in landscape on a large screen
+    the mission area had no height.
+  - A QR or photo mission whose **camera was refused, broken or busy** had no Continue button.
+  - A **restore** could bring back an old alarm's snooze and ring a restored alarm with the same id.
+  - After a **reboot**, an alarm due in the second before the reschedule was lost; after an **app update**, one due
+    during the install was never rung or reported.
+  - On **Android 12** with "Alarms & reminders" off, alarms became inexact (up to an hour late) while Alarm Health said
+    they were not affected.
+  - Missions that were **too hard to be fair half asleep**: maths (easy was 87 + 56), a fully shuffled 15-puzzle,
+    pattern lines that pass 5 dp from other dots, 90-character typing phrases, a photo match that failed when the
+    reference was taken under a lamp and the alarm rang in daylight.
 - The app force-killed mid-ring (chaos test): the backup alarm still rings.
 - Rapid snooze/dismiss mashing, double-delivered triggers, concurrent settings writes, missions that cannot be completed
   on this phone, permission revoked mid-flow, huge and hostile labels, 200 % font, RTL, time-zone jumps, DST gaps.
@@ -66,13 +95,19 @@ Hardware: **Google Pixel 6 Pro, Android 17 (API 37)**. No other physical device 
 - Widgets and the Quick Settings tile are **registered** with Android (three `AppWidgetProvider`s and the tile service
   resolve). Their layouts are covered by JVM tests of the data they show.
 
-- **The full instrumented suite of the `play` build: 146 tests, run on the device** after the final changes (the engine,
-  reliability, abuse, migration, category, settings switch-row, ring-screen and mission-flow classes, including the 47 added by the reliability
+- **The full instrumented suite of the `play` build: 165 tests, run on the device** after the final changes (the engine,
+  reliability, abuse, migration, category, settings switch-row, time-picker, audit-fix, ring-screen and mission-flow
+  classes, including the 47 added by the reliability
   audit: audio focus loss, dying players, a real `RingService`, failing storage, refused starts, clock changes and crash
   rescue). The GitHub-only update tests (25: popup, switch, links, backup restore) ran on the `github` build. One audio
   test asserted a diagnostics note a few milliseconds before the engine wrote it and failed once in a while; the
   assertions now wait for the note, and the class passed on four repeated runs. Room's migrations from versions 1 and 2
   are tested on a real database.
+- The second audit's fixes on the device: the typed-time bug was reproduced with the old wheel (06:45 typed over 07:00
+  reported 06:58, then 06:55) and passes with the fix; a simulated force-stop (every trigger cancelled) is repaired by
+  the next app start; the group, skip, schedule-change, reboot-recovery and fired-snooze cases pass against the real
+  AlarmManager and Room. Another project's instrumented tests were running on the same phone at the time, which
+  caused a few "no compose hierarchy" failures; each of those classes passed when run again on its own.
 - Strict alarms: the ring screen offers the Emergency stop by default and hides it when an alarm has it switched off;
   turning it off asks for confirmation; the snooze switch on its card works without opening the card.
 

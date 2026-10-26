@@ -6,6 +6,7 @@ import android.content.Intent
 import android.util.Log
 import com.riyadm.wakenudge.core.TimeSource
 import com.riyadm.wakenudge.domain.model.WakeCheckStatus
+import com.riyadm.wakenudge.domain.usecase.ActionResult
 import com.riyadm.wakenudge.domain.repository.DiagnosticsLog
 import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
 import com.riyadm.wakenudge.domain.usecase.AlarmActions
@@ -87,13 +88,14 @@ class ActionReceiver : BroadcastReceiver() {
         runAsync {
             val ring = e.ring()
             when (intent.action) {
-                Actions.SNOOZE -> ring.snooze()
-                Actions.DISMISS ->
-                    if (e.ringStore().current?.alarm?.id == id) ring.dismiss() else ring.dismissSnoozed(id)
+                // Each button acts on the alarm it was shown for, checked inside the controller's lock.
+                Actions.SNOOZE -> ring.snooze(RingTarget(id))
+                Actions.DISMISS -> if (!ring.dismiss(RingTarget(id))) ring.dismissSnoozed(id)
                 Actions.SNOOZE_WAKE_NOW -> ring.wakeNow(id)?.let(e.launcher()::start)
                 Actions.SKIP_NEXT -> {
-                    e.alarmActions().skipNext(id)
-                    e.notifier().cancelUpcoming(id)
+                    val at = intent.getLongExtra(Actions.EXTRA_AT, 0).takeIf { it > 0 }
+                    // A refused skip (edit protection) leaves the heads-up up, so it does not look as if it worked.
+                    if (e.alarmActions().skipNext(id, occurrenceAt = at) !is ActionResult.Locked) e.notifier().cancelUpcoming(id)
                 }
                 Actions.WAKE_CHECK_OK -> e.wakeChecks().answer(id)
                 Actions.WAKE_CHECK_CANCEL -> e.wakeChecks().abandon(id, WakeCheckStatus.CANCELLED)
@@ -102,7 +104,7 @@ class ActionReceiver : BroadcastReceiver() {
                 Actions.TIMER_RESET -> e.timers().reset(id)
                 Actions.TIMER_ADD_MINUTE ->
                     if (e.ringStore().current?.isTimer == true) ring.addMinuteToRingingTimer() else e.timers().addMinute(id)
-                Actions.TIMER_STOP -> ring.dismiss()
+                Actions.TIMER_STOP -> ring.dismiss(RingTarget(RingIds.TIMER_ALARM_BASE - id, timerId = id))
             }
         }
     }

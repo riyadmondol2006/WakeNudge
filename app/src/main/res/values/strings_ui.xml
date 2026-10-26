@@ -28,6 +28,7 @@
     <string name="until_days_hours">In %1$d d %2$d h</string>
     <string name="day_today">Today</string>
     <string name="day_tomorrow">Tomorrow</string>
+    <string name="day_yesterday">Yesterday</string>
     <string name="repeat_once">Once</string>
     <string name="repeat_every_day">Every day</string>
     <string name="repeat_weekdays">Weekdays</string>
@@ -87,6 +88,9 @@
     <string name="snackbar_undo">Undo</string>
     <string name="snackbar_skipped">The next ring will be skipped</string>
     <string name="snackbar_switched_off">Alarm switched off</string>
+    <string name="snackbar_paused">All alarms are paused</string>
+    <string name="snackbar_on">Alarm on. Rings %1$s.</string>
+    <string name="snackbar_on_with_group">Alarm on. Rings %1$s. Group \"%2$s\" is on again, with its other alarms.</string>
 
     <!-- Alarm editor -->
     <string name="edit_title_new">New alarm</string>
@@ -100,6 +104,8 @@
     <string name="edit_never_rings">This alarm will not ring</string>
     <string name="edit_discard_title">Discard changes?</string>
     <string name="edit_discard_body">Your edits to this alarm have not been saved.</string>
+    <string name="edit_alarm_gone">This alarm was deleted while you were editing it (it may have rung and deleted itself).</string>
+    <string name="edit_save_as_new">Save as new</string>
     <string name="edit_discard">Discard</string>
     <string name="edit_delete_title">Delete alarm?</string>
     <string name="edit_delete_body">This alarm will be removed. You can undo this from the list right after.</string>

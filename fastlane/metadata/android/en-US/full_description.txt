@@ -30,7 +30,7 @@ CLOCK TOOLS
 Timer, stopwatch with laps, world clock, live countdown to your next alarm, home-screen widgets and a Quick Settings tile.
 
 ALARM HEALTH
-A built-in checkup shows whether notifications, full-screen alerts, exact alarms, battery settings, Do Not Disturb and audio routing could stop an alarm, tells you how to fix each, and lets you ring a real test alarm.
+A built-in checkup shows whether notifications, full-screen alerts, exact alarms, battery settings, Do Not Disturb and audio routing could stop an alarm, tells you how to fix each, and lets you ring a real test alarm. It can also warn you before bed when the battery is low and not charging.
 
 BACKUP AND RESTORE
 Save your alarms and settings to a file you choose and restore them on a new phone. Nothing is uploaded.

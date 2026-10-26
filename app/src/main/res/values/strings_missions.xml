@@ -61,6 +61,9 @@
     <string name="mission_math_answer_hint">Your answer</string>
     <string name="mission_math_delete">Delete</string>
     <string name="mission_math_submit">Submit answer</string>
+    <string name="mission_math_example_easy">Questions like 7 + 5 or 9 − 4</string>
+    <string name="mission_math_example_medium">Questions like 27 + 6 or 7 × 4</string>
+    <string name="mission_math_example_hard">Questions like 38 + 47 or 7 × 8 + 23</string>
 
     <!-- Memory -->
     <string name="mission_memory_progress">Round %1$d of %2$d</string>
@@ -201,7 +204,7 @@
 
     <string name="mission_setup_cancel">Cancel</string>
 
-    <!-- Typing phrases. Easy: about 25 lowercase characters. Medium: about 50. Hard: about 90 with capitals and punctuation, case-sensitive. -->
+    <!-- Typing phrases, sized for someone just woken. Easy: about 25 lowercase characters. Medium: about 35, lowercase, no punctuation. Hard: about 60 with capitals and punctuation, case-sensitive. -->
     <string-array name="mission_phrases_easy">
         <item>good morning sunshine</item>
         <item>the sun is up today</item>
@@ -221,33 +224,33 @@
         <item>the whole day is yours</item>
     </string-array>
     <string-array name="mission_phrases_medium">
-        <item>every morning is a chance to begin again today</item>
-        <item>a glass of water and a deep breath will help you</item>
-        <item>the early light is soft and the house is quiet</item>
-        <item>your bed will still be here tonight, so get up now</item>
-        <item>put on some music and let the morning find you</item>
-        <item>a short walk before breakfast clears the head</item>
-        <item>the kettle is on and the sky is turning gold</item>
-        <item>wiggle your toes, roll your shoulders, and stand up</item>
-        <item>the plan for today starts with one simple step</item>
-        <item>open the curtains and let the daylight wake you</item>
-        <item>someone is lucky to have you awake and smiling</item>
-        <item>good things happen to people who get up and try</item>
-        <item>a calm start makes for a gentle, steady day</item>
-        <item>fresh air and sunshine are waiting by the door</item>
+        <item>every morning is a fresh start</item>
+        <item>a glass of water will help you wake</item>
+        <item>the early light is soft and quiet</item>
+        <item>your bed will still be here tonight</item>
+        <item>put on some music and get moving</item>
+        <item>a short walk clears a sleepy head</item>
+        <item>the kettle is on and the sky is gold</item>
+        <item>wiggle your toes and then stand up</item>
+        <item>today starts with one simple step</item>
+        <item>open the curtains and let light in</item>
+        <item>good things happen when you get up</item>
+        <item>fresh air is waiting by the door</item>
+        <item>a calm start makes a steady day</item>
+        <item>someone is glad you are awake now</item>
     </string-array>
     <string-array name="mission_phrases_hard">
-        <item>Good morning! The coffee is brewing, the birds are singing, and a brand-new day has begun.</item>
-        <item>Rise up, Sleepyhead: the sun has climbed over the hills, and your day is ready for you.</item>
-        <item>Take three deep breaths, stretch your arms to the ceiling, and then step into the morning light.</item>
-        <item>Now is a great time to begin; even a tiny effort this minute will make today feel wonderful.</item>
-        <item>Water, sunlight, and a little movement: that is the recipe for a bright and focused morning.</item>
-        <item>Remember, nobody ever regretted getting up early; they only regretted staying in bed too long.</item>
-        <item>A journey of a thousand miles begins with one step, and yours begins right out of bed.</item>
-        <item>The alarm has done its job; now it is your turn to say Hello, world! and mean it.</item>
-        <item>Pour some tea, open the window, and listen: the whole neighborhood is waking up with you.</item>
-        <item>Today\'s list is short: wake up, drink water, smile, and take the first small step.</item>
-        <item>Great days start with great habits, so stand up, shake out your hands, and breathe deeply.</item>
-        <item>Look outside, count to ten, and enjoy this quiet moment before the busy day begins.</item>
+        <item>Good morning! The coffee is brewing and the day has begun.</item>
+        <item>Rise up, Sleepyhead: the sun is over the hills already.</item>
+        <item>Take three deep breaths, stretch, and step into the light.</item>
+        <item>Now is a great time to begin; a tiny effort goes a long way.</item>
+        <item>Water, sunlight and a little movement make a bright morning.</item>
+        <item>Nobody ever regretted getting up; only staying in bed too long.</item>
+        <item>A journey of a thousand miles begins with one step out of bed.</item>
+        <item>The alarm has done its job. Now say Hello, world! and mean it.</item>
+        <item>Pour some tea, open the window and listen to the world wake up.</item>
+        <item>Today\'s list: wake up, drink water, smile, take one small step.</item>
+        <item>Great days start with great habits, so stand up and stretch.</item>
+        <item>Look outside, count to ten, and enjoy this quiet moment.</item>
     </string-array>
 </resources>

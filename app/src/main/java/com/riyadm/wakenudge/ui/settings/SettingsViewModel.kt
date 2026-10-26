@@ -6,8 +6,8 @@ import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.model.AlarmDefaults
 import com.riyadm.wakenudge.domain.model.AlarmGroup
 import com.riyadm.wakenudge.domain.model.AppSettings
-import com.riyadm.wakenudge.domain.model.VacationMode
 import com.riyadm.wakenudge.domain.model.ExceptionDate
+import com.riyadm.wakenudge.domain.model.VacationMode
 import com.riyadm.wakenudge.domain.repository.ExceptionRepository
 import com.riyadm.wakenudge.domain.repository.GroupRepository
 import com.riyadm.wakenudge.domain.repository.SettingsRepository
@@ -16,6 +16,7 @@ import com.riyadm.wakenudge.engine.CalendarHolidayProvider
 import com.riyadm.wakenudge.engine.DeviceCalendar
 import com.riyadm.wakenudge.engine.audio.AlarmVibrator
 import com.riyadm.wakenudge.engine.audio.SoundPreviewer
+import com.riyadm.wakenudge.ui.util.persist
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import javax.inject.Inject
@@ -54,7 +55,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setVacation(enabled: Boolean, resumeEpochDay: Long?) = viewModelScope.launch {
+    fun setVacation(enabled: Boolean, resumeEpochDay: Long?) = persist {
         repo.update { it.copy(vacation = it.vacation.copy(enabled = enabled, resumeEpochDay = resumeEpochDay)) }
         scheduler.rescheduleAll("vacation")
     }
@@ -80,12 +81,12 @@ class GroupsViewModel @Inject constructor(
         if (name.isNotBlank()) groups.save(group.copy(name = name.trim().take(30)))
     }
 
-    fun setEnabled(group: AlarmGroup, enabled: Boolean) = viewModelScope.launch {
+    fun setEnabled(group: AlarmGroup, enabled: Boolean) = persist {
         groups.setEnabled(group.id, enabled)
         scheduler.rescheduleAll("group-toggle")
     }
 
-    fun delete(group: AlarmGroup) = viewModelScope.launch {
+    fun delete(group: AlarmGroup) = persist {
         groups.delete(group.id)
         scheduler.rescheduleAll("group-delete")
     }
@@ -100,6 +101,8 @@ data class ExceptionsUiState(
     /** How many days in the next year are skipped because of selected calendars. */
     val calendarHolidayDays: Int = 0,
     val vacation: VacationMode = VacationMode(),
+    /** False until the stored settings were read: before that the switches would show defaults, not the user's state. */
+    val loaded: Boolean = false,
 )
 
 @HiltViewModel
@@ -114,7 +117,14 @@ class ExceptionsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch { exceptions.observeDates().collect { d -> _calendarState.value = _calendarState.value.copy(dates = d) } }
-        viewModelScope.launch { settings.settings.collect { refreshCalendar(it) } }
+        viewModelScope.launch {
+            settings.settings.collect { s ->
+                // The stored state first, at once: the calendar lookup below can take a while, and a tap on a switch that
+                // still showed the default ("vacation off") would have wiped the real resume date.
+                _calendarState.value = _calendarState.value.copy(vacation = s.vacation, calendarEnabled = s.calendarExceptions.enabled, loaded = true)
+                refreshCalendar(s)
+            }
+        }
     }
 
     fun onPermissionResult() = viewModelScope.launch { refreshCalendar(settings.current()) }
@@ -131,27 +141,27 @@ class ExceptionsViewModel @Inject constructor(
         )
     }
 
-    fun setVacation(enabled: Boolean, resumeEpochDay: Long?) = viewModelScope.launch {
+    fun setVacation(enabled: Boolean, resumeEpochDay: Long?) = persist {
         settings.update { it.copy(vacation = it.vacation.copy(enabled = enabled, resumeEpochDay = resumeEpochDay)) }
         scheduler.rescheduleAll("vacation")
     }
 
-    fun addDate(epochDay: Long, label: String) = viewModelScope.launch {
+    fun addDate(epochDay: Long, label: String) = persist {
         exceptions.add(ExceptionDate(epochDay, label.trim().take(40)))
         scheduler.rescheduleAll("exceptions")
     }
 
-    fun removeDate(epochDay: Long) = viewModelScope.launch {
+    fun removeDate(epochDay: Long) = persist {
         exceptions.remove(epochDay)
         scheduler.rescheduleAll("exceptions")
     }
 
-    fun setCalendarEnabled(enabled: Boolean) = viewModelScope.launch {
+    fun setCalendarEnabled(enabled: Boolean) = persist {
         settings.update { it.copy(calendarExceptions = it.calendarExceptions.copy(enabled = enabled)) }
         scheduler.rescheduleAll("calendar-exceptions")
     }
 
-    fun toggleCalendar(id: Long, selected: Boolean) = viewModelScope.launch {
+    fun toggleCalendar(id: Long, selected: Boolean) = persist {
         settings.update {
             val ids = it.calendarExceptions.calendarIds
             it.copy(calendarExceptions = it.calendarExceptions.copy(calendarIds = if (selected) ids + id else ids - id))

@@ -61,6 +61,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.core.TimeText
@@ -99,7 +100,7 @@ fun RingScreen(
     session: RingSession,
     settings: AppSettings,
     actions: RingActions,
-    missionContent: @Composable (missions: List<MissionConfig>, onInteraction: () -> Unit, onProgress: (Int) -> Unit, onComplete: () -> Unit) -> Unit,
+    missionContent: @Composable (missions: List<MissionConfig>, onInteraction: () -> Unit, onProgress: (Int) -> Unit, onComplete: () -> Unit, firstMission: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var mode by rememberSaveable { mutableStateOf(RingMode.Home) }
@@ -160,7 +161,15 @@ fun RingScreen(
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
             val wide = maxWidth > maxHeight && maxWidth > 600.dp
             val viewport = maxHeight
-            if (wide) {
+            if (mode != RingMode.Home) {
+                // Missions always use this one layout, whatever the window's shape. A wide layout used to measure them
+                // inside a scrolling column, which gave the mission no height at all, and switching layouts on rotation
+                // (or when a keyboard changed the window's shape) threw away the mission in progress.
+                Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp)) {
+                    Header(session, settings, now, compact = true)
+                    Controls(session, settings, mode, { mode = it }, actions, missionContent, onBottom, Modifier.weight(1f))
+                }
+            } else if (wide) {
                 Row(Modifier.fillMaxSize().padding(24.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
                     Column(Modifier.weight(1f).fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.Center) {
                         Header(session, settings, now)
@@ -169,7 +178,7 @@ fun RingScreen(
                         Controls(session, settings, mode, { mode = it }, actions, missionContent, onBottom)
                     }
                 }
-            } else if (mode == RingMode.Home) {
+            } else {
                 // Scrollable so that large system fonts or a small screen can never push a control off the bottom.
                 Column(
                     Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = viewport).padding(horizontal = 24.dp, vertical = 16.dp),
@@ -177,11 +186,6 @@ fun RingScreen(
                 ) {
                     Header(session, settings, now, compact = false)
                     Controls(session, settings, mode, { mode = it }, actions, missionContent, onBottom)
-                }
-            } else {
-                Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp)) {
-                    Header(session, settings, now, compact = true)
-                    Controls(session, settings, mode, { mode = it }, actions, missionContent, onBottom, Modifier.weight(1f))
                 }
             }
         }
@@ -227,9 +231,12 @@ private fun Header(session: RingSession, settings: AppSettings, now: Long, compa
             else -> session.alarm.label
         }
         if (title.isNotBlank()) {
+            // Above a mission the label gets one line: a 60-character label at a large font size would otherwise take
+            // the room the mission needs.
             Text(
                 title, style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
-                color = scheme.onPrimaryContainer, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp),
+                color = scheme.onPrimaryContainer, textAlign = TextAlign.Center, modifier = Modifier.padding(top = if (compact) 4.dp else 12.dp),
+                maxLines = if (compact) 1 else Int.MAX_VALUE, overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -247,7 +254,7 @@ private fun Controls(
     mode: RingMode,
     setMode: (RingMode) -> Unit,
     actions: RingActions,
-    missionContent: @Composable (List<MissionConfig>, () -> Unit, (Int) -> Unit, () -> Unit) -> Unit,
+    missionContent: @Composable (List<MissionConfig>, () -> Unit, (Int) -> Unit, () -> Unit, Int) -> Unit,
     onBottom: Color,
     modifier: Modifier = Modifier,
 ) {
@@ -345,6 +352,8 @@ private fun Controls(
                         actions.onInteraction,
                         { if (current == RingMode.DismissMissions) actions.onMissionProgress(it) },
                         { if (current == RingMode.SnoozeMissions) actions.onSnooze() else actions.onDismiss() },
+                        // Going back to the alarm (or the screen being rebuilt) must not cost the missions already done.
+                        if (current == RingMode.DismissMissions) session.missionsDone.coerceIn(0, list.size) else 0,
                     )
                 }
                 if (alarm.antiOversleep.emergencyStopEnabled) {

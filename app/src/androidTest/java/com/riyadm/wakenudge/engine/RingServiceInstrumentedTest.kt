@@ -135,7 +135,7 @@ class RingServiceInstrumentedTest {
         assertNull(store.current)
     }
 
-    @Test fun theServiceAsksTheSystemToBringItBackIfItIsKilledMidRing() = runBlocking {
+    @Test fun theServiceAsksTheSystemToBringItBackIfItIsKilledMidRing() = runBlocking<Unit> {
         runtime.testAlarmJson = WakeJson.instance.encodeToString(Alarm.serializer(), quietAlarm())
         startService(RingRequest(RingIds.TEST_ALARM_ID, -1, time.nowMillis(), RingKind.TEST))
         await("the service to start sounding") { store.current != null && audio.isAudible }

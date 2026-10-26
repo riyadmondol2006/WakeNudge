@@ -14,10 +14,12 @@ import kotlin.math.sqrt
  * Structure dominates because palette alone cannot tell two rooms with the same paint apart.
  *
  * Measured on the synthetic scenes in `PhotoMatcherTest` (40 seeds each): the same view scores 0.97-1.00 when shifted
- * by up to 5 cells or zoomed 3%, 0.83-0.87 with +25 brightness and 0.75-0.83 with -40; a different scene scores
- * 0.03-0.39, the same pixels scrambled 0.30-0.40 and random noise 0.09-0.28. The thresholds (see [thresholdFor]) sit
- * in the wide gap between those groups. Real camera frames are noisier than the synthetic ones, so expect lower
- * same-place scores in practice; the margins were not verified on a device.
+ * by up to 5 cells or zoomed 3%, 0.83-0.87 with +25 brightness, 0.75-0.83 with -40, and 0.75 or more for a reference
+ * taken under a warm lamp matched in cool daylight; a different scene scores 0.03-0.39, the same pixels scrambled
+ * 0.30-0.40 and random noise 0.09-0.28. The thresholds (see [thresholdFor]) sit in the gap between those groups, low
+ * enough that the lamp-to-daylight morning still passes on medium (the earlier 0.78 did not). Real camera frames are
+ * noisier than the synthetic ones, so expect lower same-place scores in practice; the margins were not verified on a
+ * device.
  */
 object PhotoMatcher {
     const val MAX_SHIFT = 2
@@ -70,9 +72,9 @@ object PhotoMatcher {
 
     /** Similarity a live frame must reach, and hold for [MatchHold.HOLD_NS], to pass. */
     fun thresholdFor(difficulty: Difficulty): Float = when (difficulty) {
-        Difficulty.EASY -> 0.70f
-        Difficulty.MEDIUM -> 0.78f
-        Difficulty.HARD -> 0.85f
+        Difficulty.EASY -> 0.60f
+        Difficulty.MEDIUM -> 0.68f
+        Difficulty.HARD -> 0.78f
     }
 }
 

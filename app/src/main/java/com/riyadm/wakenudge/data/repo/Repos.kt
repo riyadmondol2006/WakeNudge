@@ -64,6 +64,9 @@ class GroupRepositoryImpl @Inject constructor(
     override suspend fun save(group: AlarmGroup): Long = dao.upsert(group.toEntity())
 
     override suspend fun delete(id: Long) {
+        // A switched-off profile's alarms were silent because of the profile. Deleting it must not make them all start
+        // ringing (an ungrouped alarm counts as on): they stay off, as they were in effect.
+        if (dao.get(id)?.enabled == false) alarmDao.disableInGroup(id, System.currentTimeMillis())
         alarmDao.detachGroup(id)
         dao.delete(id)
     }

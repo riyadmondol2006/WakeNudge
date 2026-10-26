@@ -22,6 +22,7 @@ import com.riyadm.wakenudge.ui.nav.AlarmEditRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.ZonedDateTime
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -46,6 +47,12 @@ data class EditUiState(
 sealed interface SaveOutcome {
     data object Saved : SaveOutcome
     data class Locked(val minutes: Int) : SaveOutcome
+
+    /** The alarm was deleted while the editor was open: it rang and deleted itself after use, or was removed elsewhere. */
+    data object Gone : SaveOutcome
+
+    /** A save already ran or is running (a double tap): nothing more to do, and above all nothing to save twice. */
+    data object Busy : SaveOutcome
 }
 
 @HiltViewModel
@@ -70,6 +77,10 @@ class AlarmEditViewModel @Inject constructor(
 
     private var stored: Alarm? = null
 
+    /** Set while a save or delete runs, and kept once one succeeded, so a second tap can never act again. */
+    private var busy = false
+    private var finished = false
+
     init {
         viewModelScope.launch {
             val restored = handle.get<String>(KEY_DRAFT)?.let {
@@ -79,9 +90,12 @@ class AlarmEditViewModel @Inject constructor(
             stored = existing
             val base = restored ?: existing ?: newAlarm(settingsRepo.current())
             val locked = existing?.let { actions.lockedMinutes(it) }
+            // A new alarm that arrives filled in (from the sleep planner, an assistant or another app) is the user's
+            // request already: leaving without saving should ask, like any other unsaved change.
+            val prefilled = existing == null && route.hour in 0..23
             _state.value = EditUiState(
                 loaded = true, draft = base, isNew = existing == null, lockedMinutes = locked,
-                dirty = restored != null,
+                dirty = restored != null || prefilled,
             )
             refreshUpcoming(base)
         }
@@ -108,8 +122,12 @@ class AlarmEditViewModel @Inject constructor(
         refreshUpcoming(next)
     }
 
+    private var upcomingJob: Job? = null
+
     private fun refreshUpcoming(alarm: Alarm) {
-        viewModelScope.launch {
+        // Each wheel step asks again; an older answer (a slow calendar lookup) must not land after a newer one.
+        upcomingJob?.cancel()
+        upcomingJob = viewModelScope.launch {
             val ctx = contextProvider.load().forAlarm(alarm.copy(enabled = true))
             val list = calculator.upcoming(alarm.copy(enabled = true), time.now(), ctx, count = 3)
             _state.value = _state.value.copy(upcoming = list)
@@ -120,29 +138,69 @@ class AlarmEditViewModel @Inject constructor(
         _state.value = _state.value.copy(lockOverridden = true)
     }
 
-    suspend fun save(): SaveOutcome {
-        val s = _state.value
-        val original = stored
-        val d = s.draft
-        // Setting a time or schedule means "ring for me" (enable); fixing a typo in the label of an alarm the user
-        // switched off must not quietly turn it back on.
-        val scheduleChanged = original == null || original.hour != d.hour || original.minute != d.minute ||
-            original.repeatDaysMask != d.repeatDaysMask || original.oneTimeEpochDay != d.oneTimeEpochDay
-        val result = actions.save(d.copy(enabled = if (scheduleChanged) true else original!!.enabled), overrideLock = s.lockOverridden || s.lockedMinutes == null)
-        return when (result) {
-            is ActionResult.Locked -> SaveOutcome.Locked(result.minutes)
-            else -> {
-                handle.remove<String>(KEY_DRAFT)
-                SaveOutcome.Saved
+    /**
+     * Saves the draft. [asNew] saves an alarm that was deleted meanwhile (see [SaveOutcome.Gone]) as a new one.
+     *
+     * The draft is compared with the alarm as it is stored now, not as it was when the editor opened: while the editor
+     * was open the alarm may have rung and switched itself off, been switched off or skipped from a widget or a
+     * notification, or deleted itself after use. Saving a label fix must not undo any of that.
+     */
+    suspend fun save(asNew: Boolean = false): SaveOutcome {
+        if (busy || finished) return SaveOutcome.Busy
+        busy = true
+        try {
+            val s = _state.value
+            val d = s.draft
+            val current = stored?.let { alarms.getAlarm(it.id) }
+            if (stored != null && current == null && !asNew) return SaveOutcome.Gone
+            // Setting a time or schedule means "ring for me" (enable) and replaces a pending "skip next"; fixing a typo
+            // in the label of an alarm the user switched off must not quietly turn it back on.
+            val scheduleChanged = current == null || current.hour != d.hour || current.minute != d.minute ||
+                current.repeatDaysMask != d.repeatDaysMask || current.oneTimeEpochDay != d.oneTimeEpochDay
+            val toSave = if (current == null) {
+                d.copy(id = 0, enabled = true, skipEpochDay = null)
+            } else {
+                d.copy(
+                    enabled = if (scheduleChanged) true else current.enabled,
+                    skipEpochDay = if (scheduleChanged) null else current.skipEpochDay,
+                )
             }
+            // The edit lock is checked against the alarm now: an editor opened at 06:25 is still locked at 06:50.
+            return when (val result = actions.save(toSave, overrideLock = s.lockOverridden)) {
+                is ActionResult.Locked -> {
+                    _state.value = _state.value.copy(lockedMinutes = result.minutes, lockOverridden = false)
+                    SaveOutcome.Locked(result.minutes)
+                }
+                is ActionResult.Done -> {
+                    finished = true
+                    handle.remove<String>(KEY_DRAFT)
+                    SaveOutcome.Saved
+                }
+                ActionResult.NotFound -> SaveOutcome.Gone
+            }
+        } finally {
+            busy = false
         }
     }
 
     suspend fun delete(): SaveOutcome {
-        val s = _state.value
-        return when (val r = actions.delete(s.draft.id, overrideLock = s.lockOverridden || s.lockedMinutes == null)) {
-            is ActionResult.Locked -> SaveOutcome.Locked(r.minutes)
-            else -> SaveOutcome.Saved
+        if (busy || finished) return SaveOutcome.Busy
+        busy = true
+        try {
+            val s = _state.value
+            return when (val r = actions.delete(s.draft.id, overrideLock = s.lockOverridden)) {
+                is ActionResult.Locked -> {
+                    _state.value = _state.value.copy(lockedMinutes = r.minutes, lockOverridden = false)
+                    SaveOutcome.Locked(r.minutes)
+                }
+                else -> {
+                    finished = true
+                    handle.remove<String>(KEY_DRAFT)
+                    SaveOutcome.Saved
+                }
+            }
+        } finally {
+            busy = false
         }
     }
 

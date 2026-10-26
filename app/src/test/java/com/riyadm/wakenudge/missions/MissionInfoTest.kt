@@ -90,16 +90,16 @@ class MissionStringsTest {
         }
     }
 
-    @Test fun `medium phrases are about fifty characters`() {
+    @Test fun `medium phrases are about thirty-five characters, lowercase and unpunctuated`() {
         for (phrase in items("mission_phrases_medium")) {
-            assertTrue("'$phrase' length ${phrase.length}", phrase.length in 40..60)
-            assertEquals(phrase.lowercase(), phrase)
+            assertTrue("'$phrase' length ${phrase.length}", phrase.length in 28..42)
+            assertTrue("'$phrase'", phrase.all { it.isLowerCase() || it == ' ' })
         }
     }
 
-    @Test fun `hard phrases are about ninety characters with capitals and punctuation`() {
+    @Test fun `hard phrases are about sixty characters with capitals and punctuation`() {
         for (phrase in items("mission_phrases_hard")) {
-            assertTrue("'$phrase' length ${phrase.length}", phrase.length in 75..110)
+            assertTrue("'$phrase' length ${phrase.length}", phrase.length in 50..68)
             assertTrue("'$phrase' has no capital", phrase.any { it.isUpperCase() })
             assertTrue("'$phrase' has no punctuation", phrase.any { it in ",.;:!-'" })
         }

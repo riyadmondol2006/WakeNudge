@@ -395,18 +395,27 @@ class AlarmAudioEngine @Inject constructor(
                 return@launch
             }
             switching = true
+            // Opening the next song can take seconds per song (a cloud file while offline, a sleeping SD card). The
+            // alarm must not go quiet meanwhile: after a moment the beeper fills in until a song plays.
+            val stopGap = scope.launch {
+                delay(TRACK_SWITCH_GRACE_MS)
+                if (gen == generation && switching) startBeeper("the next song is slow to open")
+            }
             try {
-                val tracks = SoundResolver.playlistOrder(cfg.alarm.sound, current.uri, random)
+                // A few songs at most, then the built-in tones: ten unreachable songs must not mean forty silent seconds.
+                val tracks = SoundResolver.playlistOrder(cfg.alarm.sound, current.uri, random).take(MAX_TRACKS_PER_SWITCH)
                 val result = playWithFallback(tracks + fallbackCandidates(), gen, reason = null, fallbackFrom = tracks.size)
                 when {
                     gen != generation -> return@launch
                     result == PlayResult.FAILED -> startBeeper("playlist exhausted")
                     else -> {
+                        stopBeeper()
                         safely("volume plan", Unit) { applyVolumePlan() }
                         applyPlayerVolume()
                     }
                 }
             } finally {
+                stopGap.cancel()
                 switching = false
             }
         }
@@ -690,5 +699,7 @@ class AlarmAudioEngine @Inject constructor(
         const val BEEP_PERIOD_MS = 1_200L
         const val BEEPER_RETRY_MS = 15_000L
         const val MAX_LAYER_FAILURES = 3
+        const val TRACK_SWITCH_GRACE_MS = 1_500L
+        const val MAX_TRACKS_PER_SWITCH = 3
     }
 }

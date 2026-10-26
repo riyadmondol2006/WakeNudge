@@ -18,11 +18,24 @@ object PatternGrid {
         val steps = gcd(abs(dRow), abs(dCol))
         return (1 until steps).map { k -> (from / SIDE + dRow / steps * k) * SIDE + from % SIDE + dCol / steps * k }
     }
+
+    /**
+     * A chess knight's jump (one row and two columns, or the other way round). Its straight line passes only 0.45 of a
+     * cell from two other dots, while a dot counts as touched within 0.4 of a cell: drawing it needs a few pixels of
+     * precision, and the slightest curve picks up a wrong dot. Fine for a lock screen, unfair half asleep.
+     */
+    fun isKnightMove(from: Int, to: Int): Boolean {
+        val dRow = abs(to / SIDE - from / SIDE)
+        val dCol = abs(to % SIDE - from % SIDE)
+        return (dRow == 1 && dCol == 2) || (dRow == 2 && dCol == 1)
+    }
 }
 
 /**
  * Builds the pattern the user has to trace: a path of distinct dots where no segment runs over another dot, so every
- * pattern has exactly one way to be drawn (unlike lock-screen patterns, where passing over a dot silently adds it).
+ * pattern has exactly one way to be drawn (unlike lock-screen patterns, where passing over a dot silently adds it),
+ * and no segment is a knight's jump that grazes two other dots (see [PatternGrid.isKnightMove]): every line is then
+ * to a neighbouring dot, straight or diagonal, and easy to draw with a sleepy thumb.
  */
 object PatternGenerator {
     fun generate(length: Int, random: Random): List<Int> {
@@ -37,7 +50,9 @@ object PatternGenerator {
 
     private fun extend(path: MutableList<Int>, length: Int, random: Random): List<Int>? {
         if (path.size == length) return path.toList()
-        val options = (0 until PatternGrid.NODES).filter { it !in path && PatternGrid.between(path.last(), it).isEmpty() }.shuffled(random)
+        val options = (0 until PatternGrid.NODES)
+            .filter { it !in path && PatternGrid.between(path.last(), it).isEmpty() && !PatternGrid.isKnightMove(path.last(), it) }
+            .shuffled(random)
         for (node in options) {
             path += node
             extend(path, length, random)?.let { return it }

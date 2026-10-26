@@ -19,6 +19,8 @@ data class HealthSnapshot(
     val notificationsEnabled: Boolean = true,
     /** Importance of the ring channel; null when the channel does not exist. */
     val ringChannelImportance: Int? = NotificationManager.IMPORTANCE_HIGH,
+    /** The channel whose own sound is the alarm when the ring service could not start at all. */
+    val fallbackChannelImportance: Int? = NotificationManager.IMPORTANCE_HIGH,
     val fullScreenIntentAllowed: Boolean = true,
 
     // Scheduling permissions and power management
@@ -33,6 +35,11 @@ data class HealthSnapshot(
     val interruptionFilter: Int = NotificationManager.INTERRUPTION_FILTER_ALL,
     /** Whether the current Do Not Disturb policy lets alarm sounds through. */
     val dndAllowsAlarms: Boolean = true,
+    /**
+     * Whether Android has muted the alarm stream right now. A Do Not Disturb schedule or mode carries its own policy,
+     * which [dndAllowsAlarms] (the user's default policy) does not show; the mute it causes is visible only here.
+     */
+    val alarmStreamMuted: Boolean = false,
     val alarmVolume: Int = 5,
     val alarmVolumeMax: Int = 7,
     val volumeFixed: Boolean = false,

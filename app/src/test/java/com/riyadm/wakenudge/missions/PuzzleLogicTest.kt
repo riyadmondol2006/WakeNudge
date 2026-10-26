@@ -32,10 +32,16 @@ class SlidingPuzzleTest {
         }
     }
 
-    @Test fun `sizes follow the difficulty`() {
-        assertEquals(3, SlidingPuzzle.forDifficulty(Difficulty.EASY, Random(1)).size)
-        assertEquals(3, SlidingPuzzle.forDifficulty(Difficulty.MEDIUM, Random(1)).size)
-        assertEquals(4, SlidingPuzzle.forDifficulty(Difficulty.HARD, Random(1)).size)
+    @Test fun `every level is the three by three board, never a fully shuffled fifteen puzzle`() {
+        for (difficulty in Difficulty.entries) assertEquals(3, SlidingPuzzle.forDifficulty(difficulty, Random(1)).size)
+    }
+
+    @Test fun `easy is only a few slides from solved`() {
+        for (seed in 0 until 300) {
+            val puzzle = SlidingPuzzle.forDifficulty(Difficulty.EASY, Random(seed))
+            // Eight slides can move tiles at most eight squares in total.
+            assertTrue("seed $seed", SlidingPuzzle.manhattanDistance(puzzle.tiles, puzzle.size) <= 8)
+        }
     }
 
     @Test fun `easy boards are closer to solved than hard ones on average`() {
@@ -44,6 +50,7 @@ class SlidingPuzzleTest {
             SlidingPuzzle.manhattanDistance(puzzle.tiles, puzzle.size)
         }.average()
         assertTrue(average(Difficulty.EASY) < average(Difficulty.MEDIUM))
+        assertTrue(average(Difficulty.MEDIUM) < average(Difficulty.HARD))
     }
 
     @Test fun `tapping a tile next to the blank slides it`() {
@@ -81,10 +88,18 @@ class SlidingPuzzleTest {
 
     @Test fun `legal moves never break the permutation or solvability`() {
         val random = Random(8)
-        val puzzle = SlidingPuzzle.forDifficulty(Difficulty.HARD, random)
-        repeat(500) { puzzle.tap(random.nextInt(16)) }
-        assertEquals(List(16) { it }, puzzle.tiles.sorted())
-        assertTrue(SlidingPuzzle.isSolvable(puzzle.tiles, 4))
+        for (puzzle in listOf(SlidingPuzzle.forDifficulty(Difficulty.HARD, random), SlidingPuzzle.scrambled(4, moves = 220, random = random))) {
+            val n = puzzle.size * puzzle.size
+            repeat(500) { puzzle.tap(random.nextInt(n)) }
+            assertEquals(List(n) { it }, puzzle.tiles.sorted())
+            assertTrue(SlidingPuzzle.isSolvable(puzzle.tiles, puzzle.size))
+        }
+    }
+
+    @Test fun `a tap outside the board is ignored instead of crashing`() {
+        val puzzle = SlidingPuzzle.restore(3, listOf(1, 2, 3, 4, 5, 6, 7, 8, 0))
+        for (index in listOf(-1, 9, 11, 100)) assertFalse(puzzle.tap(index))
+        assertEquals(listOf(1, 2, 3, 4, 5, 6, 7, 8, 0), puzzle.tiles)
     }
 
     @Test fun `progress counts tiles on their home square`() {
@@ -157,6 +172,21 @@ class PatternTraceTest {
                 assertEquals(length, pattern.toSet().size)
                 assertTrue(pattern.all { it in 0 until PatternGrid.NODES })
                 assertTrue(pattern.zipWithNext().all { (a, b) -> PatternGrid.between(a, b).isEmpty() })
+            }
+        }
+    }
+
+    @Test fun `no pattern asks for a knight's jump, whose line grazes two other dots`() {
+        assertTrue(PatternGrid.isKnightMove(0, 5))
+        assertTrue(PatternGrid.isKnightMove(0, 7))
+        assertTrue(!PatternGrid.isKnightMove(0, 4))
+        assertTrue(!PatternGrid.isKnightMove(0, 1))
+        for (difficulty in Difficulty.entries) for (seed in 0 until 300) {
+            val pattern = PatternGenerator.generate(PatternGenerator.lengthFor(difficulty), Random(seed))
+            for ((a, b) in pattern.zipWithNext()) {
+                assertTrue("$pattern has a knight's jump $a to $b", !PatternGrid.isKnightMove(a, b))
+                // Every segment then goes to a neighbouring dot: one row and/or one column away.
+                assertTrue(kotlin.math.abs(a / 3 - b / 3) <= 1 && kotlin.math.abs(a % 3 - b % 3) <= 1)
             }
         }
     }

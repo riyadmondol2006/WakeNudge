@@ -33,6 +33,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.riyadm.wakenudge.missions.ui.LocalMissionWayOut
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -97,13 +99,15 @@ fun MissionHost(
     previewMode: Boolean = false,
     onInteraction: () -> Unit = {},
     onProgress: (completed: Int) -> Unit = {},
+    /** Missions already done in this ring (the user went back, or the screen was rebuilt): the chain resumes there. */
+    firstMission: Int = 0,
     onComplete: () -> Unit,
 ) {
     val total = missions.size
     val latestOnProgress by rememberUpdatedState(onProgress)
     val latestOnComplete by rememberUpdatedState(onComplete)
     val reduceMotion = rememberReduceMotion()
-    var completed by rememberSaveable { mutableIntStateOf(0) }
+    var completed by rememberSaveable { mutableIntStateOf(firstMission.coerceIn(0, total)) }
     var completionReported by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(completed, total) {
@@ -217,7 +221,15 @@ private fun MissionGate(config: MissionConfig, previewMode: Boolean, onInteracti
             previewMode = previewMode,
             onContinue = onDone,
         )
-        else -> when (config.type) {
+        else -> CompositionLocalProvider(LocalMissionWayOut provides if (previewMode) null else onDone) {
+            MissionContent(config, onInteraction, onDone)
+        }
+    }
+}
+
+@Composable
+private fun MissionContent(config: MissionConfig, onInteraction: () -> Unit, onDone: () -> Unit) {
+    when (config.type) {
             MissionType.MATH -> MathMission(config, onInteraction, onDone)
             MissionType.MEMORY -> MemoryMission(config, onInteraction, onDone)
             MissionType.TYPING -> TypingMission(config, onInteraction, onDone)
@@ -228,7 +240,6 @@ private fun MissionGate(config: MissionConfig, previewMode: Boolean, onInteracti
             MissionType.SQUATS -> SquatsMission(config, onInteraction, onDone)
             MissionType.PUZZLE -> PuzzleMission(config, onInteraction, onDone)
             MissionType.PHOTO -> PhotoMission(config, onInteraction, onDone)
-        }
     }
 }
 

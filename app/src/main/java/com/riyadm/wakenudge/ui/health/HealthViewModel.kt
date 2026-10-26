@@ -74,6 +74,6 @@ class HealthBadgeViewModel @Inject constructor(private val checker: HealthChecke
 
     private companion object {
         /** Problems the user can fix in one tap and that directly affect whether the alarm is seen or heard. */
-        val URGENT_IDS = setOf("notifications", "ring_channel", "full_screen", "dnd", "alarm_volume")
+        val URGENT_IDS = setOf("notifications", "ring_channel", "full_screen", "dnd", "alarm_volume", "exact_alarms")
     }
 }

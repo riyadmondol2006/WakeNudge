@@ -9,6 +9,8 @@
 
     <!-- Alarms that could not be armed -->
     <string name="notif_scheduling_problem_title">An alarm may not ring</string>
+    <string name="notif_alarms_late_title">Alarms may ring late</string>
+    <string name="notif_alarms_late_text">\"Alarms &amp; reminders\" is switched off for WakeNudge, so Android may deliver an alarm up to an hour late. Open Alarm health to allow it.</string>
     <plurals name="notif_scheduling_problem_text">
         <item quantity="one">Android refused to set up %d alarm. Open WakeNudge and check Alarm health.</item>
         <item quantity="other">Android refused to set up %d alarms. Open WakeNudge and check Alarm health.</item>

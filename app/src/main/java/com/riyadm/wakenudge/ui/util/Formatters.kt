@@ -61,7 +61,10 @@ object Formatters {
     fun relativeDay(context: Context, target: ZonedDateTime, now: ZonedDateTime, locale: Locale = Locale.getDefault()): String {
         val days = java.time.temporal.ChronoUnit.DAYS.between(now.toLocalDate(), target.toLocalDate())
         return when {
-            days <= 0L -> context.getString(R.string.day_today)
+            // Negative only for a world-clock city that is still on the previous day.
+            days == -1L -> context.getString(R.string.day_yesterday)
+            days < -1L -> dayAndDate(target, locale)
+            days == 0L -> context.getString(R.string.day_today)
             days == 1L -> context.getString(R.string.day_tomorrow)
             days < 7L -> target.dayOfWeek.getDisplayName(TextStyle.FULL, locale)
             else -> dayAndDate(target, locale)

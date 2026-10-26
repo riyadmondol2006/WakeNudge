@@ -38,6 +38,9 @@ interface AlarmDao {
     @Query("UPDATE alarms SET groupId = NULL WHERE groupId = :groupId")
     suspend fun detachGroup(groupId: Long)
 
+    @Query("UPDATE alarms SET enabled = 0, updatedAt = :now WHERE groupId = :groupId")
+    suspend fun disableInGroup(groupId: Long, now: Long)
+
     @Query("DELETE FROM alarms")
     suspend fun deleteAll()
 

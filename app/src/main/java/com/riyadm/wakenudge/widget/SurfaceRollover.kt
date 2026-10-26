@@ -37,7 +37,9 @@ class SurfaceRollover @Inject constructor(
     fun sync(widgetsPlaced: Boolean) {
         try {
             if (widgetsPlaced) {
-                alarmManager.set(AlarmManager.RTC, nextRollover(time.now()).toInstant().toEpochMilli(), operation(create = true)!!)
+                // A small window rather than set(): on Android 8 to 11 an inexact alarm may slip by 75% of the time left,
+                // which could leave "Tomorrow 07:00" on the widget until late morning. Still non-waking.
+                alarmManager.setWindow(AlarmManager.RTC, nextRollover(time.now()).toInstant().toEpochMilli(), ROLLOVER_WINDOW_MS, operation(create = true)!!)
             } else {
                 operation(create = false)?.let {
                     alarmManager.cancel(it)
@@ -58,6 +60,7 @@ class SurfaceRollover @Inject constructor(
 
     companion object {
         private const val TAG = "WakeNudge"
+        private const val ROLLOVER_WINDOW_MS = 5 * 60_000L
 
         /** A moment past midnight, so the refresh never reads "today" from a clock that is a hair early. */
         private const val SLACK_SECONDS = 2L

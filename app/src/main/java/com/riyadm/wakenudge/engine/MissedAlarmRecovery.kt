@@ -11,6 +11,8 @@ import com.riyadm.wakenudge.engine.notify.Notifier
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Alarms that should have gone off while the phone was powered down. Shortly after the scheduled time the alarm
@@ -28,11 +30,16 @@ class MissedAlarmRecovery @Inject constructor(
     private val time: TimeSource,
     private val diagnostics: DiagnosticsLog,
 ) {
-    /** [before] is the map of registered trigger times captured before the reschedule that followed the boot. */
-    suspend fun process(before: Map<Long, Long>) {
+    /**
+     * [before] is the map of registered trigger times captured before the reschedule that followed the boot.
+     * [dueBy] is when that reschedule finished: it moved everything due by then on to its next ring, so all of that is
+     * overdue here, even an alarm that fell due a moment ago. Without it, a short grace applies to "now".
+     */
+    suspend fun process(before: Map<Long, Long>, dueBy: Long? = null) = lock.withLock {
         val now = time.nowMillis()
+        val cutoff = dueBy ?: (now - GRACE_MS)
         for ((alarmId, at) in before) {
-            if (at >= now - GRACE_MS || alarmId < 0) continue
+            if (at > cutoff || alarmId < 0) continue
             // One alarm that cannot be examined (database trouble) must not hide the others that are overdue.
             try {
                 processOne(alarmId, at, now)
@@ -68,6 +75,9 @@ class MissedAlarmRecovery @Inject constructor(
             }
         }
     }
+
+    /** The boot broadcast and the app-start repair can both look at once; one after the other, the second sees the first's records. */
+    private val lock = Mutex()
 
     private companion object {
         const val GRACE_MS = 2_000L

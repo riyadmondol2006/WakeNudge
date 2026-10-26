@@ -104,15 +104,15 @@ step sensor, permission refused) offers **Continue** instead of blocking you.
 
 | Mission | What you do | Needs |
 |---|---|---|
-| Math | Solve arithmetic problems on a big built-in keypad | |
+| Math | Solve arithmetic on a big built-in keypad: easy is like 7 + 5, medium 27 + 6 or 7 × 4, hard 38 + 47 or 7 × 8 + 23 | |
 | Memory | Watch tiles light up, then repeat the pattern as it grows | |
-| Typing | Type a phrase exactly as shown | |
+| Typing | Type a short phrase as shown (curly quotes and long dashes from your keyboard count as the plain ones) | |
 | QR code or barcode | Scan a code you registered away from your bed | Camera |
 | NFC tag | Tap an NFC tag you placed away from your bed | NFC |
 | Shake | Shake the phone until the counter is full | Accelerometer |
 | Steps | Walk a number of steps, counted on the phone | Step counter or motion sensor |
 | Squats | Do squats while holding the phone against your chest | Accelerometer |
-| Puzzle | Slide tiles into order, find the numbers one to N, or trace a pattern | |
+| Puzzle | Slide tiles into order on a 3 × 3 board, find the numbers one to N, or trace a pattern | |
 | Photo | Go to a place you photographed and point the camera at it (matched on the phone) | Camera |
 
 A heavy-sleeper setup that works well: **QR code or NFC** (so you must leave the bed), plus the **still-awake check**,
@@ -126,6 +126,7 @@ A heavy-sleeper setup that works well: **QR code or NFC** (so you must leave the
 - Profiles (Work, Weekend, ...), skip next ring, vacation mode, holiday and calendar exceptions, upcoming-alarm heads-up
 - Alarm options are grouped into collapsible categories (wake-up challenge, sound and light, volume and vibration, snooze, oversleep protection, schedule rules) with a live summary of each; settings is a grouped hub
 - Bedtime reminders and a sleep planner (wake-up time or bedtime from 90-minute sleep cycles)
+- A low-battery warning about 8 hours before an alarm when the phone is at 20 % or less and not charging, because a phone that runs flat overnight cannot ring
 - A morning dashboard with history and streaks
 
 **Sound**
@@ -149,7 +150,7 @@ An alarm clock is judged on the one morning it fails, so this is where most of t
 
 - Uses the system alarm-clock API (`AlarmManager.setAlarmClock`), plays on the alarm audio stream (`USAGE_ALARM`), and runs a foreground service with a full-screen ring UI over the lock screen.
 - State lives in device-protected storage, so alarms can ring after a restart before the first unlock.
-- Re-arms everything after reboots, app updates, time-zone changes and daylight-saving changes. Snoozes, backup rings and the still-awake check are persisted, not just held in memory.
+- Re-arms everything after reboots, app updates, time-zone changes and daylight-saving changes, and on the next start after a force-stop (which makes Android forget every alarm without telling the app). Snoozes, backup rings and the still-awake check are persisted, not just held in memory.
 - One corrupt alarm cannot stop the others; the app stays under the OS limit of 500 alarms; a 6-hour watchdog re-validates the schedule.
 - A fallback chain (your sound, then the default tone, then a generated beep) means a deleted song still produces sound.
 - Hundreds of unit, fuzz and instrumented tests, including "how will real people break it?" suites. Details in [docs/TESTING.md](docs/TESTING.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

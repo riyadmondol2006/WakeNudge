@@ -55,6 +55,7 @@ object NotificationIds {
     const val RING = 1001
     const val BEDTIME = 1002
     const val SCHEDULING_PROBLEM = 1003
+    const val LOW_BATTERY = 1004
     fun snoozed(alarmId: Long) = 20_000 + (alarmId and 0xFFFF).toInt()
     fun upcoming(alarmId: Long) = 30_000 + (alarmId and 0xFFFF).toInt()
     fun wakeCheck(alarmId: Long) = 40_000 + (alarmId and 0xFFFF).toInt()
@@ -76,6 +77,7 @@ object Actions {
     const val TIMER_RESET = P + "TIMER_RESET"
     const val TIMER_STOP = P + "TIMER_STOP"
     const val EXTRA_ID = "id"
+    const val EXTRA_AT = "at"
 }
 
 /** Builds and posts every notification the app shows. Channels are created lazily and idempotently. */
@@ -225,15 +227,19 @@ class Notifier @Inject constructor(
         .build()
         .also { it.flags = it.flags or Notification.FLAG_INSISTENT }
 
-    /** Placeholder shown within the 5-second foreground-service deadline, before the session is loaded. */
-    fun ringPlaceholder(): Notification = NotificationCompat.Builder(context, Channels.RING)
+    /**
+     * Placeholder shown within the 5-second foreground-service deadline, before the session is loaded. In safe mode
+     * (the ring screen crashed more than once) it must not launch that screen either: the placeholder is posted on
+     * every restart of a rescued ring, and with a full-screen intent it relaunched the crashing screen each time.
+     */
+    fun ringPlaceholder(safeMode: Boolean = false): Notification = NotificationCompat.Builder(context, Channels.RING)
         .setSmallIcon(R.drawable.ic_stat_alarm)
         .setContentTitle(context.getString(R.string.notif_alarm_default_title))
         .setCategory(NotificationCompat.CATEGORY_ALARM)
         .setPriority(NotificationCompat.PRIORITY_MAX)
         .setOngoing(true)
-        .setContentIntent(ringActivityIntent())
-        .setFullScreenIntent(ringActivityIntent(), true)
+        .setContentIntent(if (safeMode) mainIntent(0) else ringActivityIntent())
+        .apply { if (!safeMode) setFullScreenIntent(ringActivityIntent(), true) }
         .build()
 
     fun cancelRing() = manager.cancel(NotificationIds.RING)
@@ -284,7 +290,7 @@ class Notifier @Inject constructor(
             .setWhen(atMillis)
             .setTimeoutAfter((atMillis - System.currentTimeMillis()).coerceAtLeast(1_000))
             .setContentIntent(mainIntent(alarm.id))
-        if (canSkip) b.addAction(0, context.getString(R.string.action_skip_next), broadcast(Actions.SKIP_NEXT, alarm.id))
+        if (canSkip) b.addAction(0, context.getString(R.string.action_skip_next), broadcast(Actions.SKIP_NEXT, alarm.id, atMillis))
         post(NotificationIds.upcoming(alarm.id), b.build())
     }
 
@@ -367,12 +373,42 @@ class Notifier @Inject constructor(
 
     // ---- problems the user should hear about ---------------------------------------------------------------
 
+    /** The battery is low and not charging some hours before an alarm; gone by itself once the alarm time has passed. */
+    fun showLowBattery(percent: Int, wake: LocalTime, wakeAtMillis: Long) {
+        val b = NotificationCompat.Builder(context, Channels.PROBLEMS)
+            .setSmallIcon(R.drawable.ic_stat_alarm)
+            .setContentTitle(context.getString(R.string.notif_low_battery_title))
+            .setContentText(context.getString(R.string.notif_low_battery_text, percent, TimeText.format(wake, is24Hour())))
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(mainIntent(0))
+        val left = wakeAtMillis - System.currentTimeMillis()
+        if (left > 0) b.setTimeoutAfter(left)
+        post(NotificationIds.LOW_BATTERY, b.build())
+    }
+
     /** Some alarms could not be armed (the OS refused or ran out of room); Alarm Health has the details. */
     fun showSchedulingProblem(unarmed: Int) {
         val b = NotificationCompat.Builder(context, Channels.PROBLEMS)
             .setSmallIcon(R.drawable.ic_stat_alarm)
             .setContentTitle(context.getString(R.string.notif_scheduling_problem_title))
             .setContentText(context.resources.getQuantityString(R.plurals.notif_scheduling_problem_text, unarmed, unarmed))
+            .setCategory(NotificationCompat.CATEGORY_ERROR)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(mainIntent(0))
+        post(NotificationIds.SCHEDULING_PROBLEM, b.build())
+    }
+
+    /** Alarms were armed only with an inexact wake-up (the exact-alarm permission is off): they may ring late. */
+    fun showAlarmsMayBeLate() {
+        val b = NotificationCompat.Builder(context, Channels.PROBLEMS)
+            .setSmallIcon(R.drawable.ic_stat_alarm)
+            .setContentTitle(context.getString(R.string.notif_alarms_late_title))
+            .setContentText(context.getString(R.string.notif_alarms_late_text))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(context.getString(R.string.notif_alarms_late_text)))
             .setCategory(NotificationCompat.CATEGORY_ERROR)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
@@ -427,11 +463,13 @@ class Notifier @Inject constructor(
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
-    private fun broadcast(action: String, id: Long): PendingIntent = PendingIntent.getBroadcast(
+    /** [at] is the ring the action was shown for, when the action is about one particular ring (skip). */
+    private fun broadcast(action: String, id: Long, at: Long = 0): PendingIntent = PendingIntent.getBroadcast(
         context, 0,
         Intent(context, ActionReceiver::class.java).setAction(action)
             .setData(android.net.Uri.parse("wakenudge://action/$action/$id"))
-            .putExtra(Actions.EXTRA_ID, id),
+            .putExtra(Actions.EXTRA_ID, id)
+            .putExtra(Actions.EXTRA_AT, at),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 }

@@ -26,7 +26,7 @@ class TriggerHandlerResilienceTest {
     private val clock = TestClock()
     private val handler = TriggerHandler(
         ring, mockk(relaxed = true), RingStarter { started += it }, mockk<AlarmScheduler>(relaxed = true), mockk<Notifier>(relaxed = true),
-        MemorySettings(), realRuntime(), clock, SilentLog(),
+        MemorySettings(), realRuntime(), clock, SilentLog(), BatteryGauge { null },
     )
 
     private fun intent(kind: TriggerKind, id: Long, at: Long = clock.now, eventId: Long = -1, index: Int = 0): Intent = mockk {
@@ -102,7 +102,7 @@ class SystemEventHandlerTest {
         handler.handle(Intent.ACTION_TIME_CHANGED)
         coVerifyOrder {
             scheduler.rescheduleAll("system:${Intent.ACTION_TIME_CHANGED}")
-            recovery.process(mapOf(4L to 1_000L))
+            recovery.process(mapOf(4L to 1_000L), any())
         }
     }
 
@@ -111,14 +111,16 @@ class SystemEventHandlerTest {
         coVerifyOrder {
             scheduler.rescheduleAll(any())
             ring.recoverStaleState()
-            recovery.process(any())
+            recovery.process(any(), any())
         }
     }
 
-    @Test fun `an app update re-arms but does not replay missed alarms`() = runBlocking {
+    @Test fun `an app update re-arms and then looks for an alarm that fell due while it was installing`() = runBlocking {
         handler.handle(Intent.ACTION_MY_PACKAGE_REPLACED)
-        coVerify { scheduler.rescheduleAll(any()) }
-        coVerify(exactly = 0) { recovery.process(any()) }
+        coVerifyOrder {
+            scheduler.rescheduleAll(any())
+            recovery.process(any(), any())
+        }
     }
 
     @Test fun `a failing step never keeps the alarms from being armed or the rest from running`() = runBlocking {
@@ -127,13 +129,13 @@ class SystemEventHandlerTest {
         coEvery { ring.recoverStaleState() } throws IOException("database")
         handler.handle(Intent.ACTION_LOCKED_BOOT_COMPLETED)
         coVerify { scheduler.rescheduleAll(any()) }
-        coVerify { recovery.process(any()) }
+        coVerify { recovery.process(any(), any()) }
     }
 
     @Test fun `even when rescheduling itself fails the overdue alarms are still examined`() = runBlocking {
         coEvery { scheduler.rescheduleAll(any()) } throws IOException("database")
         handler.handle(Intent.ACTION_TIME_CHANGED)
-        coVerify { recovery.process(any()) }
+        coVerify { recovery.process(any(), any()) }
     }
 
     @Test fun `unknown broadcasts are ignored`() = runBlocking {

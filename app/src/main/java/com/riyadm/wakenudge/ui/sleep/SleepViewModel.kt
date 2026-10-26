@@ -6,6 +6,7 @@ import com.riyadm.wakenudge.domain.model.AppSettings
 import com.riyadm.wakenudge.domain.model.BedtimeSettings
 import com.riyadm.wakenudge.domain.repository.SettingsRepository
 import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
+import com.riyadm.wakenudge.ui.util.persist
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalTime
 import javax.inject.Inject
@@ -31,7 +32,11 @@ class SleepViewModel @Inject constructor(
         viewModelScope.launch { _nextWake.value = scheduler.nextAlarm()?.at?.toLocalTime() }
     }
 
-    fun updateBedtime(block: (BedtimeSettings) -> BedtimeSettings) = viewModelScope.launch {
+    fun setLowBatteryWarning(on: Boolean) = viewModelScope.launch {
+        settingsRepo.update { it.copy(lowBatteryWarning = on) }
+    }
+
+    fun updateBedtime(block: (BedtimeSettings) -> BedtimeSettings) = persist {
         settingsRepo.update { it.copy(bedtime = block(it.bedtime)) }
         scheduler.refreshBedtime()
     }

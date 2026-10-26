@@ -52,9 +52,9 @@ private val GameSaver = listSaver<MemoryGame, Int>(save = { it.toSaved() }, rest
 
 /** Milliseconds a tile stays lit and the pause between tiles; shorter on harder levels. */
 private fun playbackTiming(difficulty: Difficulty): Pair<Long, Long> = when (difficulty) {
-    Difficulty.EASY -> 650L to 280L
-    Difficulty.MEDIUM -> 520L to 220L
-    Difficulty.HARD -> 420L to 170L
+    Difficulty.EASY -> 700L to 300L
+    Difficulty.MEDIUM -> 600L to 260L
+    Difficulty.HARD -> 480L to 200L
 }
 
 /** Distinct colours for the tiles, spread around the hue wheel so lit tiles are easy to tell apart. */

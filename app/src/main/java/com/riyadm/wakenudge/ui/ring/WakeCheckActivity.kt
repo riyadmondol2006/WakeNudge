@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.ui.ring
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -23,8 +24,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -64,20 +68,52 @@ class WakeCheckActivity : ComponentActivity() {
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        val alarmId = intent.getLongExtra(Actions.EXTRA_ID, 0)
-        val deadline = intent.getLongExtra(EXTRA_DEADLINE, System.currentTimeMillis() + 60_000)
+        prompt = promptOf(intent)
         setContent {
             val s by settingsRepo.settings.collectAsState(initial = AppSettings())
+            val current = prompt
             WakeNudgeTheme(s.themeMode, s.dynamicColor, s.haptics) {
-                WakeCheckScreen(
-                    deadlineMillis = deadline,
-                    onAwake = { lifecycleScope.launch { wakeChecks.answer(alarmId); finishAndRemoveTask() } },
-                    onCancel = { lifecycleScope.launch { wakeChecks.abandon(alarmId, WakeCheckStatus.CANCELLED); finishAndRemoveTask() } },
-                    onExpired = { finishAndRemoveTask() },
-                )
+                // Keyed by the prompt: a second alarm's check arriving while this screen is open starts afresh.
+                key(current) {
+                    WakeCheckScreen(
+                        deadlineMillis = current.deadline,
+                        onAwake = { finishAfter { wakeChecks.answer(current.alarmId) } },
+                        onCancel = { finishAfter { wakeChecks.abandon(current.alarmId, WakeCheckStatus.CANCELLED) } },
+                        onExpired = { finishAndRemoveTask() },
+                    )
+                }
             }
         }
     }
+
+    /** This screen is single-task: another alarm's "Still awake?" is delivered here, and must be the one answered. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        prompt = promptOf(intent)
+    }
+
+    /** The answer is stored, then the screen closes, even if storing it fails (the check then simply runs its course). */
+    private fun finishAfter(block: suspend () -> Unit) {
+        lifecycleScope.launch {
+            try {
+                block()
+            } catch (c: kotlinx.coroutines.CancellationException) {
+                throw c
+            } catch (t: Throwable) {
+                android.util.Log.w("WakeCheck", "could not record the answer", t)
+            } finally {
+                finishAndRemoveTask()
+            }
+        }
+    }
+
+    private data class Prompt(val alarmId: Long, val deadline: Long)
+
+    private var prompt by mutableStateOf(Prompt(0, 0))
+
+    private fun promptOf(intent: Intent) =
+        Prompt(intent.getLongExtra(Actions.EXTRA_ID, 0), intent.getLongExtra(EXTRA_DEADLINE, System.currentTimeMillis() + 60_000))
 
     companion object {
         const val EXTRA_DEADLINE = "deadline"

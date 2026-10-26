@@ -13,6 +13,9 @@ import kotlinx.coroutines.withContext
 
 internal val AlarmIdKey = ActionParameters.Key<Long>("alarm_id")
 
+/** The ring the widget showed when the button was drawn, so a double tap cannot skip the one after it. */
+internal val OccurrenceKey = ActionParameters.Key<Long>("occurrence_at")
+
 /** Last-minute edit protection said no: tell the user how long the lock lasts. */
 private suspend fun Context.toastLocked(minutes: Int) = withContext(Dispatchers.Main) {
     val text = resources.getQuantityString(R.plurals.widget_locked_minutes, minutes, minutes)
@@ -23,7 +26,7 @@ private suspend fun Context.toastLocked(minutes: Int) = withContext(Dispatchers.
 class SkipNextCallback : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val alarmId = parameters[AlarmIdKey] ?: return
-        val result = context.surfaceEntry().alarmActions().skipNext(alarmId)
+        val result = context.surfaceEntry().alarmActions().skipNext(alarmId, occurrenceAt = parameters[OccurrenceKey])
         if (result is ActionResult.Locked) context.toastLocked(result.minutes)
         NextAlarmWidget().update(context, glanceId)
     }

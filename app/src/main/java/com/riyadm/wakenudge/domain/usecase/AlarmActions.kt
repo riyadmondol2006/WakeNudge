@@ -4,6 +4,7 @@ import com.riyadm.wakenudge.core.TimeSource
 import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.repository.AlarmRepository
 import com.riyadm.wakenudge.domain.repository.DiagnosticsLog
+import com.riyadm.wakenudge.domain.repository.GroupRepository
 import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
 import com.riyadm.wakenudge.domain.scheduling.EditLockPolicy
 import com.riyadm.wakenudge.domain.scheduling.SurfaceRefresher
@@ -21,6 +22,7 @@ sealed interface ActionResult<out T> {
 @Singleton
 class AlarmActions @Inject constructor(
     private val alarms: AlarmRepository,
+    private val groups: GroupRepository,
     private val scheduler: AlarmScheduler,
     private val surfaces: SurfaceRefresher,
     private val time: TimeSource,
@@ -41,12 +43,17 @@ class AlarmActions @Inject constructor(
 
     suspend fun save(alarm: Alarm, overrideLock: Boolean = false): ActionResult<Long> {
         if (!overrideLock) lockedMinutes(alarm)?.let { return ActionResult.Locked(it) }
+        val stored = if (alarm.id != 0L) alarms.getAlarm(alarm.id) else null
+        val hour = alarm.hour.coerceIn(0, 23)
+        val minute = alarm.minute.coerceIn(0, 59)
+        val scheduleChanged = stored == null || stored.hour != hour || stored.minute != minute ||
+            stored.repeatDaysMask != alarm.repeatDaysMask || stored.oneTimeEpochDay != alarm.oneTimeEpochDay
         val normalized = alarm.copy(
-            hour = alarm.hour.coerceIn(0, 23),
-            minute = alarm.minute.coerceIn(0, 59),
+            hour = hour,
+            minute = minute,
             label = alarm.label.trim().truncateCodePoints(MAX_LABEL),
-            // Editing the schedule invalidates a pending "skip next".
-            skipEpochDay = alarm.skipEpochDay,
+            // A "skip next" belongs to the schedule it was set on: moving 07:00 to 08:00 to sleep in must still ring today.
+            skipEpochDay = if (scheduleChanged) null else alarm.skipEpochDay,
         )
         val id = alarms.save(normalized)
         scheduler.schedule(id)
@@ -62,16 +69,24 @@ class AlarmActions @Inject constructor(
         surfaces.refreshAll()
     }
 
-    suspend fun setEnabled(id: Long, enabled: Boolean, overrideLock: Boolean = false): ActionResult<Unit> {
+    /**
+     * Switches one alarm on or off. Switching on an alarm whose group is off turns the group on too (otherwise nothing
+     * would change for the user), and then every alarm of that group is armed again, not just this one. The result
+     * carries the group's name in that case, so the caller can say that the group's other alarms are back.
+     */
+    suspend fun setEnabled(id: Long, enabled: Boolean, overrideLock: Boolean = false): ActionResult<String?> {
         val alarm = alarms.getAlarm(id) ?: return ActionResult.NotFound
         if (!enabled && !overrideLock) lockedMinutes(alarm)?.let { return ActionResult.Locked(it) }
+        val group = if (enabled) alarm.groupId?.let { gid -> groups.getGroups().firstOrNull { it.id == gid } } else null
+        val groupTurnedOn = group != null && !group.enabled
+        if (groupTurnedOn) groups.setEnabled(group!!.id, true)
         alarms.setEnabled(id, enabled)
         if (enabled) alarms.setSkipDay(id, null)
-        scheduler.schedule(id)
+        if (groupTurnedOn) scheduler.rescheduleAll("group switched on with alarm $id") else scheduler.schedule(id)
         // Switching an alarm off means "stop bothering me": a pending snooze or backup must not ring afterwards.
         if (!enabled) scheduler.cancelFollowUps(id)
         surfaces.refreshAll()
-        return ActionResult.Done(Unit)
+        return ActionResult.Done(if (groupTurnedOn) group!!.name else null)
     }
 
     suspend fun delete(id: Long, overrideLock: Boolean = false): ActionResult<Unit> {
@@ -83,19 +98,31 @@ class AlarmActions @Inject constructor(
         return ActionResult.Done(Unit)
     }
 
-    /** Suppresses just the next occurrence of a repeating alarm; for a one-time alarm this switches it off. */
-    suspend fun skipNext(id: Long, overrideLock: Boolean = false): ActionResult<Long?> {
+    /**
+     * Suppresses just the next occurrence of a repeating alarm; for a one-time alarm this switches it off.
+     *
+     * [occurrenceAt] is the ring the button was shown for (a heads-up notification, a widget). Skipping it twice is the
+     * same as skipping it once: a double tap, or a heads-up still on screen after the skip was set in the app, must not
+     * move the skip on to the following day and let today's ring through.
+     */
+    suspend fun skipNext(id: Long, occurrenceAt: Long? = null, overrideLock: Boolean = false): ActionResult<Long?> {
         val alarm = alarms.getAlarm(id) ?: return ActionResult.NotFound
         if (!overrideLock) lockedMinutes(alarm)?.let { return ActionResult.Locked(it) }
         if (!alarm.isRepeating) {
             alarms.setEnabled(id, false)
             scheduler.schedule(id)
+            scheduler.dropUpcomingNotice(id)
+            surfaces.refreshAll()
             return ActionResult.Done(null)
         }
-        val next = scheduler.nextTriggerOf(id) ?: return ActionResult.Done(null)
-        val day = java.time.Instant.ofEpochMilli(next).atZone(time.zone()).toLocalDate().toEpochDay()
-        alarms.setSkipDay(id, day)
-        scheduler.schedule(id)
+        // A button drawn before the ring it names has passed (a list or widget not yet redrawn) means the next one.
+        val target = occurrenceAt?.takeIf { it > time.nowMillis() } ?: scheduler.nextTriggerOf(id) ?: return ActionResult.Done(null)
+        val day = java.time.Instant.ofEpochMilli(target).atZone(time.zone()).toLocalDate().toEpochDay()
+        if (alarm.skipEpochDay != day) {
+            alarms.setSkipDay(id, day)
+            scheduler.schedule(id)
+        }
+        scheduler.dropUpcomingNotice(id)
         surfaces.refreshAll()
         return ActionResult.Done(day)
     }

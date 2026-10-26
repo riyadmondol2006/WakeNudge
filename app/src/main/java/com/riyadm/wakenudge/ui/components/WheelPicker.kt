@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
@@ -39,7 +40,8 @@ import kotlin.math.roundToInt
 /**
  * A snapping vertical wheel. Values are shown big at the centre and shrink/fade away from it, a detent haptic
  * fires on every step, and it wraps around when [loop] is set. For screen readers it is a single adjustable
- * control with "increase"/"decrease" actions instead of a scrolling list.
+ * control with "increase"/"decrease" actions instead of a scrolling list. A disabled wheel ([enabled] false) cannot be
+ * turned at all, so it never shows a value that would not be saved.
  */
 @Composable
 fun WheelPicker(
@@ -53,6 +55,7 @@ fun WheelPicker(
     itemHeight: Dp = 76.dp,
     textStyle: TextStyle = ClockType.WheelItem,
     width: Dp = 104.dp,
+    enabled: Boolean = true,
 ) {
     val haptics = LocalWakeHaptics.current
     val visible = 3
@@ -62,6 +65,13 @@ fun WheelPicker(
     val state = rememberLazyListState(initialFirstVisibleItemIndex = start)
     val itemPx = with(LocalDensity.current) { itemHeight.toPx() }
     val onSelectedState = rememberUpdatedState(onSelected)
+    // The value the wheel last stood for: what it reported, or what it was set to from outside. Kept outside of
+    // composition so the scroll collector compares against the truth of this very moment, not of the last frame.
+    val lastValue = remember { intArrayOf(selected) }
+
+    // True while the wheel glides by itself to a value set from outside (a typed time). The rows it passes on the way
+    // are not choices: reporting them made a typed 06:45 over 07:00 end up as 06:58.
+    val gliding = remember { mutableStateOf(false) }
 
     val position by remember(state, itemPx) {
         derivedStateOf { state.firstVisibleItemIndex + state.firstVisibleItemScrollOffset / itemPx }
@@ -76,17 +86,27 @@ fun WheelPicker(
                 first = false
                 return@collect
             }
+            val value = index % count
+            if (gliding.value || value == lastValue[0]) return@collect
+            lastValue[0] = value
             haptics.tick()
-            onSelectedState.value(index % count)
+            onSelectedState.value(value)
         }
     }
     // Programmatic change (typed time, accessibility buttons) -> glide to the nearest matching row.
     LaunchedEffect(selected, count) {
+        lastValue[0] = selected
         if (!state.isScrollInProgress && centerIndex % count != selected) {
             val current = centerIndex
             val delta = ((selected - current % count) + count) % count
             val target = if (loop && delta > count / 2) current + delta - count else current + delta
-            state.animateScrollToItem(target.coerceIn(0, total - 1))
+            gliding.value = true
+            try {
+                state.animateScrollToItem(target.coerceIn(0, total - 1))
+            } finally {
+                // Also when a finger grabs the wheel mid-glide: from then on it is the user's choice again.
+                gliding.value = false
+            }
         }
     }
 
@@ -97,10 +117,12 @@ fun WheelPicker(
             .semantics(mergeDescendants = true) {
                 contentDescription = description
                 stateDescription = label(selected)
-                customActions = listOf(
-                    CustomAccessibilityAction("Increase $description") { onSelected((selected + 1) % count); true },
-                    CustomAccessibilityAction("Decrease $description") { onSelected((selected - 1 + count) % count); true },
-                )
+                if (enabled) {
+                    customActions = listOf(
+                        CustomAccessibilityAction("Increase $description") { onSelected((selected + 1) % count); true },
+                        CustomAccessibilityAction("Decrease $description") { onSelected((selected - 1 + count) % count); true },
+                    )
+                }
             },
         contentAlignment = Alignment.Center,
     ) {
@@ -108,7 +130,7 @@ fun WheelPicker(
             state = state,
             flingBehavior = rememberSnapFlingBehavior(state),
             contentPadding = PaddingValues(vertical = itemHeight * (visible / 2)),
-            userScrollEnabled = true,
+            userScrollEnabled = enabled,
         ) {
             items(total, key = { it }) { i ->
                 Box(

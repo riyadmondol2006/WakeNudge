@@ -91,6 +91,7 @@ class HealthChecker @Inject constructor(
             postNotificationsGranted = notificationPermissionGranted(),
             notificationsEnabled = safe(true) { NotificationManagerCompat.from(context).areNotificationsEnabled() },
             ringChannelImportance = safe(null) { notifications.getNotificationChannel(Channels.RING)?.importance },
+            fallbackChannelImportance = safe(null) { notifications.getNotificationChannel(Channels.RING_FALLBACK)?.importance },
             fullScreenIntentAllowed = safe(true) { fullScreenIntentAllowed(notifications) },
             canScheduleExactAlarms = safe(true) { pending.canScheduleExact() },
             ignoringBatteryOptimizations = safe(true) {
@@ -100,6 +101,7 @@ class HealthChecker @Inject constructor(
             backgroundRestricted = safe(null) { backgroundRestricted() },
             interruptionFilter = safe(NotificationManager.INTERRUPTION_FILTER_UNKNOWN) { notifications.currentInterruptionFilter },
             dndAllowsAlarms = safe(true) { dndAllowsAlarms(notifications) },
+            alarmStreamMuted = safe(false) { audio.isStreamMute(AudioManager.STREAM_ALARM) },
             alarmVolume = safe(1) { audio.getStreamVolume(AudioManager.STREAM_ALARM) },
             alarmVolumeMax = safe(7) { audio.getStreamMaxVolume(AudioManager.STREAM_ALARM) },
             volumeFixed = safe(false) { audio.isVolumeFixed },

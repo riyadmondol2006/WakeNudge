@@ -3,9 +3,11 @@ package com.riyadm.wakenudge.data.backup
 import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.model.AlarmEvent
 import com.riyadm.wakenudge.domain.model.AlarmGroup
+import com.riyadm.wakenudge.domain.model.AlarmOutcome
 import com.riyadm.wakenudge.domain.model.SoundMode
 import com.riyadm.wakenudge.domain.model.SoundSettings
 import com.riyadm.wakenudge.domain.model.SoundSource
+import com.riyadm.wakenudge.domain.model.VacationMode
 import com.riyadm.wakenudge.domain.model.VibrationPattern
 import com.riyadm.wakenudge.domain.model.VibrationSettings
 import com.riyadm.wakenudge.domain.model.VolumeSettings
@@ -88,6 +90,30 @@ class BackupSanitizerTest {
         val result = sanitize(BackupFile(alarms = many))
         assertEquals(BackupSanitizer.MAX_ALARMS, result.file.alarms.size)
         assertTrue(result.warnings.any { it.message == com.riyadm.wakenudge.R.plurals.backup_warn_too_many_alarms })
+    }
+
+    @Test fun `a snooze or backup still pending in the file is not brought to this phone`() {
+        // Made a few minutes after a snoozed ring on the old phone: on the new one it would re-arm and ring out of nowhere.
+        val pending = AlarmEvent(
+            id = 1, alarmId = 1, label = "", scheduledAt = 1_000, firedAt = 1_000,
+            outcome = AlarmOutcome.RINGING, snoozeUntil = 9_000_000_000_000, pendingBackups = listOf(9_000_000_000_000),
+        )
+        val kept = sanitize(BackupFile(history = listOf(pending))).file.history!!.single()
+        assertEquals(0L, kept.snoozeUntil)
+        assertEquals(emptyList<Long>(), kept.pendingBackups)
+        assertEquals(AlarmOutcome.MISSED, kept.outcome)
+    }
+
+    @Test fun `a vacation with an unreadable end date is switched off instead of pausing alarms for ever`() {
+        val broken = Sample.settings.copy(vacation = VacationMode(enabled = true, resumeEpochDay = Long.MAX_VALUE))
+        val result = sanitize(Sample.file.copy(settings = broken))
+        assertEquals(VacationMode(), result.file.settings.vacation)
+        assertTrue(result.warnings.any { it.message == com.riyadm.wakenudge.R.string.backup_warn_vacation })
+        // A readable end date, or a vacation with none at all, is kept as it is.
+        val fine = Sample.settings.copy(vacation = VacationMode(enabled = true, resumeEpochDay = 20_500))
+        assertEquals(fine.vacation, sanitize(Sample.file.copy(settings = fine)).file.settings.vacation)
+        val open = Sample.settings.copy(vacation = VacationMode(enabled = true, resumeEpochDay = null))
+        assertEquals(open.vacation, sanitize(Sample.file.copy(settings = open)).file.settings.vacation)
     }
 
     @Test fun `an oversized history keeps the newest entries`() {

@@ -23,6 +23,7 @@ class TriggerHandler @Inject constructor(
     private val runtime: RuntimeState,
     private val time: TimeSource,
     private val diagnostics: DiagnosticsLog,
+    private val battery: BatteryGauge,
 ) {
     suspend fun handle(intent: Intent) {
         val kind = Triggers.kindOf(intent.action) ?: return
@@ -42,6 +43,7 @@ class TriggerHandler @Inject constructor(
             TriggerKind.WAKE_CHECK_DEADLINE -> ringing(RingKind.WAKE_CHECK_RERING, id, at, eventId) { ring.onWakeCheckDeadline(id) }
             TriggerKind.TIMER -> ring.onTimerFired(id)?.let(launcher::start)
             TriggerKind.BEDTIME -> onBedtime()
+            TriggerKind.BATTERY_CHECK -> onBatteryCheck()
             TriggerKind.RING_RETRY -> ring.onRetry(id, eventId, at, RingRetry.kindOf(index), RingRetry.attemptOf(index))?.let(launcher::start)
             TriggerKind.WATCHDOG -> {
                 runtime.lastWatchdogAt = time.nowMillis()
@@ -66,6 +68,17 @@ class TriggerHandler @Inject constructor(
             RingRequest(alarmId, eventId, at, if (alarmId == RingIds.TEST_ALARM_ID) RingKind.TEST else kind)
         }
         request?.let(launcher::start)
+    }
+
+    /** Some hours before the next alarm: warn once if the battery may not last until it rings. */
+    private suspend fun onBatteryCheck() {
+        if (!settings.current().lowBatteryWarning) return
+        val next = scheduler.nextAlarm() ?: return
+        val reading = battery.read()
+        if (LowBatteryPolicy.shouldWarn(reading, next.at.toInstant().toEpochMilli(), time.nowMillis()) && reading != null) {
+            diagnostics.warn("Battery", "${reading.percent}% and not charging before the alarm at ${next.at.toLocalTime()}")
+            notifier.showLowBattery(reading.percent, next.at.toLocalTime(), next.at.toInstant().toEpochMilli())
+        }
     }
 
     private suspend fun onBedtime() {

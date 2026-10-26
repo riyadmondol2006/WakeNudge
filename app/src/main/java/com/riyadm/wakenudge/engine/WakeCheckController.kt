@@ -61,6 +61,7 @@ class WakeCheckController @Inject constructor(
             checks.delete(alarmId)
             setEventStatus(check.eventId, WakeCheckStatus.PASSED)
             diagnostics.info("WakeCheck", "alarm $alarmId passed all checks")
+            deleteIfUsedUp(alarmId)
         } else {
             val nextAt = time.nowMillis() + alarm.wakeCheck.delayMinutes.coerceIn(1, 30) * 60_000L
             checks.save(check.copy(phase = WakeCheck.Phase.WAITING, promptAt = nextAt, deadlineAt = 0, checksDone = done))
@@ -91,18 +92,36 @@ class WakeCheckController @Inject constructor(
         return RingRequest(alarmId, check.eventId, event?.scheduledAt ?: time.nowMillis(), RingKind.WAKE_CHECK_RERING)
     }
 
-    /** Drops any check for the alarm, e.g. because it was deleted or emergency-stopped. */
-    suspend fun abandon(alarmId: Long, status: WakeCheckStatus?) {
+    /**
+     * Drops any check for the alarm, e.g. because it was deleted or emergency-stopped. [checkOver] says the check ended
+     * on its own terms (failed, cancelled from its prompt, emergency stop), which lets a delete-after-use alarm go now;
+     * when the user changed the alarm (switched it off or on, edited or deleted it) that is their decision instead.
+     */
+    suspend fun abandon(alarmId: Long, status: WakeCheckStatus?, checkOver: Boolean = true) {
         val check = checks.get(alarmId)
         pending.cancel(TriggerKind.WAKE_CHECK_PROMPT, alarmId)
         pending.cancel(TriggerKind.WAKE_CHECK_DEADLINE, alarmId)
         notifier.cancelWakeCheck(alarmId)
         checks.delete(alarmId)
         if (check != null && status != null) setEventStatus(check.eventId, status)
+        if (check != null && checkOver) deleteIfUsedUp(alarmId)
     }
 
-    /** Reads the stored reRings count of an active check (used when a re-ring is dismissed). */
-    suspend fun reRingsFor(alarmId: Long): Int = checks.get(alarmId)?.reRings ?: 0
+    /** A delete-after-use alarm waits for its check to end (it may have to ring again); now it can go. */
+    private suspend fun deleteIfUsedUp(alarmId: Long) {
+        val alarm = alarms.getAlarm(alarmId) ?: return
+        if (alarm.deleteAfterUse && !alarm.isRepeating && !alarm.enabled) {
+            alarms.delete(alarmId)
+            pending.cancel(TriggerKind.ALARM, alarmId)
+            diagnostics.info("WakeCheck", "alarm $alarmId deleted after use, now that its check is over")
+        }
+    }
+
+    /**
+     * How often the check of this ring ([eventId]) has already rung the alarm again, so a re-ring that was snoozed and
+     * then dismissed keeps counting towards the limit. A check row left over from another ring does not count.
+     */
+    suspend fun reRingsFor(alarmId: Long, eventId: Long): Int = checks.get(alarmId)?.takeIf { it.eventId == eventId }?.reRings ?: 0
 
     private suspend fun setEventStatus(eventId: Long, status: WakeCheckStatus) {
         val e = history.get(eventId) ?: return

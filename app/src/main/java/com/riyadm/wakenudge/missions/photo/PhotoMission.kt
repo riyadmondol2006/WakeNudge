@@ -57,6 +57,7 @@ import com.riyadm.wakenudge.missions.camera.Thumbnails
 import com.riyadm.wakenudge.missions.ui.MissionButton
 import com.riyadm.wakenudge.missions.ui.MissionButtonKind
 import com.riyadm.wakenudge.missions.ui.MissionNotice
+import com.riyadm.wakenudge.missions.ui.MissionWayOut
 import com.riyadm.wakenudge.missions.ui.MissionPrompt
 import com.riyadm.wakenudge.missions.ui.MissionProgress
 import com.riyadm.wakenudge.missions.ui.MissionScaffold
@@ -89,7 +90,11 @@ internal fun PhotoMission(config: MissionConfig, onInteraction: () -> Unit, onCo
     val scope = rememberCoroutineScope()
     val reference = remember(config.params[MissionConfig.PARAM_SIGNATURE]) { config.params[MissionConfig.PARAM_SIGNATURE]?.let { PhotoSignature.decode(it) } }
     if (reference == null) {
-        MissionScaffold { MissionNotice(Icons.Filled.NoPhotography, stringResource(R.string.mission_photo_broken_title), stringResource(R.string.mission_photo_broken_body)) }
+        MissionScaffold {
+            MissionNotice(Icons.Filled.NoPhotography, stringResource(R.string.mission_photo_broken_title), stringResource(R.string.mission_photo_broken_body)) {
+                MissionWayOut()
+            }
+        }
         return
     }
     val threshold = remember(config.difficulty) { PhotoMatcher.thresholdFor(config.difficulty) }
@@ -125,7 +130,9 @@ internal fun PhotoMission(config: MissionConfig, onInteraction: () -> Unit, onCo
             modifier = Modifier.weight(1f),
         ) {
             if (cameraFailed) {
-                MissionNotice(Icons.Filled.NoPhotography, stringResource(R.string.mission_camera_failed_title), stringResource(R.string.mission_camera_failed_body))
+                MissionNotice(Icons.Filled.NoPhotography, stringResource(R.string.mission_camera_failed_title), stringResource(R.string.mission_camera_failed_body)) {
+                    MissionWayOut()
+                }
             } else {
                 Box(Modifier.weight(1f).fillMaxWidth().clip(MaterialTheme.shapes.extraLarge).background(Color.Black)) {
                     CameraAnalysisView(

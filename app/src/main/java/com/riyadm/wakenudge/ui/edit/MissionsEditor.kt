@@ -176,6 +176,15 @@ private fun MissionCard(
                         onSelect = { onChange(mission.copy(difficulty = it)) }, optionLabel = { stringResource(difficultyLabel(it)) },
                         shape = RoundedCornerShape(20.dp), enabled = enabled,
                     )
+                    if (mission.type == MissionType.MATH) {
+                        // "Medium" means little on its own; a sample question shows what the morning will ask.
+                        Text(
+                            stringResource(mathExample(mission.difficulty)),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = scheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
+                        )
+                    }
                 }
             }
             if (mission.type == MissionType.PUZZLE) {
@@ -279,6 +288,12 @@ private fun countLabel(type: MissionType) = when (type) {
     MissionType.STEPS -> R.string.edit_missions_count_steps
     MissionType.SQUATS -> R.string.edit_missions_count_squats
     else -> R.string.edit_missions_count_times
+}
+
+private fun mathExample(d: Difficulty) = when (d) {
+    Difficulty.EASY -> R.string.mission_math_example_easy
+    Difficulty.MEDIUM -> R.string.mission_math_example_medium
+    Difficulty.HARD -> R.string.mission_math_example_hard
 }
 
 private fun difficultyLabel(d: Difficulty) = when (d) {

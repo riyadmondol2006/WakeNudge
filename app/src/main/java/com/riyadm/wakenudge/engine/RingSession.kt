@@ -29,6 +29,19 @@ enum class RingPhase {
     RINGING,
 }
 
+/**
+ * Which ring a button was shown for. A tap that arrives after another ring took over (an alarm firing over a ringing
+ * timer, a queued alarm starting after a dismissal, a lagging watch) must not end that other ring: it would skip its
+ * missions, cancel its backups and, for a delete-after-use alarm, delete it.
+ */
+data class RingTarget(val alarmId: Long, val timerId: Long = 0) {
+    fun matches(session: RingSession): Boolean = session.alarm.id == alarmId && session.timerId == timerId
+
+    companion object {
+        fun of(session: RingSession) = RingTarget(session.alarm.id, session.timerId)
+    }
+}
+
 /** Everything the service, the ring screen and the notification need to agree on while an alarm is active. */
 data class RingSession(
     val alarm: Alarm,

@@ -64,6 +64,10 @@ class AlarmSchedulerImpl @Inject constructor(
         val nowMs = now.toInstant().toEpochMilli()
         val today = now.toLocalDate().toEpochDay()
         val fallbacksBefore = pending.fallbackCount
+        val inexactBefore = pending.inexactFallbackCount
+        // The watchdog first: it is what repairs everything else, so a pass that fails half-way (an unreadable
+        // database, say) must still leave it armed for the next attempt.
+        step("arming the watchdog") { scheduleWatchdog(nowMs) }
         // Arming the alarms comes first and depends on as little as possible. Settings, vacation and the like are
         // read with safe defaults: if the store is unreadable, alarms are armed as if nothing were paused.
         step("ending an expired vacation") { expireVacation(today) }
@@ -88,7 +92,9 @@ class AlarmSchedulerImpl @Inject constructor(
         var failures = 0
         for (alarm in all) {
             try {
-                cancelAlarmTriggers(alarm.id)
+                // The alarm trigger itself is left in place until it is replaced below: cancelling every alarm first
+                // and registering them afterwards left the phone with none armed if the process died in between.
+                cancelAuxiliaryTriggers(alarm.id)
                 val live = alarm.copy(skipEpochDay = alarm.skipEpochDay?.takeIf { it >= today })
                 // Tidying a stale "skip" is bookkeeping; if it cannot be written the alarm is still planned.
                 if (alarm.skipEpochDay != null && live.skipEpochDay == null) step("clearing the stale skip of alarm ${alarm.id}") { alarms.setSkipDay(alarm.id, null) }
@@ -117,6 +123,8 @@ class AlarmSchedulerImpl @Inject constructor(
             }
         }
         failures += refused
+        // Alarms that will not ring (switched off, paused, past) or that the OS refused lose their old trigger now.
+        for (alarm in all) if (alarm.id !in registered) step("cancelling the trigger of alarm ${alarm.id}") { pending.cancel(TriggerKind.ALARM, alarm.id) }
         // Lead-in and heads-up triggers are a bonus: only for alarms in the next day and a half, budget permitting.
         for ((alarm, _) in plans) {
             val at = registered[alarm.id] ?: continue
@@ -125,7 +133,7 @@ class AlarmSchedulerImpl @Inject constructor(
         }
         if (overflow > 0) diagnostics.warn("Scheduler", "$overflow alarms are beyond the OS limit of concurrent alarms and not armed")
         runtime.setRegisteredTriggers(registered)
-        reportArming(nowMs, unarmed = refused + overflow, usedFallback = pending.fallbackCount > fallbacksBefore)
+        reportArming(nowMs, unarmed = refused + overflow, usedFallback = pending.fallbackCount > fallbacksBefore, inexact = pending.inexactFallbackCount > inexactBefore)
 
         // Everything below is a safety net or a convenience: each runs on its own so a failing one cannot skip the rest,
         // above all the watchdog that re-validates the whole schedule every few hours.
@@ -134,6 +142,7 @@ class AlarmSchedulerImpl @Inject constructor(
         step("restoring timers") { restoreTimers(nowMs) }
         step("scheduling the bedtime reminder") { scheduleBedtime(guarded("reading settings", BedtimeSettings()) { settings.current().bedtime }, now) }
         step("arming the watchdog") { scheduleWatchdog(nowMs) }
+        step("arming the low-battery check") { scheduleBatteryCheck(registered.values, nowMs) }
 
         runtime.lastRescheduleAt = nowMs
         runtime.lastRescheduleReason = reason
@@ -145,13 +154,19 @@ class AlarmSchedulerImpl @Inject constructor(
      * Tells the user when alarms could not be armed (the OS refused or ran out of room) or only got a second-best
      * registration, and clears the notice once everything is armed properly. Alarm Health shows the details.
      */
-    private fun reportArming(nowMs: Long, unarmed: Int, usedFallback: Boolean) {
+    private fun reportArming(nowMs: Long, unarmed: Int, usedFallback: Boolean, inexact: Boolean) {
         runtime.lastSchedulingProblem = when {
             unarmed > 0 -> "$nowMs|$unarmed alarm(s) could not be armed: ${pending.lastFailure ?: "limit reached"}"
             usedFallback -> "$nowMs|${pending.lastFallback?.substringAfter('|').orEmpty()}"
             else -> ""
         }
-        if (unarmed > 0) notifier.showSchedulingProblem(unarmed) else notifier.cancelSchedulingProblem()
+        when {
+            unarmed > 0 -> notifier.showSchedulingProblem(unarmed)
+            // Armed, but only inexactly (Android 12 with "Alarms & reminders" switched off): it may ring an hour late,
+            // which for an alarm clock is a failure the user must hear about, not only see in Alarm Health.
+            inexact -> notifier.showAlarmsMayBeLate()
+            else -> notifier.cancelSchedulingProblem()
+        }
     }
 
     private inline fun step(what: String, block: () -> Unit) {
@@ -199,6 +214,7 @@ class AlarmSchedulerImpl @Inject constructor(
             val map = runtime.registeredTriggers().toMutableMap()
             if (at == null) map.remove(alarmId) else map[alarmId] = at
             runtime.setRegisteredTriggers(map)
+            scheduleBatteryCheck(map.values, time.nowMillis())
             // A fresh install has no watchdog until something calls rescheduleAll; the first saved alarm must not wait for a reboot.
             if (!pending.isScheduled(TriggerKind.WATCHDOG, 0)) scheduleWatchdog(time.nowMillis())
         }
@@ -208,7 +224,9 @@ class AlarmSchedulerImpl @Inject constructor(
     override suspend fun cancel(alarmId: Long) = lock.withLock {
         cancelAlarmTriggers(alarmId)
         cancelFollowUpsLocked(alarmId)
-        runtime.setRegisteredTriggers(runtime.registeredTriggers() - alarmId)
+        val left = runtime.registeredTriggers() - alarmId
+        runtime.setRegisteredTriggers(left)
+        scheduleBatteryCheck(left.values, time.nowMillis())
         surfaces.refreshAll()
     }
 
@@ -221,7 +239,7 @@ class AlarmSchedulerImpl @Inject constructor(
     private suspend fun cancelFollowUpsLocked(alarmId: Long) {
         pending.cancel(TriggerKind.SNOOZE, alarmId)
         for (i in 1..RingIds.MAX_BACKUPS) pending.cancel(TriggerKind.BACKUP, alarmId, i)
-        wakeCheckController.abandon(alarmId, WakeCheckStatus.CANCELLED)
+        wakeCheckController.abandon(alarmId, WakeCheckStatus.CANCELLED, checkOver = false)
         notifier.cancelSnoozed(alarmId)
         notifier.cancelUpcoming(alarmId)
         val ringingNow = sessions.current?.takeIf { it.alarm.id == alarmId }
@@ -277,6 +295,8 @@ class AlarmSchedulerImpl @Inject constructor(
         return calculator.next(alarm, now, contextProvider.load().forAlarm(alarm))?.toInstant()?.toEpochMilli()
     }
 
+    override fun dropUpcomingNotice(alarmId: Long) = notifier.cancelUpcoming(alarmId)
+
     override suspend fun refreshBedtime() = lock.withLock {
         scheduleBedtime(settings.current().bedtime, time.now())
     }
@@ -324,6 +344,10 @@ class AlarmSchedulerImpl @Inject constructor(
 
     private fun cancelAlarmTriggers(alarmId: Long) {
         pending.cancel(TriggerKind.ALARM, alarmId)
+        cancelAuxiliaryTriggers(alarmId)
+    }
+
+    private fun cancelAuxiliaryTriggers(alarmId: Long) {
         pending.cancel(TriggerKind.SUNRISE, alarmId)
         pending.cancel(TriggerKind.UPCOMING, alarmId)
     }
@@ -378,6 +402,16 @@ class AlarmSchedulerImpl @Inject constructor(
         if (!bedtime.enabled || bedtime.daysMask == 0) return
         val reminder = nextBedtimeReminder(bedtime, now) ?: return
         pending.setExact(TriggerKind.BEDTIME, 0, reminder.toInstant().toEpochMilli())
+    }
+
+    /**
+     * One look at the battery before the soonest armed alarm worth checking for; a warning, so an inexact wake-up is
+     * precise enough. An alarm about to ring (or a stale entry) is skipped rather than leaving the next one unchecked.
+     */
+    private fun scheduleBatteryCheck(armedAt: Collection<Long>, nowMs: Long) {
+        pending.cancel(TriggerKind.BATTERY_CHECK, 0)
+        val next = armedAt.filter { it - nowMs >= LowBatteryPolicy.MIN_AHEAD_MS }.minOrNull()
+        LowBatteryPolicy.checkAt(next, nowMs)?.let { pending.setInexact(TriggerKind.BATTERY_CHECK, 0, it) }
     }
 
     private fun scheduleWatchdog(nowMs: Long) {

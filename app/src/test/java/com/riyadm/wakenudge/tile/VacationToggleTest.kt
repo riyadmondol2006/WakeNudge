@@ -23,6 +23,7 @@ class VacationToggleTest {
 
     @Test fun `switching off preserves the resume day for next time`() {
         assertEquals(VacationMode(false, 20_010), VacationMode(true, 20_010).toggled(today))
-        assertEquals(VacationMode(false, 19_990), VacationMode(true, 19_990).toggled(today))
+        // A vacation past its resume day is already over (the tile shows alarms as on): a tap pauses again, until switched off.
+        assertEquals(VacationMode(true, null), VacationMode(true, 19_990).toggled(today))
     }
 }

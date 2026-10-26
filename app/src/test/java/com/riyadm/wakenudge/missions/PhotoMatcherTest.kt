@@ -48,6 +48,8 @@ private fun scene(seed: Int, size: Int = SIDE): RgbImage {
 private fun RgbImage.map(transform: (Int) -> Int) = RgbImage(width, height, IntArray(pixels.size) { transform(pixels[it]) })
 private fun RgbImage.brightness(delta: Int) = map { argb(it.r() + delta, it.g() + delta, it.b() + delta) }
 private fun RgbImage.contrast(factor: Float) = map { argb(((it.r() - 128) * factor + 128).roundToInt(), ((it.g() - 128) * factor + 128).roundToInt(), ((it.b() - 128) * factor + 128).roundToInt()) }
+/** The same room under a warm bedside lamp (more red, less blue) or cool morning daylight (the reverse). */
+private fun RgbImage.tint(red: Float, blue: Float) = map { argb((it.r() * red).roundToInt(), it.g(), (it.b() * blue).roundToInt()) }
 private fun RgbImage.noisy(sigma: Int, random: Random) = map {
     val n = random.nextInt(-sigma, sigma + 1)
     argb(it.r() + n, it.g() + n, it.b() + n)
@@ -71,9 +73,22 @@ class PhotoMatcherTest {
     private val easy = PhotoMatcher.thresholdFor(Difficulty.EASY)
 
     @Test fun `thresholds follow the difficulty`() {
-        assertEquals(0.70f, PhotoMatcher.thresholdFor(Difficulty.EASY), 1e-6f)
-        assertEquals(0.78f, PhotoMatcher.thresholdFor(Difficulty.MEDIUM), 1e-6f)
-        assertEquals(0.85f, PhotoMatcher.thresholdFor(Difficulty.HARD), 1e-6f)
+        assertEquals(0.60f, PhotoMatcher.thresholdFor(Difficulty.EASY), 1e-6f)
+        assertEquals(0.68f, PhotoMatcher.thresholdFor(Difficulty.MEDIUM), 1e-6f)
+        assertEquals(0.78f, PhotoMatcher.thresholdFor(Difficulty.HARD), 1e-6f)
+    }
+
+    @Test fun `a reference taken under a warm lamp still matches the same spot in cool morning light`() {
+        // The everyday case: the photo is set up at night with a bedside lamp, the alarm rings in daylight.
+        val medium = PhotoMatcher.thresholdFor(Difficulty.MEDIUM)
+        var worst = 1f
+        for (seed in 0 until 40) {
+            val room = scene(seed)
+            val s = score(room.tint(red = 1.2f, blue = 0.75f), room.tint(red = 0.9f, blue = 1.15f).brightness(20))
+            worst = minOf(worst, s)
+            assertTrue("seed $seed: $s", s > medium)
+        }
+        println("lamp to daylight, worst score: $worst")
     }
 
     @Test fun `identical pictures score about one`() {

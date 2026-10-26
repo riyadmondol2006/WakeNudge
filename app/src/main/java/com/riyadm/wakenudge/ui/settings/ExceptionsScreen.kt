@@ -35,20 +35,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.riyadm.wakenudge.R
+import com.riyadm.wakenudge.missions.ui.findActivity
+import com.riyadm.wakenudge.missions.ui.openAppSettings
 import com.riyadm.wakenudge.ui.components.SectionTitle
 import com.riyadm.wakenudge.ui.components.SettingsGroup
 import com.riyadm.wakenudge.ui.components.SwitchRow
-import com.riyadm.wakenudge.ui.components.ValueRow
 import com.riyadm.wakenudge.ui.components.TextInputDialog
+import com.riyadm.wakenudge.ui.components.ValueRow
 import com.riyadm.wakenudge.ui.util.Formatters
 import java.time.Instant
 import java.time.LocalDate
@@ -61,9 +66,16 @@ fun ExceptionsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewMode
     var picking by remember { mutableStateOf(false) }
     var pickResume by remember { mutableStateOf(false) }
     var pendingDay by remember { mutableStateOf<Long?>(null) }
+    val context = LocalContext.current
+    // Once Android stops asking (refused twice), the switch opens the app's settings page instead of doing nothing.
+    var calendarBlocked by rememberSaveable { mutableStateOf(false) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         viewModel.onPermissionResult()
-        if (granted) viewModel.setCalendarEnabled(true)
+        if (granted) {
+            viewModel.setCalendarEnabled(true)
+        } else {
+            calendarBlocked = context.findActivity()?.let { !ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.READ_CALENDAR) } ?: false
+        }
     }
 
     Scaffold(
@@ -88,6 +100,7 @@ fun ExceptionsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewMode
                             title = stringResource(R.string.settings_vacation), subtitle = stringResource(R.string.settings_vacation_hint),
                             icon = Icons.Outlined.BeachAccess, checked = state.vacation.enabled,
                             onCheckedChange = { on -> viewModel.setVacation(on, if (on) state.vacation.resumeEpochDay else null) }, shape = shape,
+                            enabled = state.loaded,
                         )
                     }
                     if (state.vacation.enabled) {
@@ -109,7 +122,11 @@ fun ExceptionsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewMode
                             title = stringResource(R.string.exceptions_calendar_switch), subtitle = stringResource(R.string.exceptions_calendar_hint),
                             checked = state.calendarEnabled && state.hasCalendarPermission,
                             onCheckedChange = { on ->
-                                if (on && !state.hasCalendarPermission) permission.launch(Manifest.permission.READ_CALENDAR) else viewModel.setCalendarEnabled(on)
+                                when {
+                                    on && !state.hasCalendarPermission && calendarBlocked -> openAppSettings(context)
+                                    on && !state.hasCalendarPermission -> permission.launch(Manifest.permission.READ_CALENDAR)
+                                    else -> viewModel.setCalendarEnabled(on)
+                                }
                             },
                             shape = shape,
                         )

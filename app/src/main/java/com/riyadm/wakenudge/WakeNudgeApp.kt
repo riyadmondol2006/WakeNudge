@@ -4,6 +4,7 @@ import android.app.Application
 import com.riyadm.wakenudge.di.AppScope
 import com.riyadm.wakenudge.engine.RingController
 import com.riyadm.wakenudge.engine.RingCrashGuard
+import com.riyadm.wakenudge.engine.StartupRepair
 import com.riyadm.wakenudge.engine.audio.AlarmAudioEngine
 import com.riyadm.wakenudge.engine.notify.Notifier
 import dagger.hilt.android.HiltAndroidApp
@@ -17,6 +18,7 @@ class WakeNudgeApp : Application() {
     @Inject lateinit var ring: RingController
     @Inject lateinit var audio: AlarmAudioEngine
     @Inject lateinit var crashGuard: RingCrashGuard
+    @Inject lateinit var startupRepair: StartupRepair
     @Inject @AppScope lateinit var appScope: CoroutineScope
 
     override fun onCreate() {
@@ -31,6 +33,8 @@ class WakeNudgeApp : Application() {
                 audio.restoreSystemVolumeIfStale()
                 ring.recoverStaleState()
             }
+            // A force-stop wipes every alarm without telling the app; this start is the first chance to put them back.
+            runCatching { startupRepair.repairIfNeeded() }
         }
     }
 }

@@ -36,6 +36,8 @@
     <string name="notif_bedtime_title">Time to wind down</string>
     <string name="notif_bedtime_text">Your bedtime is %1$s.</string>
     <string name="notif_bedtime_text_with_alarm">Bedtime is %1$s — your next alarm is at %2$s.</string>
+    <string name="notif_low_battery_title">Charge your phone before you sleep</string>
+    <string name="notif_low_battery_text">The battery is at %1$d%% and not charging. Plug it in so your %2$s alarm can ring.</string>
 
     <string name="action_snooze">Snooze</string>
     <string name="action_dismiss">Dismiss</string>

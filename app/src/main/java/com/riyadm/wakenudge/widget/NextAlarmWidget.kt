@@ -121,21 +121,21 @@ private fun NextAlarmContent(model: WidgetModel) {
                         }
                     }
                 }
-                if (skipInline) SkipButton(next.alarm.id, next.alarm.isRepeating, GlanceModifier)
+                if (skipInline) SkipButton(next.alarm.id, next.at.toInstant().toEpochMilli(), next.alarm.isRepeating, GlanceModifier)
             }
             if (skipBelow) {
                 Spacer(modifier = GlanceModifier.height(8.dp))
-                SkipButton(next.alarm.id, next.alarm.isRepeating, GlanceModifier.fillMaxWidth())
+                SkipButton(next.alarm.id, next.at.toInstant().toEpochMilli(), next.alarm.isRepeating, GlanceModifier.fillMaxWidth())
             }
         }
     }
 }
 
 @Composable
-private fun SkipButton(alarmId: Long, repeating: Boolean, modifier: GlanceModifier) {
+private fun SkipButton(alarmId: Long, occurrenceAt: Long, repeating: Boolean, modifier: GlanceModifier) {
     FilledButton(
         text = LocalContext.current.getString(if (repeating) R.string.widget_action_skip_next else R.string.widget_action_turn_off),
-        onClick = actionRunCallback<SkipNextCallback>(actionParametersOf(AlarmIdKey to alarmId)),
+        onClick = actionRunCallback<SkipNextCallback>(actionParametersOf(AlarmIdKey to alarmId, OccurrenceKey to occurrenceAt)),
         modifier = modifier,
         colors = ButtonDefaults.buttonColors(
             backgroundColor = GlanceTheme.colors.secondaryContainer,

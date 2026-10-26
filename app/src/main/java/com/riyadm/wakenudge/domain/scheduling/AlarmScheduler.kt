@@ -31,6 +31,9 @@ interface AlarmScheduler {
     /** Epoch millis of the alarm's next ring, or null if it will not ring. */
     suspend fun nextTriggerOf(alarmId: Long): Long?
 
+    /** Removes the "alarm soon" heads-up of [alarmId] once it no longer says what will happen (the ring was skipped). */
+    fun dropUpcomingNotice(alarmId: Long) {}
+
     /** Re-arms only the bedtime reminder (after the bedtime settings changed). */
     suspend fun refreshBedtime()
 

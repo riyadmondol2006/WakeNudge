@@ -3,13 +3,19 @@ package com.riyadm.wakenudge.missions.math
 import com.riyadm.wakenudge.domain.model.Difficulty
 import kotlin.random.Random
 
-/** One arithmetic question. [expression] is display-ready (uses × ÷ −), [answer] is always a positive integer. */
+/** One arithmetic question. [expression] is display-ready (uses × and −), [answer] is always a positive integer. */
 data class MathProblem(val expression: String, val answer: Int)
 
 /**
- * Generates wake-up arithmetic that is awkward to do half asleep but never unfair: every operand is at least 2
- * (no "x1" or "+0" freebies), divisions are exact, and the answer is never negative. Takes the [Random] so tests
- * (and saved state) can reproduce a sequence from a seed.
+ * Generates wake-up arithmetic for someone who has just been woken: enough to make the brain start, never a test.
+ *
+ * - [Difficulty.EASY]: one-digit sums and small subtractions, like 7 + 5 or 9 − 4.
+ * - [Difficulty.MEDIUM]: a two-digit number and a one-digit number, or the 2 to 5 times tables, like 27 + 6 or 7 × 4.
+ * - [Difficulty.HARD]: two two-digit numbers, the full times tables, or a times table plus a number, like 38 + 47 or
+ *   7 × 8 + 23.
+ *
+ * Every operand is at least 2 (no "× 1" or "+ 0" freebies) and every answer is a whole number of at least 2. Takes the
+ * [Random] so tests (and saved state) can reproduce a sequence from a seed.
  */
 class MathProblemGenerator(private val random: Random = Random.Default) {
     private var lastExpression: String? = null
@@ -30,68 +36,62 @@ class MathProblemGenerator(private val random: Random = Random.Default) {
     }
 
     private fun easy(): MathProblem {
-        val a = random.nextInt(10, 100)
-        val b = random.nextInt(10, 100)
-        if (random.nextBoolean()) return MathProblem("$a $PLUS $b", a + b)
-        val high = maxOf(a, b)
-        val low = minOf(a, b)
-        // Equal or adjacent operands would give 0 or 1, which is trivial: draw again.
-        if (high - low < 2) return easy()
-        return MathProblem("$high $MINUS $low", high - low)
-    }
-
-    private fun medium(): MathProblem {
-        val a = random.nextInt(12, 100)
-        val b = random.nextInt(2, 10)
-        val product = a * b
-        return if (random.nextBoolean()) {
-            val c = random.nextInt(10, 100)
-            MathProblem("$a $TIMES $b $PLUS $c", product + c)
-        } else {
-            // product >= 24, so the upper bound always leaves at least 10..22 to choose from.
-            val c = random.nextInt(10, minOf(99, product - 2) + 1)
-            MathProblem("$a $TIMES $b $MINUS $c", product - c)
+        if (random.nextInt(3) < 2) {
+            val a = random.nextInt(2, 10)
+            val b = random.nextInt(2, 10)
+            return MathProblem("$a $PLUS $b", a + b)
         }
+        // Subtraction stays within 10, so there is nothing to borrow: 10 − 3, 8 − 5.
+        val answer = random.nextInt(2, 9)
+        val b = random.nextInt(2, 11 - answer)
+        return MathProblem("${answer + b} $MINUS $b", answer)
     }
 
-    private fun hard(): MathProblem = when (random.nextInt(5)) {
+    private fun medium(): MathProblem = when (random.nextInt(3)) {
         0 -> {
-            val a = random.nextInt(12, 50)
-            val b = random.nextInt(3, 10)
-            val c = random.nextInt(11, minOf(99, a * b - 2) + 1)
-            MathProblem("($a $TIMES $b) $MINUS $c", a * b - c)
+            val a = random.nextInt(11, 50)
+            val b = random.nextInt(2, 10)
+            MathProblem("$a $PLUS $b", a + b)
         }
         1 -> {
             val a = random.nextInt(12, 50)
-            val b = random.nextInt(3, 10)
-            val c = random.nextInt(11, 100)
-            MathProblem("($a $TIMES $b) $PLUS $c", a * b + c)
-        }
-        2 -> {
-            val divisor = random.nextInt(2, 10)
-            val quotient = random.nextInt(6, 31)
-            val c = random.nextInt(3, 10)
-            MathProblem("(${divisor * quotient} $DIVIDE $divisor) $TIMES $c", quotient * c)
-        }
-        3 -> {
-            // (a x b) / c with c dividing a, and b != c so the answer is not simply "a".
-            val c = random.nextInt(2, 10)
-            val k = random.nextInt((12 + c - 1) / c, 99 / c + 1)
-            var b = random.nextInt(3, 10)
-            while (b == c) b = random.nextInt(3, 10)
-            MathProblem("(${c * k} $TIMES $b) $DIVIDE $c", k * b)
+            val b = random.nextInt(2, 10)
+            MathProblem("$a $MINUS $b", a - b)
         }
         else -> {
+            val a = random.nextInt(2, 10)
+            val b = random.nextInt(2, 6)
+            if (random.nextBoolean()) MathProblem("$a $TIMES $b", a * b) else MathProblem("$b $TIMES $a", a * b)
+        }
+    }
+
+    private fun hard(): MathProblem = when (random.nextInt(4)) {
+        0 -> {
+            // Two two-digit numbers whose sum stays below 100.
+            val a = random.nextInt(11, 80)
+            val b = random.nextInt(11, 100 - a)
+            MathProblem("$a $PLUS $b", a + b)
+        }
+        1 -> {
+            val a = random.nextInt(30, 100)
+            val b = random.nextInt(11, a - 1)
+            MathProblem("$a $MINUS $b", a - b)
+        }
+        2 -> {
+            val a = random.nextInt(3, 10)
             val b = random.nextInt(3, 10)
-            val c = random.nextInt(11, 30)
-            val remainder = random.nextInt(11, 100)
-            MathProblem("${b * c + remainder} $MINUS ($b $TIMES $c)", remainder)
+            MathProblem("$a $TIMES $b", a * b)
+        }
+        else -> {
+            val a = random.nextInt(2, 10)
+            val b = random.nextInt(2, 10)
+            val c = random.nextInt(10, 50)
+            MathProblem("$a $TIMES $b $PLUS $c", a * b + c)
         }
     }
 
     companion object {
         const val TIMES = '×'
-        const val DIVIDE = '÷'
         const val MINUS = '−'
         const val PLUS = '+'
     }

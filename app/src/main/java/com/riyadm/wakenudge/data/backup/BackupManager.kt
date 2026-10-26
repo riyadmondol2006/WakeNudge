@@ -19,6 +19,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
 /** The file is bigger than any real backup could be; it is refused before it is read into memory. */
@@ -74,6 +75,12 @@ class BackupManager @Inject constructor(
         val file = prepared.file
         val warnings = prepared.warnings.toMutableList()
 
+        // From here on the restore runs to the end even if the screen is closed: a replaced database whose alarms were
+        // never re-armed would show alarms that do not ring, and old triggers still registered.
+        return withContext(NonCancellable) { finishRestore(file, warnings) }
+    }
+
+    private suspend fun finishRestore(file: BackupFile, warnings: MutableList<ImportWarning>): ImportResult {
         store.replace(file)
         diagnostics.info(
             "Backup",
@@ -148,6 +155,12 @@ class BackupManager @Inject constructor(
         } catch (e: IOException) {
             return ImportResult.Failure(ImportFailure.Unreadable(e.message ?: e.javaClass.simpleName))
         } catch (e: SecurityException) {
+            return ImportResult.Failure(ImportFailure.Unreadable(e.message ?: e.javaClass.simpleName))
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: RuntimeException) {
+            // A cloud or vendor document provider can fail with anything across the binder; that is an unreadable file
+            // too, not a reason for the app to crash.
             return ImportResult.Failure(ImportFailure.Unreadable(e.message ?: e.javaClass.simpleName))
         }
         return import(text)

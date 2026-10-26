@@ -12,12 +12,14 @@ fun RingMissionContent(
     onInteraction: () -> Unit,
     onProgress: (Int) -> Unit,
     onComplete: () -> Unit,
+    firstMission: Int = 0,
 ) {
     MissionHost(
         missions = missions,
         modifier = Modifier,
         onInteraction = onInteraction,
         onProgress = onProgress,
+        firstMission = firstMission,
         onComplete = onComplete,
     )
 }

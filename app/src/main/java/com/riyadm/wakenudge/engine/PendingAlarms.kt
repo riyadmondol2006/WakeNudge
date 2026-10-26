@@ -34,6 +34,8 @@ enum class TriggerKind {
     WATCHDOG,
     /** Rings an alarm again that was cut off: the ring screen crashed, the service died, or the OS refused to start it. */
     RING_RETRY,
+    /** A look at the battery some hours before the next alarm, to warn while there is still time to charge. */
+    BATTERY_CHECK,
 }
 
 object Triggers {
@@ -90,8 +92,19 @@ class PendingAlarms @Inject constructor(
         if (fallback) {
             lastFallback = "${System.currentTimeMillis()}|${if (exact) "exact" else "inexact"} wake-up used because the OS refused the alarm clock: $refusal"
             fallbackCount++
+            if (!exact) inexactFallbackCount++
+        } else {
+            dropUnregistered(kind, id, index)
         }
         return fallback
+    }
+
+    /**
+     * Every attempt failed, but building the PendingIntent created it, and [isScheduled] only asks whether it exists.
+     * Left alone it would make Alarm Health report an alarm as armed that Android never took.
+     */
+    private fun dropUnregistered(kind: TriggerKind, id: Long, index: Int) {
+        runCatching { existing(kind, id, index)?.cancel() }
     }
 
     /** An internal trigger (follow-ups, reminders): exact when permitted, otherwise the closest Doze-safe fallback. */
@@ -104,13 +117,13 @@ class PendingAlarms @Inject constructor(
             call("setAndAllowWhileIdle")
             AlarmManagerCompat.setAndAllowWhileIdle(alarmManager, AlarmManager.RTC_WAKEUP, atMillis, op)
         }
-    }
+    }.also { if (!it) dropUnregistered(kind, id, index) }
 
     /** Inexact, battery-friendly trigger used by the watchdog. */
     fun setInexact(kind: TriggerKind, id: Long, atMillis: Long): Boolean = guarded {
         call("setAndAllowWhileIdle")
         AlarmManagerCompat.setAndAllowWhileIdle(alarmManager, AlarmManager.RTC_WAKEUP, atMillis, operation(kind, id, 0, atMillis, -1))
-    }
+    }.also { if (!it) dropUnregistered(kind, id, 0) }
 
     /**
      * The OS allows 500 concurrent alarms per app and throws beyond that (and a revoked permission throws too). A
@@ -134,6 +147,10 @@ class PendingAlarms @Inject constructor(
 
     /** How many alarms were armed the second-best way since the process started; lets a scheduling pass notice. */
     @Volatile var fallbackCount = 0
+        private set
+
+    /** Of those, how many only got an inexact wake-up, which Android may deliver up to an hour late. */
+    @Volatile var inexactFallbackCount = 0
         private set
 
     /** Test seam: lets a test make chosen AlarmManager calls fail the way a vendor OS or a revoked permission would. */

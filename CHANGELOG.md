@@ -4,6 +4,52 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 Releases are built and published automatically from `main` and numbered `MAJOR.MINOR.N`, where `N` is the commit count
 (see [docs/RELEASING.md](docs/RELEASING.md)); the notes of each GitHub release list the commits it contains.
 
+## Real-life audit
+
+Every part of the app was read again as a half-awake user would break it. What changed:
+
+### Easier wake-up missions
+- **Math is much easier at every level.** Easy is like 7 + 5 or 9 − 4, medium (the default) 27 + 6 or 7 × 4, hard
+  38 + 47 or 7 × 8 + 23. The editor shows a sample question under the difficulty
+- The sliding puzzle is always 3 × 3 (hard was a fully shuffled 15-puzzle); the memory game starts one tile shorter and
+  plays a little slower; typing phrases are shorter, medium has no punctuation, and curly quotes or long dashes typed by
+  the keyboard count as the plain ones
+- The photo mission still matches a spot photographed under a warm lamp when the alarm rings in daylight
+- Pattern tracing never asks for a "knight's jump" line that grazes two other dots
+
+### Fixed: alarms that could fail to ring
+- After a **force-stop** (or a phone that "cleans" swiped-away apps) Android forgot every alarm and nothing put them
+  back until a reboot. The app now re-arms everything the next time it starts
+- Switching on one alarm of a switched-off group turned the group on but armed only that one alarm
+- After a reboot, an alarm due in the second between re-arming and the missed-alarm check was lost; after an app
+  update, an alarm due during the install was never rung or reported
+- Deleting a switched-off group made its alarms ring
+- A ring that the backup alarm had just taken over could be ended by the ring timeout due in the same second
+- On Android 12 with "Alarms & reminders" switched off, alarms could ring up to an hour late while Alarm Health said
+  they were not affected; it is now an error, with a notification
+- A camera that is refused, broken or busy no longer leaves a QR or photo mission with nothing to press: Continue appears
+
+### Fixed: the wrong thing happening
+- A typed time could be saved as a different one (06:45 typed over 07:00 became 06:55): the wheels reported the rows
+  they glided past. A locked editor's wheels no longer turn
+- Saving in an editor opened before the alarm rang turned a finished one-time alarm back on, undid a skip, or brought
+  back a deleted alarm. Double-tapping Save created two alarms
+- "Skip next" tapped twice (widget, notification) skipped the following day instead
+- A Stop or Dismiss that arrived just after another ring took over ended that ring; volume keys during the silent
+  sunrise glow could snooze, or delete a delete-after-use alarm before it rang
+- A second alarm waiting behind the first played the first alarm's sound after the first was dismissed
+- Rotating the phone or tapping Back in a chain of missions started the chain over; in landscape on a large screen
+  the mission area had no height at all
+- Restoring a backup could bring back an old alarm's snooze and ring a restored alarm out of nowhere
+- Times read backwards (05:10 as 01:50) on phones set to right-to-left languages
+
+### New
+- **Low-battery warning:** about 8 hours before an alarm, if the battery is at 20 % or less and not charging, a
+  notification says to plug the phone in (Sleep, then "Warn me when the battery is low")
+- Switching an alarm on says when it rings ("Rings in 9 h 40 min"), so a 7:00 PM slip is caught at once
+- "Pause all" can be undone from the snackbar
+- Alarm Health also checks the backup alarm sound channel and Do Not Disturb modes that mute alarms
+
 ## Initial public release (1.0.x)
 
 ### Alarms

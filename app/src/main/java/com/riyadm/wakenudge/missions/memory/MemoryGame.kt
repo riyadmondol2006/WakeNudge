@@ -90,9 +90,10 @@ class MemoryGame(
 
     companion object {
         fun forDifficulty(difficulty: Difficulty, rounds: Int, random: Random = Random.Default): MemoryGame = when (difficulty) {
-            Difficulty.EASY -> MemoryGame(gridSide = 3, startLength = 3, rounds = rounds, random = random)
-            Difficulty.MEDIUM -> MemoryGame(gridSide = 3, startLength = 4, rounds = rounds, random = random)
-            Difficulty.HARD -> MemoryGame(gridSide = 4, startLength = 5, rounds = rounds, random = random)
+            // The sequence grows by one tile per round, so three rounds of medium are 3, 4 and 5 tiles.
+            Difficulty.EASY -> MemoryGame(gridSide = 3, startLength = 2, rounds = rounds, random = random)
+            Difficulty.MEDIUM -> MemoryGame(gridSide = 3, startLength = 3, rounds = rounds, random = random)
+            Difficulty.HARD -> MemoryGame(gridSide = 4, startLength = 4, rounds = rounds, random = random)
         }
 
         fun restore(saved: List<Int>, random: Random = Random.Default): MemoryGame {

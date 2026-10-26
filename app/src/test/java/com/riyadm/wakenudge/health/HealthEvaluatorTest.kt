@@ -124,11 +124,36 @@ class HealthEvaluatorTest {
 
     // ---- scheduling truth --------------------------------------------------------------------------------------------
 
-    @Test fun `no exact alarm permission warns and links to the right screen for the android version`() {
+    @Test fun `no exact alarm permission links to the right screen for the android version`() {
         val android12 = evaluate(HealthSnapshot(sdkInt = 32, canScheduleExactAlarms = false))
-        assertEquals(Severity.WARNING, android12.severity("exact_alarms"))
         assertEquals(HealthFixKind.EXACT_ALARMS, android12.fixKind("exact_alarms"))
-        assertEquals(HealthFixKind.APP_DETAILS, evaluate(HealthSnapshot(sdkInt = 35, canScheduleExactAlarms = false)).fixKind("exact_alarms"))
+        val android15 = evaluate(HealthSnapshot(sdkInt = 35, canScheduleExactAlarms = false))
+        assertEquals(Severity.WARNING, android15.severity("exact_alarms"))
+        assertEquals(HealthFixKind.APP_DETAILS, android15.fixKind("exact_alarms"))
+    }
+
+    @Test fun `on android 12 a revoked exact alarm permission is an error, because the alarms themselves ring late`() {
+        // There setAlarmClock itself needs the permission; without it alarms are armed inexactly (up to an hour late).
+        for (sdk in 31..32) {
+            val report = evaluate(HealthSnapshot(sdkInt = sdk, canScheduleExactAlarms = false))
+            assertEquals(Severity.ERROR, report.severity("exact_alarms"))
+            assertEquals(HealthFixKind.EXACT_ALARMS, report.fixKind("exact_alarms"))
+        }
+    }
+
+    @Test fun `a do not disturb mode whose own policy mutes alarms is an error even though the default policy allows them`() {
+        val mode = evaluate(HealthSnapshot(interruptionFilter = NotificationManager.INTERRUPTION_FILTER_PRIORITY, dndAllowsAlarms = true, alarmStreamMuted = true))
+        assertEquals(Severity.ERROR, mode.severity("dnd"))
+        assertEquals(HealthFixKind.DND_SETTINGS, mode.fixKind("dnd"))
+        val fine = evaluate(HealthSnapshot(interruptionFilter = NotificationManager.INTERRUPTION_FILTER_PRIORITY, dndAllowsAlarms = true, alarmStreamMuted = false))
+        assertEquals(Severity.OK, fine.severity("dnd"))
+    }
+
+    @Test fun `a blocked backup alarm sound channel is reported, because it is the last resort`() {
+        val report = evaluate(HealthSnapshot(fallbackChannelImportance = NotificationManager.IMPORTANCE_NONE))
+        assertEquals(Severity.WARNING, report.severity("ring_channel"))
+        assertEquals(HealthFixKind.APP_NOTIFICATIONS, report.fixKind("ring_channel"))
+        assertEquals(Severity.OK, evaluate(HealthSnapshot()).severity("ring_channel"))
     }
 
     @Test fun `an os that does not know the next alarm is an error`() {

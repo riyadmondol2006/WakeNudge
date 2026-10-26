@@ -172,7 +172,7 @@ class CategoriesAndPickerUiTest {
                             onSnooze = {}, onDismiss = {}, onEmergencyStop = {}, onAddMinute = {}, onHide = {},
                             onInteraction = {}, onMissionProgress = {},
                         ),
-                        missionContent = { m, i, p, c -> RingMissionContent(m, i, p, c) },
+                        missionContent = { m, i, p, c, f -> RingMissionContent(m, i, p, c, f) },
                     )
                 }
             }

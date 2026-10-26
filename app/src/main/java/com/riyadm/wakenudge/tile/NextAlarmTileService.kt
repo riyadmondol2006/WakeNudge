@@ -5,6 +5,7 @@ import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.util.Log
+import android.widget.Toast
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.domain.model.VacationMode
 import com.riyadm.wakenudge.widget.AlarmOutlook
@@ -15,6 +16,7 @@ import java.time.Duration
 import java.time.LocalDate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -35,9 +37,19 @@ class NextAlarmTileService : TileService() {
     override fun onStartListening() = refresh()
 
     override fun onClick() {
+        // Pausing every alarm is not something to do from a locked phone half asleep: ask for the unlock first.
+        if (isLocked) unlockAndRun { toggle() } else toggle()
+    }
+
+    private fun toggle() {
         scope.launch {
             try {
-                toggleVacation(surfaceEntry())
+                // Finishes even if the system unbinds the tile half-way: a vacation flag saved without the reschedule
+                // that goes with it would leave alarms that look paused but are armed, or the other way round.
+                val locked = withContext(NonCancellable) { toggleVacation(surfaceEntry()) }
+                if (locked != null) {
+                    Toast.makeText(applicationContext, resources.getQuantityString(R.plurals.widget_locked_minutes, locked, locked), Toast.LENGTH_LONG).show()
+                }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (t: Throwable) {
@@ -80,7 +92,8 @@ class NextAlarmTileService : TileService() {
     private suspend fun loadState(entry: SurfaceEntryPoint): TileState {
         val settings = entry.settings().current()
         val text = SurfaceText(this, settings.timeFormat)
-        if (settings.vacation.enabled) {
+        // A vacation whose resume day has come is over even before the scheduler clears the flag.
+        if (settings.vacation.activeOn(entry.time().now().toLocalDate().toEpochDay())) {
             val resume = settings.vacation.resumeEpochDay?.let(LocalDate::ofEpochDay)
             val subtitle = resume
                 ?.let { getString(R.string.tile_subtitle_resumes, text.date(it)) }
@@ -111,16 +124,27 @@ class NextAlarmTileService : TileService() {
 /**
  * Flips vacation mode, keeping the user's chosen resume day. A resume day that has already passed would make
  * "vacation on" a silent no-op, so enabling clears it (meaning "until I switch it off").
+ *
+ * Pausing is refused while an alarm is inside its last-minute edit protection, as switching that alarm off would be
+ * from the app or a widget; the result is then the minutes left on the lock, otherwise null.
  */
-internal suspend fun toggleVacation(entry: SurfaceEntryPoint) {
+internal suspend fun toggleVacation(entry: SurfaceEntryPoint): Int? {
     val today = entry.time().now().toLocalDate().toEpochDay()
+    val pausing = !entry.settings().current().vacation.activeOn(today)
+    if (pausing) {
+        val actions = entry.alarmActions()
+        val locked = entry.alarms().getAlarms().filter { it.enabled && !it.ignoreVacation }.firstNotNullOfOrNull { actions.lockedMinutes(it) }
+        if (locked != null) return locked
+    }
     entry.settings().update { it.copy(vacation = it.vacation.toggled(today)) }
     entry.scheduler().rescheduleAll("tile")
     entry.surfaces().refreshAll()
+    return null
 }
 
 internal fun VacationMode.toggled(todayEpochDay: Long): VacationMode {
-    val enabling = !enabled
+    // What the tile shows: a vacation past its resume day counts as off, so a tap on it pauses again.
+    val enabling = !activeOn(todayEpochDay)
     val staleResume = resumeEpochDay != null && resumeEpochDay <= todayEpochDay
     return copy(enabled = enabling, resumeEpochDay = if (enabling && staleResume) null else resumeEpochDay)
 }

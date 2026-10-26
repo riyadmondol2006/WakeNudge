@@ -82,6 +82,8 @@
     <string name="sleep_reminder_section">Bedtime reminder</string>
     <string name="sleep_reminder_title">Remind me to wind down</string>
     <string name="sleep_reminder_hint">A gentle notification before bedtime on the days you pick.</string>
+    <string name="sleep_low_battery_title">Warn me when the battery is low</string>
+    <string name="sleep_low_battery_hint">About 8 hours before an alarm, if the battery is at 20% or less and not charging. A phone that runs flat cannot ring.</string>
     <string name="sleep_bedtime">Bedtime</string>
     <string name="sleep_lead">Remind me</string>
 
@@ -154,7 +156,7 @@
     <string name="groups_name">Profile name</string>
     <string name="groups_rename">Rename</string>
     <string name="groups_delete_title">Delete “%1$s”?</string>
-    <string name="groups_delete_body">Alarms in this profile are kept and simply become ungrouped.</string>
+    <string name="groups_delete_body">Alarms in this profile are kept and become ungrouped. If the profile is switched off, its alarms stay off.</string>
 
     <!-- Exceptions -->
     <string name="exceptions_title">Vacation and holidays</string>

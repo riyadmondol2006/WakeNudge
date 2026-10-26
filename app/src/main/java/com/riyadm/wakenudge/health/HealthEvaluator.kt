@@ -134,10 +134,15 @@ class HealthEvaluator(private val res: HealthResources) {
         return when (val importance = s.ringChannelImportance) {
             null -> item("ring_channel", Severity.WARNING, title, R.string.health_detail_channel_missing)
             NotificationManager.IMPORTANCE_NONE -> item("ring_channel", Severity.ERROR, title, R.string.health_detail_channel_blocked, fix = fix)
-            else -> if (importance < NotificationManager.IMPORTANCE_HIGH) {
-                item("ring_channel", Severity.WARNING, title, R.string.health_detail_channel_lowered, fix = fix)
-            } else {
-                item("ring_channel", Severity.OK, title, R.string.health_detail_channel_ok)
+            else -> when {
+                importance < NotificationManager.IMPORTANCE_HIGH -> item("ring_channel", Severity.WARNING, title, R.string.health_detail_channel_lowered, fix = fix)
+                // The last-resort alarm (when the ring service cannot start) is that channel's own sound: blocked, it
+                // would be silent exactly when everything else has already failed.
+                s.fallbackChannelImportance == NotificationManager.IMPORTANCE_NONE -> item(
+                    "ring_channel", Severity.WARNING, title, R.string.health_detail_fallback_channel_blocked,
+                    fix = HealthFixKind.APP_NOTIFICATIONS to R.string.health_fix_notifications,
+                )
+                else -> item("ring_channel", Severity.OK, title, R.string.health_detail_channel_ok)
             }
         }
     }
@@ -154,13 +159,18 @@ class HealthEvaluator(private val res: HealthResources) {
         }
     }
 
-    /** Alarms use `setAlarmClock`, which needs no permission; what degrades without it is everything else. */
+    /**
+     * On Android 12 and 12L the alarm clock itself needs the exact-alarm permission ("Alarms & reminders"), which the
+     * user can switch off; without it alarms are armed inexactly and may ring up to an hour late. From Android 13 the
+     * app holds USE_EXACT_ALARM, which cannot be revoked, and only timers and reminders would be affected.
+     */
     private fun exactAlarms(s: HealthSnapshot): HealthItem {
         val title = R.string.health_title_exact_alarms
         if (s.canScheduleExactAlarms) return item("exact_alarms", Severity.OK, title, R.string.health_detail_allowed)
-        val kind = if (s.sdkInt in 31..32) HealthFixKind.EXACT_ALARMS else HealthFixKind.APP_DETAILS
-        val label = if (kind == HealthFixKind.EXACT_ALARMS) R.string.health_fix_exact_alarms else R.string.health_fix_app_details
-        return item("exact_alarms", Severity.WARNING, title, R.string.health_detail_exact_off, fix = kind to label)
+        if (s.sdkInt in 31..32) {
+            return item("exact_alarms", Severity.ERROR, title, R.string.health_detail_exact_off_alarms, fix = HealthFixKind.EXACT_ALARMS to R.string.health_fix_exact_alarms)
+        }
+        return item("exact_alarms", Severity.WARNING, title, R.string.health_detail_exact_off, fix = HealthFixKind.APP_DETAILS to R.string.health_fix_app_details)
     }
 
     // ---- power management ---------------------------------------------------------------------------------------
@@ -209,12 +219,13 @@ class HealthEvaluator(private val res: HealthResources) {
         val fix = HealthFixKind.DND_SETTINGS to R.string.health_fix_dnd
         return when (s.interruptionFilter) {
             NotificationManager.INTERRUPTION_FILTER_NONE -> item("dnd", Severity.ERROR, title, R.string.health_detail_dnd_total_silence, fix = fix)
-            NotificationManager.INTERRUPTION_FILTER_PRIORITY ->
-                if (s.dndAllowsAlarms) {
-                    item("dnd", Severity.OK, title, R.string.health_detail_dnd_priority_ok)
-                } else {
-                    item("dnd", Severity.ERROR, title, R.string.health_detail_dnd_priority_blocks, fix = fix)
-                }
+            NotificationManager.INTERRUPTION_FILTER_PRIORITY -> when {
+                !s.dndAllowsAlarms -> item("dnd", Severity.ERROR, title, R.string.health_detail_dnd_priority_blocks, fix = fix)
+                // The default policy allows alarms, but the schedule or mode that is on has its own and Android muted
+                // the alarm stream: no app can undo that, so the alarm would be silent.
+                s.alarmStreamMuted -> item("dnd", Severity.ERROR, title, R.string.health_detail_dnd_mode_blocks, fix = fix)
+                else -> item("dnd", Severity.OK, title, R.string.health_detail_dnd_priority_ok)
+            }
             NotificationManager.INTERRUPTION_FILTER_ALARMS -> item("dnd", Severity.OK, title, R.string.health_detail_dnd_alarms_only)
             NotificationManager.INTERRUPTION_FILTER_UNKNOWN -> item("dnd", Severity.INFO, title, R.string.health_detail_dnd_unknown)
             else -> item("dnd", Severity.OK, title, R.string.health_detail_dnd_off)

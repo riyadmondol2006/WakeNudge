@@ -20,6 +20,7 @@ import com.riyadm.wakenudge.domain.repository.SettingsRepository
 import com.riyadm.wakenudge.domain.scheduling.SnoozePolicy
 import com.riyadm.wakenudge.engine.RingController
 import com.riyadm.wakenudge.engine.RingPhase
+import com.riyadm.wakenudge.engine.RingTarget
 import com.riyadm.wakenudge.engine.RingSessionStore
 import com.riyadm.wakenudge.ui.theme.WakeNudgeTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -66,6 +67,15 @@ class RingActivity : ComponentActivity() {
                 }
             }
         }
+        // Sunrise: the display brightens every second through the lead time, not only when the session changes.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (true) {
+                    store.current?.takeIf { it.phase == RingPhase.SUNRISE }?.let { applyBrightness(it.phase, it.startedAt, it.alarm.sunrise.leadMinutes) }
+                    kotlinx.coroutines.delay(1_000)
+                }
+            }
+        }
         lifecycleScope.launch {
             // No session shortly after launch means this was a stale notification tap: do not strand the user here.
             kotlinx.coroutines.delay(2_500)
@@ -81,16 +91,17 @@ class RingActivity : ComponentActivity() {
                         session = current,
                         settings = s,
                         actions = RingActions(
-                            onSnooze = { lifecycleScope.launch { controller.snooze() } },
-                            onDismiss = { lifecycleScope.launch { controller.dismiss() } },
-                            onEmergencyStop = { lifecycleScope.launch { controller.emergencyStop() } },
+                            // Each button acts on the ring it was drawn for, never on one that took over a moment ago.
+                            onSnooze = { lifecycleScope.launch { controller.snooze(RingTarget.of(current)) } },
+                            onDismiss = { lifecycleScope.launch { controller.dismiss(RingTarget.of(current)) } },
+                            onEmergencyStop = { lifecycleScope.launch { controller.emergencyStop(RingTarget.of(current)) } },
                             onAddMinute = { lifecycleScope.launch { controller.addMinuteToRingingTimer() } },
                             onHide = { finish() },
                             onInteraction = controller::noteInteraction,
                             onMissionProgress = controller::noteMissionDone,
                         ),
-                        missionContent = { missions, onInteraction, onProgress, onComplete ->
-                            RingMissionContent(missions, onInteraction, onProgress, onComplete)
+                        missionContent = { missions, onInteraction, onProgress, onComplete, first ->
+                            RingMissionContent(missions, onInteraction, onProgress, onComplete, first)
                         },
                     )
                 }
@@ -147,6 +158,8 @@ class RingActivity : ComponentActivity() {
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (keyCode != KeyEvent.KEYCODE_VOLUME_UP && keyCode != KeyEvent.KEYCODE_VOLUME_DOWN) return super.onKeyDown(keyCode, event)
         val session = store.current ?: return super.onKeyDown(keyCode, event)
+        // During the silent sunrise glow nothing is ringing yet: the keys are ordinary volume keys.
+        if (session.phase != RingPhase.RINGING) return super.onKeyDown(keyCode, event)
         if (event.repeatCount > 0) return true
         controller.noteInteraction()
         val alarm = session.alarm
@@ -157,13 +170,13 @@ class RingActivity : ComponentActivity() {
             VolumeKeyAction.SNOOZE -> {
                 // Only a plain snooze: when a mission is required the key must not bypass it.
                 if (!session.isTimer && alarm.snoozeMissions.isEmpty() && SnoozePolicy.canSnooze(alarm.snooze, session.snoozeCount)) {
-                    lifecycleScope.launch { controller.snooze() }
+                    lifecycleScope.launch { controller.snooze(RingTarget.of(session)) }
                 }
                 true
             }
             VolumeKeyAction.DISMISS -> {
                 if (session.isTimer || (!session.hasMissions && alarm.antiOversleep.holdToDismissSeconds == 0)) {
-                    lifecycleScope.launch { controller.dismiss() }
+                    lifecycleScope.launch { controller.dismiss(RingTarget.of(session)) }
                 }
                 true
             }

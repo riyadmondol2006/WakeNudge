@@ -6,6 +6,7 @@ import com.riyadm.wakenudge.core.TimeSource
 import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.model.AlarmGroup
 import com.riyadm.wakenudge.domain.model.AppSettings
+import com.riyadm.wakenudge.domain.model.VacationMode
 import com.riyadm.wakenudge.domain.repository.AlarmRepository
 import com.riyadm.wakenudge.domain.repository.ExceptionRepository
 import com.riyadm.wakenudge.domain.repository.GroupRepository
@@ -17,6 +18,7 @@ import com.riyadm.wakenudge.domain.usecase.ActionResult
 import com.riyadm.wakenudge.domain.usecase.ActiveRingQuery
 import com.riyadm.wakenudge.domain.usecase.AlarmActions
 import com.riyadm.wakenudge.engine.SchedulingContextProvider
+import com.riyadm.wakenudge.ui.util.persist
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.ZonedDateTime
 import javax.inject.Inject
@@ -61,6 +63,15 @@ sealed interface AlarmsEvent {
     data class Locked(val minutes: Int) : AlarmsEvent
     data class Deleted(val alarm: Alarm) : AlarmsEvent
     data class Skipped(val epochDay: Long?) : AlarmsEvent
+
+    /**
+     * An alarm was switched on: when it will ring (so 7:00 in the evening instead of the morning is caught at once), and
+     * the name of its group when the group had to be switched on with it, which brings the group's other alarms back.
+     */
+    data class TurnedOn(val ringsAt: Long?, val groupTurnedOn: String?) : AlarmsEvent
+
+    /** Every alarm was paused with one tap; [previous] is what Undo puts back. */
+    data class Paused(val previous: VacationMode) : AlarmsEvent
 }
 
 @HiltViewModel
@@ -130,11 +141,11 @@ class AlarmsViewModel @Inject constructor(
     }
 
     fun toggle(item: AlarmItem, enabled: Boolean) = viewModelScope.launch {
-        // Turning on an alarm whose group is off also needs the group on, or nothing would change for the user.
-        if (enabled && item.group?.enabled == false) groupRepo.setEnabled(item.group.id, true)
+        // AlarmActions also switches the alarm's group on when it is off, and re-arms the whole group.
         when (val r = actions.setEnabled(item.alarm.id, enabled)) {
             is ActionResult.Locked -> _events.send(AlarmsEvent.Locked(r.minutes))
-            else -> Unit
+            is ActionResult.Done -> if (enabled) _events.send(AlarmsEvent.TurnedOn(scheduler.nextTriggerOf(item.alarm.id), r.value))
+            ActionResult.NotFound -> Unit
         }
     }
 
@@ -149,7 +160,7 @@ class AlarmsViewModel @Inject constructor(
     fun undoDelete(alarm: Alarm) = viewModelScope.launch { actions.restore(alarm) }
 
     fun skipNext(item: AlarmItem) = viewModelScope.launch {
-        when (val r = actions.skipNext(item.alarm.id)) {
+        when (val r = actions.skipNext(item.alarm.id, occurrenceAt = item.nextAt?.toInstant()?.toEpochMilli())) {
             is ActionResult.Locked -> _events.send(AlarmsEvent.Locked(r.minutes))
             is ActionResult.Done -> _events.send(AlarmsEvent.Skipped(r.value))
             ActionResult.NotFound -> Unit
@@ -160,20 +171,28 @@ class AlarmsViewModel @Inject constructor(
 
     fun duplicate(item: AlarmItem) = viewModelScope.launch { actions.duplicate(item.alarm.id) }
 
-    fun setGroupEnabled(groupId: Long, enabled: Boolean) = viewModelScope.launch {
+    fun setGroupEnabled(groupId: Long, enabled: Boolean) = persist {
         groupRepo.setEnabled(groupId, enabled)
         scheduler.rescheduleAll("group-toggle")
     }
 
     /** Switches to a profile: turns this group on and every other group off. */
-    fun activateProfileOnly(groupId: Long) = viewModelScope.launch {
+    fun activateProfileOnly(groupId: Long) = persist {
         groupRepo.getGroups().forEach { groupRepo.setEnabled(it.id, it.id == groupId) }
         scheduler.rescheduleAll("profile-switch")
     }
 
-    fun setVacation(enabled: Boolean, resumeEpochDay: Long? = null) = viewModelScope.launch {
+    fun setVacation(enabled: Boolean, resumeEpochDay: Long? = null) = persist {
+        val before = settings.current().vacation
         settings.update { it.copy(vacation = it.vacation.copy(enabled = enabled, resumeEpochDay = if (enabled) resumeEpochDay else null)) }
         scheduler.rescheduleAll("vacation")
+        // One tap silences every alarm, so it can be taken back as easily.
+        if (enabled && !before.enabled) _events.send(AlarmsEvent.Paused(before))
+    }
+
+    fun undoPause(previous: VacationMode) = persist {
+        settings.update { it.copy(vacation = previous) }
+        scheduler.rescheduleAll("vacation undone")
     }
 
     private companion object {

@@ -23,6 +23,7 @@ class SlidingPuzzle private constructor(val size: Int, private val cells: IntArr
 
     /** True when [index] holds a tile that shares a row or column with the blank, so tapping it slides something. */
     fun canSlide(index: Int): Boolean {
+        if (index !in cells.indices) return false
         val blank = blankIndex
         return index != blank && (index / size == blank / size || index % size == blank % size)
     }
@@ -80,10 +81,15 @@ class SlidingPuzzle private constructor(val size: Int, private val cells: IntArr
             return puzzle
         }
 
+        /**
+         * Always the 3 x 3 board: a fully shuffled 4 x 4 takes most people many minutes even wide awake, which turns
+         * a wake-up task into a reason to reach for the Emergency stop. Easy is a handful of slides from solved,
+         * medium a short think, hard a fully shuffled board.
+         */
         fun forDifficulty(difficulty: Difficulty, random: Random): SlidingPuzzle = when (difficulty) {
-            Difficulty.EASY -> scrambled(3, moves = 24, random = random)
-            Difficulty.MEDIUM -> scrambled(3, moves = 150, random = random)
-            Difficulty.HARD -> scrambled(4, moves = 220, random = random)
+            Difficulty.EASY -> scrambled(3, moves = 8, random = random)
+            Difficulty.MEDIUM -> scrambled(3, moves = 24, random = random)
+            Difficulty.HARD -> scrambled(3, moves = 150, random = random)
         }
 
         fun restore(size: Int, tiles: List<Int>): SlidingPuzzle {

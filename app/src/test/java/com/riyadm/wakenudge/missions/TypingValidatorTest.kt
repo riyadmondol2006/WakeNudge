@@ -80,4 +80,15 @@ class TypingValidatorTest {
         assertEquals(12, TypingValidator.pickPhrases(pool.take(3), 12, Random(1)).size)
         assertTrue(TypingValidator.pickPhrases(emptyList(), 3, Random(1)).isEmpty())
     }
+
+    @Test fun `a keyboard that types curly quotes, long dashes or a non-breaking space can still finish`() {
+        val hard = TypingValidator(Difficulty.HARD)
+        assertTrue(hard.isCorrect("Today's list: wake up.", "Today\u2019s list: wake up."))
+        assertTrue(hard.isCorrect("Say \"Hello\" now", "Say \u201CHello\u201D now"))
+        assertTrue(hard.isCorrect("brand-new day", "brand\u2013new day"))
+        assertTrue(TypingValidator(Difficulty.MEDIUM).isCorrect("open the window", "open\u00A0the window"))
+        // Only the form of the mark is forgiven; a different letter or a missing mark is still a mistake.
+        assertTrue(!hard.isCorrect("Today's list", "Todays list"))
+        assertTrue(!hard.isCorrect("brand-new day", "brand new day"))
+    }
 }

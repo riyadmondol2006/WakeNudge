@@ -65,11 +65,15 @@ class RingService : Service() {
     private var ringingStarted = false
     private var lastIntensified = false
 
+    /** Starts whose ring has not been looked up yet. Main thread only. While one is in flight the service must not stop. */
+    private var startsInFlight = 0
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Must reach startForeground() immediately, whatever else happens.
-        val promoted = goForeground(notifier.ringPlaceholder())
+        val safeMode = runCatching { CrashRescuePolicy.safeMode(runtime.ringCrashTimes(), time.nowMillis()) }.getOrDefault(false)
+        val promoted = goForeground(notifier.ringPlaceholder(safeMode))
         val request = intent?.takeIf { it.action == ACTION_BEGIN }?.toRequest()
         if (request == null) {
             locks.releaseHandoff()
@@ -81,12 +85,33 @@ class RingService : Service() {
         if (!promoted) rescue.retrySoon(request, "startForeground was refused")
         locks.acquireRing()
         locks.releaseHandoff() // our own lock holds the CPU from here
+        // A redelivered start may be for a ring dealt with before the process died; any start of an alarm's ring may
+        // also have waited behind a dismissal of that same ring (a backup firing as the user dismissed). Both are
+        // checked against the history first.
+        val redelivered = flags and START_FLAG_REDELIVERY != 0
+        val check = redelivered || request.eventId > 0
+        startsInFlight++
         scope.launch {
-            val session = controller.begin(request)
+            val session = try {
+                if (check && !controller.stillUnhandled(request)) {
+                    diagnostics.info("Service", "ring of alarm ${request.alarmId} was already handled; not ringing it again")
+                    null
+                } else {
+                    controller.begin(request)
+                }
+            } finally {
+                startsInFlight--
+            }
             if (session == null) {
                 diagnostics.warn("Service", "no session for $request")
                 // Another ring may already be going on in this service: only an idle service shuts down.
-                if (store.current == null) shutdown() else observe()
+                if (store.current == null) {
+                    shutdown()
+                } else {
+                    // Queued behind the ring on screen: the placeholder posted above must not replace its notification.
+                    store.current?.let { current -> guard("ring notification") { goForeground(notifier.ring(current)) } }
+                    observe()
+                }
                 return@launch
             }
             guard("ring notification") { goForeground(notifier.ring(session)) }
@@ -147,6 +172,9 @@ class RingService : Service() {
                     val next = controller.takeQueued()
                     previous = null
                     if (next != null) {
+                        // The ring that just ended takes its sound, vibration and voice with it: the next one starts its
+                        // own (its tone, its volume, its label) instead of inheriting them.
+                        stopSounds()
                         scope.launch {
                             // A queued ring whose alarm has vanished is skipped; the ones behind it still get their turn.
                             var candidate: RingRequest? = next
@@ -155,7 +183,13 @@ class RingService : Service() {
                                 session = controller.begin(candidate)
                                 if (session == null) candidate = controller.takeQueued()
                             }
-                            if (session == null) shutdown() else guard("ring notification") { goForeground(notifier.ring(session)) }
+                            if (session == null) {
+                                shutdown()
+                            } else {
+                                // The ring screen closed with the previous ring: alert again so this one is seen at once.
+                                guard("ring notification") { goForeground(notifier.ring(session, alertAgain = true)) }
+                                guard("ring screen") { openRingScreenIfItMayNotAppear(session) }
+                            }
                         }
                     } else {
                         shutdown()
@@ -268,15 +302,32 @@ class RingService : Service() {
         diagnostics.error("Service", "startForeground failed", it)
     }.isSuccess
 
-    private fun shutdown() {
-        stoppedOnPurpose = true
-        voiceJob?.cancel()
-        voice?.shutdown()
-        voice = null
-        audio.stop()
-        vibrator.stop()
+    private fun stopSounds() {
+        guard("stopping the sound") {
+            voiceJob?.cancel()
+            voice?.shutdown()
+            voice = null
+            audio.stop()
+            vibrator.stop()
+        }
         ringingStarted = false
         lastIntensified = false
+    }
+
+    private fun shutdown() {
+        // A ring that just ended can coincide with a new one arriving (by default the ring timeout and the backup fall
+        // due in the same second). Stopping the service then would take the new ring down with it, unrescued.
+        if (startsInFlight > 0) {
+            stopSounds()
+            observer?.cancel()
+            ticker?.cancel()
+            observer = null
+            ticker = null
+            diagnostics.info("Service", "a ring ended while another was starting; staying up for it")
+            return
+        }
+        stoppedOnPurpose = true
+        stopSounds()
         observer?.cancel()
         ticker?.cancel()
         observer = null

@@ -23,21 +23,21 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AlarmOn
 import androidx.compose.material.icons.outlined.BatteryChargingFull
@@ -58,8 +58,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,11 +79,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.riyadm.wakenudge.BuildConfig
 import com.riyadm.wakenudge.R
+import com.riyadm.wakenudge.missions.ui.findActivity
 import com.riyadm.wakenudge.ui.components.rememberReduceMotion
 import com.riyadm.wakenudge.ui.theme.Blobs
 import com.riyadm.wakenudge.ui.theme.LocalWakeHaptics
@@ -246,7 +250,15 @@ private fun PermissionsPage() {
     val fullScreenGranted = remember(refresh) {
         Build.VERSION.SDK_INT < 34 || context.getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
     }
-    val request = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { refresh++ }
+    // Refused twice, Android stops showing its dialog and every request fails at once; the button then opens the app's
+    // notification settings instead of doing nothing.
+    var blocked by rememberSaveable { mutableStateOf(false) }
+    val request = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        refresh++
+        if (!granted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            blocked = context.findActivity()?.let { !ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.POST_NOTIFICATIONS) } ?: false
+        }
+    }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), verticalArrangement = Arrangement.Center) {
         Text(stringResource(R.string.onboarding_permissions_title), style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
@@ -257,7 +269,17 @@ private fun PermissionsPage() {
         PermissionRow(
             icon = Icons.Outlined.Notifications, title = R.string.onboarding_perm_notifications, body = R.string.onboarding_perm_notifications_body,
             granted = notificationsGranted,
-            action = { request.launch(Manifest.permission.POST_NOTIFICATIONS) },
+            action = {
+                if (blocked) {
+                    runCatching {
+                        context.startActivity(
+                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        )
+                    }
+                } else {
+                    request.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            },
         )
         Spacer(Modifier.height(8.dp))
         PermissionRow(

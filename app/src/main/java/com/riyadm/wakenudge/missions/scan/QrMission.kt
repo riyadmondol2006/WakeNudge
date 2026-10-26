@@ -56,6 +56,7 @@ import com.riyadm.wakenudge.missions.camera.FrameSampling
 import com.riyadm.wakenudge.missions.ui.MissionButton
 import com.riyadm.wakenudge.missions.ui.MissionButtonKind
 import com.riyadm.wakenudge.missions.ui.MissionNotice
+import com.riyadm.wakenudge.missions.ui.MissionWayOut
 import com.riyadm.wakenudge.missions.ui.MissionProgress
 import com.riyadm.wakenudge.missions.ui.MissionPrompt
 import com.riyadm.wakenudge.missions.ui.MissionScaffold
@@ -97,7 +98,9 @@ internal fun CodeScannerView(
         modifier = modifier,
     ) {
         if (cameraFailed) {
-            MissionNotice(Icons.Filled.NoPhotography, stringResource(R.string.mission_camera_failed_title), stringResource(R.string.mission_camera_failed_body), modifier)
+            MissionNotice(Icons.Filled.NoPhotography, stringResource(R.string.mission_camera_failed_title), stringResource(R.string.mission_camera_failed_body), modifier) {
+                MissionWayOut()
+            }
         } else {
             Box(modifier.clip(MaterialTheme.shapes.extraLarge).background(Color.Black)) {
                 CameraAnalysisView(

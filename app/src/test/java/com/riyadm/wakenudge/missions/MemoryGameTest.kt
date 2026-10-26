@@ -16,11 +16,11 @@ class MemoryGameTest {
 
     @Test fun `grid sizes and starting lengths follow the difficulty`() {
         val easy = game(Difficulty.EASY)
-        assertEquals(9, easy.tileCount); assertEquals(3, easy.sequence.size)
+        assertEquals(9, easy.tileCount); assertEquals(2, easy.sequence.size)
         val medium = game(Difficulty.MEDIUM)
-        assertEquals(9, medium.tileCount); assertEquals(4, medium.sequence.size)
+        assertEquals(9, medium.tileCount); assertEquals(3, medium.sequence.size)
         val hard = game(Difficulty.HARD)
-        assertEquals(16, hard.tileCount); assertEquals(5, hard.sequence.size)
+        assertEquals(16, hard.tileCount); assertEquals(4, hard.sequence.size)
     }
 
     @Test fun `sequences use valid tiles and never repeat a tile back to back`() {

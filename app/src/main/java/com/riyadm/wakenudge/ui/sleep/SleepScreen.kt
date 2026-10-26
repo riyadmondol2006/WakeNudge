@@ -198,6 +198,12 @@ private fun BedtimeSettingsCard(viewModel: SleepViewModel, is24: Boolean) {
             )
         }
         item { shape ->
+            SwitchRow(
+                title = stringResource(R.string.sleep_low_battery_title), subtitle = stringResource(R.string.sleep_low_battery_hint),
+                checked = settings.lowBatteryWarning, onCheckedChange = viewModel::setLowBatteryWarning, shape = shape,
+            )
+        }
+        item { shape ->
             ValueRow(
                 title = stringResource(R.string.sleep_bedtime), value = TimeText.format(bed.hour, bed.minute, is24),
                 shape = shape, onClick = { typing = true },

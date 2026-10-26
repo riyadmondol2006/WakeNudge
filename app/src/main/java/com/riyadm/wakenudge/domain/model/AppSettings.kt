@@ -95,6 +95,8 @@ data class AppSettings(
     /** Whether to bring the screen back to the alarm UI if the user wanders away while it rings. */
     val keepRingScreenFront: Boolean = true,
     val emergencyStopHoldSeconds: Int = 3,
+    /** Warn some hours before an alarm when the battery is low and not charging, so the phone lasts until it rings. */
+    val lowBatteryWarning: Boolean = true,
     /** GitHub APK only: look for a newer release, at most once an hour. The Play build never reads this or the two below. */
     val updateChecksEnabled: Boolean = true,
     /** Epoch millis of the last check GitHub answered; 0 when there has not been one. */
