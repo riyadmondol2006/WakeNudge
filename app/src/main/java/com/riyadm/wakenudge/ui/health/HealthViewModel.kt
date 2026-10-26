@@ -1,5 +1,8 @@
 package com.riyadm.wakenudge.ui.health
 
+import kotlinx.coroutines.flow.map
+import com.riyadm.wakenudge.domain.model.TimeFormat
+import com.riyadm.wakenudge.domain.repository.SettingsRepository
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.riyadm.wakenudge.domain.repository.DiagnosticRecord
@@ -24,7 +27,11 @@ class HealthViewModel @Inject constructor(
     private val exporter: DiagnosticsExporter,
     private val scheduler: AlarmScheduler,
     private val log: DiagnosticsLog,
+    settings: SettingsRepository,
 ) : ViewModel() {
+    /** For the test alarm's "rings at" line, in the app's 12/24-hour choice like every other time. */
+    val timeFormat: StateFlow<TimeFormat> = settings.settings.map { it.timeFormat }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TimeFormat.SYSTEM)
+
     private val _report = MutableStateFlow<HealthReport?>(null)
     val report: StateFlow<HealthReport?> = _report.asStateFlow()
 

@@ -59,6 +59,7 @@
     <!-- Math -->
     <string name="mission_math_progress">Problem %1$d of %2$d</string>
     <string name="mission_math_answer_hint">Your answer</string>
+    <string name="mission_math_wrong">Not quite, try again</string>
     <string name="mission_math_delete">Delete</string>
     <string name="mission_math_submit">Submit answer</string>
     <string name="mission_math_example_easy">Questions like 7 + 5 or 9 − 4</string>
@@ -71,6 +72,7 @@
     <string name="mission_memory_your_turn">Your turn: tile %1$d of %2$d</string>
     <string name="mission_memory_done">Pattern complete</string>
     <string name="mission_memory_tile">Tile %1$d</string>
+    <string name="mission_memory_tile_lit">Lit</string>
 
     <!-- Typing -->
     <string name="mission_typing_progress">Phrase %1$d of %2$d</string>
@@ -104,7 +106,7 @@
     <string name="mission_nfc_wrong">That is a different tag. Find the one you registered.</string>
     <string name="mission_nfc_missing_title">No NFC on this phone</string>
     <string name="mission_nfc_off_title">NFC is switched off</string>
-    <string name="mission_nfc_off_body">Turn NFC on in your phone\'s settings so it can read your tag.</string>
+    <string name="mission_nfc_off_body">Turn NFC on in Quick Settings or in your phone\'s settings so it can read your tag.</string>
     <string name="mission_nfc_open_settings">Open NFC settings</string>
     <string name="mission_nfc_locked_title">Tapping does nothing?</string>
     <string name="mission_nfc_locked_body">Some phones do not read NFC tags while the screen is locked. If nothing happens, unlock your phone and tap the tag again.</string>
@@ -166,6 +168,7 @@
     <string name="mission_puzzle_pattern_hint">Drag your finger through the dots in numbered order, starting at 1.</string>
     <string name="mission_puzzle_pattern_progress">%1$d of %2$d dots</string>
     <string name="mission_puzzle_pattern_description">Trace the dots in this order: %1$s</string>
+    <string name="mission_puzzle_dot_connected">Connected</string>
     <string-array name="mission_dot_names">
         <item>top left</item>
         <item>top middle</item>

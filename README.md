@@ -46,7 +46,7 @@ one press-and-hold away, so it never traps you. For an alarm you really must obe
 
 | Where | Status |
 |---|---|
-| **GitHub Releases** (APK) | [**Download the latest APK**](https://github.com/riyadmondol2006/WakeNudge/releases/latest/download/WakeNudge.apk) (starts the download straight away), or browse the [latest release](https://github.com/riyadmondol2006/WakeNudge/releases/latest). Every release carries `WakeNudge-<version>.apk` (install this one), `WakeNudge-<version>.aab` (the Play bundle), the R8 `mapping` file and `SHA256SUMS.txt`. |
+| **GitHub Releases** (APK) | [**Download the latest APK**](https://github.com/riyadmondol2006/WakeNudge/releases/latest/download/WakeNudge.apk) (starts the download straight away), or browse the [latest release](https://github.com/riyadmondol2006/WakeNudge/releases/latest). Every release carries `WakeNudge-<version>.apk` (install this one), the same file as `WakeNudge.apk`, the R8 `mapping` file and `SHA256SUMS.txt`. |
 | **Website** | [wakenudge.site](https://wakenudge.site): overview, screenshots, install steps and the privacy policy in one page. |
 
 Needs **Android 8.0 (API 26) or newer**.
@@ -64,7 +64,7 @@ Needs **Android 8.0 (API 26) or newer**.
 
 4. Open WakeNudge, follow the short onboarding, then open **Alarm health** and ring the test alarm with your screen locked.
 
-The GitHub APK can tell you when a newer release exists (see [Privacy](#privacy)). Updates are installed the same way, from the release page.
+WakeNudge tells you when a newer release exists (see [Privacy](#privacy)). Updates are installed the same way, from the release page.
 </details>
 
 ## Screenshots
@@ -93,7 +93,7 @@ Real captures from a Pixel 6 Pro in the dark theme. WakeNudge also has light and
 | **Loud, then louder** | An **Extra Loud strength slider** (you choose how much punch to add), a volume ramp of up to 10 minutes, and a sound that intensifies after 40 seconds without interaction. A separate **backup alarm** rings later if nothing happens. |
 | **Anti-oversleep, with an exit** | Snooze limits (optionally shrinking), hold-to-dismiss, accidental-dismissal protection and an optional edit lock before the alarm. Every restriction can be bypassed with the **Emergency stop**, which is on by default; **strict alarms** can turn it, and snooze, off per alarm (missions your phone cannot do still offer Continue, and the ring timeout still ends the alarm). |
 | **Alarm Health and test alarm** | Checks notifications, full-screen permission, exact alarms, battery restrictions, Do Not Disturb and audio routing, explains each fix, and rings a real test alarm. |
-| **Offline, no ads, no tracking** | No accounts, no analytics, no ad SDKs. The Play build has no network permission at all. See [Privacy](#privacy). |
+| **Offline, no ads, no tracking** | No accounts, no analytics, no ad SDKs. The only thing that goes online is the optional update check. See [Privacy](#privacy). |
 | **Open source** | Apache License 2.0, Kotlin and Jetpack Compose, with a large automated test suite. |
 | **Material You design** | Dynamic colour, light, dark and AMOLED themes, large-text and right-to-left support, TalkBack labels, layouts that adapt to the window size. Alarm options are grouped into collapsible categories with a one-line summary of each, and Settings is a short grouped list. |
 
@@ -167,13 +167,9 @@ No accounts, no ads, no analytics, no crash reporting, no tracking SDKs. Alarms,
 only in the app's private storage on your phone. Permissions such as camera, step counter and calendar are requested
 only when you use the feature that needs them ([every permission, and why](docs/PERMISSIONS.md)).
 
-There are two ways to get WakeNudge, and they differ in exactly one respect:
-
-| Build | Network permission | What it does online |
-|---|---|---|
-| **APK from GitHub Releases** | `INTERNET` only | An **update popup** that checks GitHub at most once an hour for a newer release. It sends nothing about you or your alarms, and you can switch it off in **About, then Updates**. |
-
-Both are built from this repository. Read the full [privacy policy](PRIVACY.md).
+WakeNudge holds one network permission, `INTERNET`, for an **update popup** that checks GitHub at most once an hour for
+a newer release. It sends nothing about you or your alarms, and you can switch it off in **About, then Updates**. Read
+the full [privacy policy](PRIVACY.md).
 
 ## Why another alarm app?
 
@@ -193,9 +189,10 @@ Yes. Apache License 2.0, no ads, no subscription, no in-app purchases, no accoun
 <details>
 <summary><strong>Is it really offline?</strong></summary>
 
-The alarm clock never needs the internet. The Play build declares no network permission at all (the Gradle
-`verifyOfflineManifest*` tasks fail the build if `INTERNET`, `ACCESS_NETWORK_STATE` or `ACCESS_WIFI_STATE` appears). The GitHub APK
-holds only `INTERNET`, used for the optional update popup described under [Privacy](#privacy).
+The alarm clock never needs the internet. The app holds only `INTERNET`, used for the optional update popup described
+under [Privacy](#privacy); switch it off in About, then Updates, and WakeNudge never goes online. The Gradle
+`verifyOfflineManifest*` tasks fail the build if any other network permission (`ACCESS_NETWORK_STATE`,
+`ACCESS_WIFI_STATE`) appears.
 </details>
 
 <details>
@@ -232,7 +229,7 @@ perform offers Continue.
 <details>
 <summary><strong>How do updates work?</strong></summary>
 
-The GitHub APK shows a popup when a newer release exists and you install it from the release page; you can switch the
+WakeNudge shows a popup when a newer release exists and you install it from the release page; you can switch the
 check off in About, then Updates. The check contacts GitHub at most once an hour and sends nothing about you or your
 alarms.
 </details>
@@ -250,32 +247,24 @@ Requirements: JDK 21 and the Android SDK (platform 37), or an Android Studio rel
 ```bash
 git clone https://github.com/riyadmondol2006/WakeNudge.git
 cd WakeNudge
-./gradlew :app:assemblePlayDebug          # app/build/outputs/apk/play/debug/
-./gradlew :app:testPlayDebugUnitTest      # JVM unit and fuzz tests
-./gradlew :app:lintPlayDebug              # lint (must be free of errors)
-./gradlew :app:verifyOfflineManifestPlayDebug   # fails if a network permission appears
+./gradlew :app:assembleDebug             # app/build/outputs/apk/debug/
+./gradlew :app:testDebugUnitTest         # JVM unit and fuzz tests
+./gradlew :app:lintDebug                 # lint (must be free of errors)
+./gradlew :app:verifyOfflineManifestDebug   # fails if a network permission other than INTERNET appears
 ```
 
-There are two product flavours:
-
-| Flavour | What it is | Manifest |
-|---|---|---|
-| `play` | The Google Play build | No network permission, no update code |
-| `github` | The APK on GitHub Releases | Adds only `INTERNET`, for the update popup |
-
-Use `assembleGithubDebug`, `testGithubDebugUnitTest` and `verifyOfflineManifestGithubDebug` for the other flavour,
-and `assemblePlayRelease` / `bundlePlayRelease` for a minified release APK or AAB. Debug builds install as
+Use `assembleRelease` for a minified release APK. Debug builds install as
 `com.riyadm.wakenudge.debug` ("WakeNudge Debug") next to a release install. Release signing and the release process are
 described in [docs/RELEASING.md](docs/RELEASING.md).
 
 ### Instrumented tests
 
-> **If several devices are connected, do not run `./gradlew connectedPlayDebugAndroidTest`.** It installs on and runs
+> **If several devices are connected, do not run `./gradlew connectedDebugAndroidTest`.** It installs on and runs
 > against every attached device. Target exactly one:
 >
 > ```bash
-> adb -s <SERIAL> install -r -t app/build/outputs/apk/play/debug/app-play-debug.apk
-> adb -s <SERIAL> install -r -t app/build/outputs/apk/androidTest/play/debug/app-play-debug-androidTest.apk
+> adb -s <SERIAL> install -r -t app/build/outputs/apk/debug/app-debug.apk
+> adb -s <SERIAL> install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 > adb -s <SERIAL> shell am instrument -w -r com.riyadm.wakenudge.debug.test/com.riyadm.wakenudge.HiltTestRunner
 > ```
 
@@ -292,8 +281,8 @@ app/src/main/java/com/riyadm/wakenudge/
   health/    Alarm Health checks and diagnostics export
   widget/    Glance widgets          tile/  Quick Settings tile
   ui/        Compose screens, theme, components
-app/src/github/   manifest overlay for the GitHub flavour
-docs/             documentation
+  update/    the optional check for a newer release on GitHub
+docs/        documentation
 ```
 
 Built with Kotlin, Jetpack Compose, Material 3, Hilt, Room, DataStore, Glance, CameraX and ZXing core.
@@ -307,7 +296,6 @@ More in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | [docs/TESTING.md](docs/TESTING.md) | Test strategy, what was verified on a device, what was not |
 | [docs/PERMISSIONS.md](docs/PERMISSIONS.md) | Every permission, why it exists and when it is asked for |
 | [PRIVACY.md](PRIVACY.md) | Privacy policy |
-| [docs/PLAY_STORE.md](docs/PLAY_STORE.md) | Play Store listing, declarations and release checklist |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
 | [SECURITY.md](SECURITY.md) | How to report a vulnerability privately |
 | [CHANGELOG.md](CHANGELOG.md) | Release notes |

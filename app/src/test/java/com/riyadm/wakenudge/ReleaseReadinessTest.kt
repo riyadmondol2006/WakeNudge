@@ -10,14 +10,14 @@ import org.junit.Test
 import org.w3c.dom.Element
 
 /**
- * Guards the things Google Play checks that are cheap to break by accident: store-listing text limits and wording,
- * listing image sizes, and the shared (flavour-independent) manifest. Unit tests run with the module directory as the
+ * Guards what is cheap to break by accident before a release: the listing text and images in fastlane/metadata (the
+ * format app catalogues such as F-Droid read), and the manifest. Unit tests run with the module directory as the
  * working directory, so the repository root is one level up.
  *
- * The manifest checks read `src/main/AndroidManifest.xml`. The flavour-specific `INTERNET` permission lives in
- * `src/github/AndroidManifest.xml` and is verified on the merged manifests by the `verifyOfflineManifest*` Gradle tasks.
+ * The manifest checks read `src/main/AndroidManifest.xml`; the `verifyOfflineManifest*` Gradle tasks check the merged
+ * manifests, libraries included.
  */
-class PlayReadinessTest {
+class ReleaseReadinessTest {
     private val listing = File("../fastlane/metadata/android/en-US")
     private val manifestFile = File("src/main/AndroidManifest.xml")
 
@@ -25,7 +25,7 @@ class PlayReadinessTest {
 
     // ---- store listing text --------------------------------------------------------------------------------------
 
-    @Test fun `title short and full description fit the Play limits`() {
+    @Test fun `title short and full description fit the listing limits`() {
         assertTrue("title <= 30", text("title.txt").length in 1..30)
         assertTrue("short description <= 80", text("short_description.txt").length in 1..80)
         assertTrue("full description <= 4000", text("full_description.txt").length in 1..4000)
@@ -65,14 +65,6 @@ class PlayReadinessTest {
         }
     }
 
-    @Test fun `listing text does not advertise the GitHub updater`() {
-        for (name in listOf("short_description.txt", "full_description.txt", "changelogs/1.txt")) {
-            val lower = text(name).lowercase()
-            assertFalse("$name mentions update checks", lower.contains("update check") || lower.contains("check for updates"))
-            assertFalse("$name mentions the GitHub APK", lower.contains("github"))
-        }
-    }
-
     // ---- store listing graphics ----------------------------------------------------------------------------------
 
     private fun size(path: String): Pair<Int, Int> {
@@ -91,7 +83,7 @@ class PlayReadinessTest {
         assertFalse("feature graphic must not have an alpha channel", image.colorModel.hasAlpha())
     }
 
-    @Test fun `phone screenshots are two to eight, within Play size and aspect rules`() {
+    @Test fun `phone screenshots are two to eight, within the usual size and aspect rules`() {
         val shots = File(listing, "images/phoneScreenshots").listFiles { f -> f.extension in setOf("png", "jpg", "jpeg") }.orEmpty()
         assertTrue("2..8 phone screenshots, found ${shots.size}", shots.size in 2..8)
         for (f in shots) {
@@ -116,12 +108,12 @@ class PlayReadinessTest {
 
     private val application: Element get() = manifest.children("application").single()
 
-    @Test fun `shared manifest declares no network, advertising-id or wide-reaching permissions`() {
+    @Test fun `manifest declares no advertising-id or wide-reaching permissions, and no network one but INTERNET`() {
         // `tools:node="remove"` entries only strip a permission that a library would otherwise add.
         val permissions = manifest.children("uses-permission").filter { it.getAttribute("tools:node") != "remove" }
             .map { it.getAttribute("android:name") }
         val banned = setOf(
-            "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE", "android.permission.ACCESS_WIFI_STATE",
+            "android.permission.ACCESS_NETWORK_STATE", "android.permission.ACCESS_WIFI_STATE",
             "com.google.android.gms.permission.AD_ID", "android.permission.QUERY_ALL_PACKAGES",
             "android.permission.REQUEST_INSTALL_PACKAGES", "android.permission.ACCESS_FINE_LOCATION",
             "android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_BACKGROUND_LOCATION",
@@ -129,6 +121,8 @@ class PlayReadinessTest {
             "android.permission.MANAGE_EXTERNAL_STORAGE", "android.permission.READ_PHONE_STATE", "android.permission.SYSTEM_ALERT_WINDOW",
         )
         assertEquals("unexpected permissions", emptySet<String>(), permissions.toSet().intersect(banned))
+        // INTERNET is for the optional update check alone.
+        assertTrue(permissions.contains("android.permission.INTERNET"))
     }
 
     @Test fun `exact alarm permissions follow the alarm clock pattern`() {
@@ -160,7 +154,7 @@ class PlayReadinessTest {
         assertEquals("true", application.getAttribute("android:enableOnBackInvokedCallback"))
     }
 
-    @Test fun `no screen orientation or resizability restrictions that large screens ignore or Play penalises`() {
+    @Test fun `no screen orientation or resizability restrictions, which large screens ignore`() {
         val text = manifestFile.readText()
         assertFalse(text.contains("screenOrientation"))
         assertFalse(text.contains("resizeableActivity=\"false\""))

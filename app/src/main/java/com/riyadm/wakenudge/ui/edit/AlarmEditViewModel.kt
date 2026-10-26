@@ -18,6 +18,7 @@ import com.riyadm.wakenudge.domain.usecase.AlarmActions
 import com.riyadm.wakenudge.engine.SchedulingContextProvider
 import com.riyadm.wakenudge.engine.audio.AlarmVibrator
 import com.riyadm.wakenudge.engine.audio.SoundPreviewer
+import com.riyadm.wakenudge.ui.alarms.DeletedAlarmRelay
 import com.riyadm.wakenudge.ui.nav.AlarmEditRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.ZonedDateTime
@@ -67,6 +68,7 @@ class AlarmEditViewModel @Inject constructor(
     val soundPreviewer: SoundPreviewer,
     val vibrator: AlarmVibrator,
     groupRepo: GroupRepository,
+    private val deletedRelay: DeletedAlarmRelay,
 ) : ViewModel() {
 
     private val route = handle.toRoute<AlarmEditRoute>()
@@ -188,12 +190,15 @@ class AlarmEditViewModel @Inject constructor(
         busy = true
         try {
             val s = _state.value
+            // The stored alarm, not the draft: Undo on the list brings back what was saved, not unsaved edits.
+            val stored = alarms.getAlarm(s.draft.id)
             return when (val r = actions.delete(s.draft.id, overrideLock = s.lockOverridden)) {
                 is ActionResult.Locked -> {
                     _state.value = _state.value.copy(lockedMinutes = r.minutes, lockOverridden = false)
                     SaveOutcome.Locked(r.minutes)
                 }
                 else -> {
+                    if (r is ActionResult.Done) stored?.let(deletedRelay::post)
                     finished = true
                     handle.remove<String>(KEY_DRAFT)
                     SaveOutcome.Saved

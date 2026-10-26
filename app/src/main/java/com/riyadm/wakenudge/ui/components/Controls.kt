@@ -1,5 +1,8 @@
 package com.riyadm.wakenudge.ui.components
 
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
@@ -52,6 +55,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.ui.theme.Blobs
 import com.riyadm.wakenudge.ui.theme.LocalWakeHaptics
 import com.riyadm.wakenudge.ui.theme.MorphShape
@@ -139,7 +143,10 @@ private fun lerpDp(a: Dp, b: Dp, t: Float): Dp = a + (b - a) * t
 
 private val DayMorph by lazy { Blobs.morph(Blobs.Circle, Blobs.Cookie) }
 
-/** A weekday toggle: circle at rest, cookie when selected. */
+/**
+ * A weekday toggle: circle at rest, cookie when selected. Give each of the seven `Modifier.weight(1f)`: the touch area
+ * then shares the row's width (seven fixed 44 dp chips did not fit a 360 dp phone) and is 48 dp tall.
+ */
 @Composable
 fun DayChip(
     label: String,
@@ -155,20 +162,23 @@ fun DayChip(
     val bg by animateColorAsState(if (selected) scheme.primary else scheme.surfaceContainerHighest, WakeMotion.defaultEffects(), label = "dayBg")
     val fg by animateColorAsState(if (selected) scheme.onPrimary else scheme.onSurfaceVariant, WakeMotion.defaultEffects(), label = "dayFg")
     val interaction = rememberInteractionSource()
+    val state = stringResource(if (selected) R.string.state_on else R.string.state_off)
     Box(
         modifier = modifier
-            .size(44.dp)
-            .pressScale(interaction, 0.88f)
-            .clip(MorphShape(DayMorph, morph))
-            .background(bg)
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
             .toggleable(selected, enabled = enabled, role = Role.Checkbox, interactionSource = interaction, indication = null) {
                 haptics.toggle(it)
                 onToggle(it)
             }
-            .semantics { contentDescription = fullName; stateDescription = if (selected) "On" else "Off" },
+            .semantics { contentDescription = fullName; stateDescription = state },
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, color = fg, style = MaterialTheme.typography.labelLarge)
+        Box(
+            Modifier.size(40.dp).pressScale(interaction, 0.88f).clip(MorphShape(DayMorph, morph)).background(bg),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(label, color = fg, style = MaterialTheme.typography.labelLarge)
+        }
     }
 }
 
@@ -337,19 +347,27 @@ fun StepperRow(
     enabled: Boolean = true,
 ) {
     val haptics = LocalWakeHaptics.current
+    val decrease = stringResource(R.string.cd_decrease, title)
+    val increase = stringResource(R.string.cd_increase, title)
+    val stepper: @Composable () -> Unit = {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { haptics.tick(); onMinus() }, enabled = enabled && canMinus) {
+                Icon(Icons.Filled.Remove, contentDescription = decrease)
+            }
+            Text(valueText, style = MaterialTheme.typography.titleMedium, modifier = Modifier.defaultMinSize(minWidth = 56.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            IconButton(onClick = { haptics.tick(); onPlus() }, enabled = enabled && canPlus) {
+                Icon(Icons.Filled.Add, contentDescription = increase)
+            }
+        }
+    }
+    // With a large font the stepper (about 150 dp) would leave the title a sliver of the row, so it moves below it.
+    val stacked = LocalDensity.current.fontScale >= 1.3f
     SettingRow(
         title = title, subtitle = subtitle, shape = shape, enabled = enabled, modifier = modifier,
-        trailing = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { haptics.tick(); onMinus() }, enabled = enabled && canMinus) {
-                    Icon(Icons.Filled.Remove, contentDescription = "Decrease $title")
-                }
-                Text(valueText, style = MaterialTheme.typography.titleMedium, modifier = Modifier.defaultMinSize(minWidth = 56.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                IconButton(onClick = { haptics.tick(); onPlus() }, enabled = enabled && canPlus) {
-                    Icon(Icons.Filled.Add, contentDescription = "Increase $title")
-                }
-            }
-        },
+        trailing = if (stacked) null else stepper,
+        below = if (stacked) {
+            { Box(Modifier.fillMaxWidth().padding(top = 4.dp), contentAlignment = Alignment.CenterEnd) { stepper() } }
+        } else null,
     )
 }
 
@@ -423,7 +441,11 @@ fun ValueRow(
     SettingRow(
         title = title, subtitle = subtitle, icon = icon, shape = shape, enabled = enabled, onClick = onClick, modifier = modifier,
         trailing = {
-            Text(value, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, maxLines = 1)
+            // Capped, so a long song or ringtone name is shortened instead of crushing the title.
+            Text(
+                value, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 160.dp),
+            )
         },
     )
 }

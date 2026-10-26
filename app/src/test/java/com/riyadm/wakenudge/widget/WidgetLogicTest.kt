@@ -57,6 +57,21 @@ class WidgetLogicTest {
         assertEquals(OutlookNote.SkippingOnce(LocalDate.of(2026, 10, 22)), outlook.note)
     }
 
+    @Test fun `the skip note names the skipped alarm, so the widget can undo that skip`() {
+        val suppressed = listOf(SuppressedOccurrence(LocalTime.of(7, 0), Suppression.SkippedOnce(LocalDate.of(2026, 10, 22)), alarmId = 42))
+        val outlook = AlarmOutlook.decide(next(23, 7), suppressed, 1, 1)
+        assertEquals(42L, (outlook.note as OutlookNote.SkippingOnce).alarmId)
+    }
+
+    @Test fun `turning a one-time alarm off from the widget takes a second tap within a few seconds`() {
+        TurnOffConfirmation.reset()
+        assertEquals("first tap only arms it", false, TurnOffConfirmation.confirm(5, 1_000))
+        assertEquals("second tap goes through", true, TurnOffConfirmation.confirm(5, 3_000))
+        assertEquals("and the next first tap arms it again", false, TurnOffConfirmation.confirm(5, 4_000))
+        assertEquals("a tap long after the first starts over", false, TurnOffConfirmation.confirm(5, 4_000 + TurnOffConfirmation.WINDOW_MS + 1))
+        assertEquals("another alarm needs its own taps", false, TurnOffConfirmation.confirm(6, 13_000))
+    }
+
     @Test fun `a skipped occurrence after the next ring is not worth mentioning yet`() {
         val suppressed = listOf(SuppressedOccurrence(LocalTime.of(7, 0), Suppression.SkippedOnce(LocalDate.of(2026, 10, 25))))
         assertNull(AlarmOutlook.decide(next(22, 7), suppressed, 2, 2).note)

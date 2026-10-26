@@ -1,5 +1,7 @@
 package com.riyadm.wakenudge.ui.settings
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -75,9 +77,13 @@ fun GroupsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: G
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        IconButton(onClick = { renaming = group }) { Icon(Icons.Outlined.Edit, stringResource(R.string.groups_rename)) }
-                        IconButton(onClick = { deleting = group }) { Icon(Icons.Outlined.Delete, stringResource(R.string.action_delete)) }
-                        ExpressiveSwitch(checked = group.enabled, onCheckedChange = { viewModel.setEnabled(group, it) })
+                        // Each button names its profile: in a list of them, "Rename" alone does not say which.
+                        IconButton(onClick = { renaming = group }) { Icon(Icons.Outlined.Edit, stringResource(R.string.groups_rename_named, group.name)) }
+                        IconButton(onClick = { deleting = group }) { Icon(Icons.Outlined.Delete, stringResource(R.string.groups_delete_named, group.name)) }
+                        ExpressiveSwitch(
+                            checked = group.enabled, onCheckedChange = { viewModel.setEnabled(group, it) },
+                            modifier = Modifier.semantics { contentDescription = group.name },
+                        )
                     }
                 }
             }

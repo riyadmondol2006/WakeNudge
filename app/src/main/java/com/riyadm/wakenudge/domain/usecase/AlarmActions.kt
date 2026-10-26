@@ -135,7 +135,8 @@ class AlarmActions @Inject constructor(
 
     suspend fun duplicate(id: Long): Long? {
         val original = alarms.getAlarm(id) ?: return null
-        val copy = original.copy(id = 0, createdAt = 0, skipEpochDay = null, enabled = true)
+        // A copy of a switched-off alarm stays off: two identical cards where the copy quietly rings would be a surprise.
+        val copy = original.copy(id = 0, createdAt = 0, skipEpochDay = null)
         val newId = alarms.save(copy)
         scheduler.schedule(newId)
         surfaces.refreshAll()

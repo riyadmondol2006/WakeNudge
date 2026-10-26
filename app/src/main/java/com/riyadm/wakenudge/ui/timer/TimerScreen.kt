@@ -1,5 +1,12 @@
 package com.riyadm.wakenudge.ui.timer
 
+import androidx.compose.ui.platform.LocalResources
+import com.riyadm.wakenudge.ui.util.spokenDuration
+import com.riyadm.wakenudge.ui.components.ConfirmDialog
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -79,6 +86,8 @@ fun TimerScreen(modifier: Modifier = Modifier, viewModel: TimerViewModel = hiltV
     val timers by viewModel.timers.collectAsStateWithLifecycle()
     val scroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var creating by remember { mutableStateOf(false) }
+    // A timer that is counting (or paused part-way) is asked about before it goes: Delete sits right under Pause.
+    var confirmDelete by remember { mutableStateOf<CountdownTimer?>(null) }
     val list = timers
 
     // Tick only while something is counting down; the screen is otherwise static.
@@ -140,11 +149,22 @@ fun TimerScreen(modifier: Modifier = Modifier, viewModel: TimerViewModel = hiltV
                     onPause = { viewModel.pause(timer.id) },
                     onReset = { viewModel.reset(timer.id) },
                     onAddMinute = { viewModel.addMinute(timer.id) },
-                    onDelete = { viewModel.delete(timer.id) },
+                    onDelete = { if (timer.state == TimerState.IDLE) viewModel.delete(timer.id) else confirmDelete = timer },
                     modifier = Modifier.animateItem(),
                 )
             }
         }
+    }
+    confirmDelete?.let { timer ->
+        val left = ((timer.remainingAt(System.currentTimeMillis()) + 999) / 1000) * 1000
+        ConfirmDialog(
+            title = stringResource(R.string.timer_delete_title),
+            text = stringResource(R.string.timer_delete_body, TimeText.clockDuration(left)),
+            confirmLabel = stringResource(R.string.action_delete),
+            onConfirm = { viewModel.delete(timer.id); confirmDelete = null },
+            onDismiss = { confirmDelete = null },
+            destructive = true,
+        )
     }
     if (creating) {
         NewTimerSheet(
@@ -171,7 +191,10 @@ private fun TimerCard(
     val progress = if (timer.durationMs > 0) remaining.toFloat() / timer.durationMs else 0f
     // Ceil to whole seconds so the display reads 00:01 until the very moment the timer is done.
     val shown = ((remaining + 999) / 1000) * 1000
-    val spoken = TimeText.duration(shown)
+    val resources = LocalResources.current
+    val spoken = spokenDuration(resources, shown)
+    // Never started (or reset): the button starts it; "Resume" would be odd for a timer that has not run yet.
+    val fresh = !running && remaining >= timer.durationMs
 
     Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(36.dp), color = if (running) scheme.primaryContainer else scheme.surfaceContainerHigh) {
         Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -185,9 +208,17 @@ private fun TimerCard(
             Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 FilledTonalIconButton(onClick = onReset, modifier = Modifier.size(56.dp)) { Icon(Icons.Outlined.Replay, stringResource(R.string.action_reset)) }
                 FilledIconButton(onClick = if (running) onPause else onStart, modifier = Modifier.size(80.dp), shape = PolygonShape(Blobs.Cookie)) {
-                    Icon(if (running) Icons.Filled.Pause else Icons.Filled.PlayArrow, stringResource(if (running) R.string.action_pause else R.string.action_resume), Modifier.size(36.dp))
+                    Icon(
+                        if (running) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        stringResource(if (running) R.string.action_pause else if (fresh) R.string.action_start else R.string.action_resume),
+                        Modifier.size(36.dp),
+                    )
                 }
-                FilledTonalIconButton(onClick = onAddMinute, modifier = Modifier.size(56.dp)) { Text(stringResource(R.string.action_add_minute), style = MaterialTheme.typography.labelLarge) }
+                // A pill that grows with the font, and says "Add 1 minute" to a screen reader instead of "+1:00".
+                val addMinute = stringResource(R.string.cd_add_minute)
+                FilledTonalButton(onClick = onAddMinute, modifier = Modifier.heightIn(min = 56.dp).semantics { contentDescription = addMinute }) {
+                    Text(stringResource(R.string.action_add_minute), style = MaterialTheme.typography.labelLarge)
+                }
             }
             TextButton(onClick = onDelete) {
                 Icon(Icons.Outlined.Delete, null, Modifier.padding(end = 8.dp))
@@ -211,9 +242,13 @@ private fun NewTimerSheet(onCreate: (Long, String, Boolean) -> Unit, onDismiss: 
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet) {
-        Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.semantics { contentDescription = TimeText.duration(totalMs) }) {
-                Unit3(h, "h", digits.length >= 5); Unit3(m, "m", digits.length >= 3); Unit3(s, "s", digits.isNotEmpty())
+        val resources = LocalResources.current
+        // Scrolls in landscape or with a large font, so Add and Start never end up below the sheet.
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.semantics { contentDescription = spokenDuration(resources, totalMs) }) {
+                Unit3(h, stringResource(R.string.timer_unit_h), digits.length >= 5)
+                Unit3(m, stringResource(R.string.timer_unit_m), digits.length >= 3)
+                Unit3(s, stringResource(R.string.timer_unit_s), digits.isNotEmpty())
             }
             OutlinedTextField(
                 value = label, onValueChange = { if (it.length <= 40) label = it }, singleLine = true,

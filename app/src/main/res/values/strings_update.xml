@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Project links: shown in every build, Play included. -->
+    <!-- Project links. -->
     <string name="onboarding_open_source">Open source · %1$s</string>
     <string name="onboarding_open_source_cd">Open source. The code is at %1$s</string>
     <string name="onboarding_website_cd">Website. %1$s</string>
@@ -11,4 +11,26 @@
     <string name="about_source_code">Source code on GitHub</string>
     <string name="about_report_problem">Report a problem</string>
     <string name="about_privacy_policy">Privacy policy</string>
+
+    <!-- The update popup and the About screen's "Updates" section. -->
+    <string name="update_dialog_title">Update available</string>
+    <string name="update_dialog_body">WakeNudge %1$s is available. You have %2$s.</string>
+    <string name="update_notes_title">What\'s new</string>
+    <string name="update_download">Download</string>
+    <string name="update_later">Later</string>
+    <string name="update_skip">Skip this version</string>
+
+    <string name="update_section">Updates</string>
+    <string name="update_switch">Check for updates</string>
+    <string name="update_switch_body">At most once an hour, when you open WakeNudge. Turn this off and WakeNudge never goes online by itself.</string>
+    <string name="update_check_now">Check now</string>
+    <string name="update_idle">See if a newer version is out</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_up_to_date">You\'re up to date</string>
+    <string name="update_available_row">Version %1$s is available</string>
+    <string name="update_failed">Couldn\'t check right now</string>
+    <string name="update_last_checked">Last checked %1$s</string>
+    <string name="update_never_checked">Not checked yet</string>
+    <string name="update_disclosure_title">What this contacts</string>
+    <string name="update_disclosure">WakeNudge asks GitHub (api.github.com) for the latest release when you open the app, at most once an hour, and when you tap Check now. Nothing about you or your alarms is sent, though GitHub sees your IP address like any website.</string>
 </resources>

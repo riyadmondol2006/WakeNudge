@@ -23,7 +23,7 @@
     <string name="clock_popular">Popular cities</string>
     <string name="clock_plan_ahead">Plan ahead</string>
     <string name="clock_now">Now</string>
-    <string name="clock_hours_ahead">%1$+d h</string>
+    <string name="clock_hours_ahead_back">%1$+d h · back to now</string>
     <string name="cd_remove_city">Remove %1$s</string>
 
     <!-- Morning dashboard -->
@@ -78,6 +78,10 @@
     <string name="sleep_option_summary">%1$d cycles · %2$s h of sleep</string>
     <string name="sleep_recommended">Recommended</string>
     <string name="sleep_remind_me">Remind me</string>
+    <string name="sleep_reminder_set">Reminder set</string>
+    <string name="morning_chart_day">%1$s: %2$s</string>
+    <string name="morning_chart_no_alarm">no alarm</string>
+    <string name="morning_chart_not_clean">not a clean wake-up</string>
     <string name="sleep_set_alarm">Set alarm</string>
     <string name="sleep_reminder_section">Bedtime reminder</string>
     <string name="sleep_reminder_title">Remind me to wind down</string>
@@ -134,7 +138,7 @@
     <string name="settings_vacation_resume">Resume on</string>
     <string name="settings_vacation_manual">When I switch it off</string>
     <string name="settings_groups">Profiles</string>
-    <string name="settings_groups_hint">Switch groups of alarms on and off together.</string>
+    <string name="settings_groups_hint">Switch sets of alarms on and off together.</string>
     <string name="settings_sleep">Sleep and bedtime</string>
     <string name="settings_sleep_hint">Sleep planner and bedtime reminder.</string>
     <string name="settings_timers">Timers</string>
@@ -155,6 +159,8 @@
     <string name="groups_new">New profile</string>
     <string name="groups_name">Profile name</string>
     <string name="groups_rename">Rename</string>
+    <string name="groups_rename_named">Rename %1$s</string>
+    <string name="groups_delete_named">Delete %1$s</string>
     <string name="groups_delete_title">Delete “%1$s”?</string>
     <string name="groups_delete_body">Alarms in this profile are kept and become ungrouped. If the profile is switched off, its alarms stay off.</string>
 
@@ -180,12 +186,12 @@
     <string name="about_version">Version %1$s</string>
     <string name="about_tagline">A free, open-source alarm clock that gets you out of bed — and keeps your data to itself.</string>
     <string name="about_privacy">Privacy</string>
-    <string name="about_offline">Works completely offline</string>
-    <string name="about_offline_body">WakeNudge does not have the internet permission. It cannot send anything anywhere.</string>
+    <string name="about_offline">Works offline</string>
+    <string name="about_offline_body">Alarms, timers and everything else run on this phone. The only thing that goes online is the optional update check under Updates, which you can switch off.</string>
     <string name="about_no_tracking">No ads, accounts or tracking</string>
-    <string name="about_no_tracking_body">There is nothing to sign up for and nothing to pay. Your alarms and history stay on this phone.</string>
+    <string name="about_no_tracking_body">There is nothing to sign up for and nothing to pay. Your alarms and history stay on this phone, and the update check sends nothing about you.</string>
     <string name="about_permissions">Permissions only when needed</string>
-    <string name="about_permissions_body">Camera, activity recognition, NFC and calendar are requested only when you use a feature that needs them.</string>
+    <string name="about_permissions_body">Camera, activity recognition, NFC and calendar are requested only when you use a feature that needs them. WakeNudge also has internet access, used only for the optional update check.</string>
     <string name="about_license">License</string>
     <string name="about_license_name">Apache License 2.0</string>
     <string name="about_license_body">You are free to use, study, change and share this app. The source code is public.</string>
@@ -202,7 +208,7 @@
     <string name="onboarding_missions_title">Missions, not mashing</string>
     <string name="onboarding_missions_body">Solve a sum, scan a barcode, shake, walk or squat before the alarm lets go. Add a backup alarm and a “still awake?” check, and switch any of it off whenever you like.</string>
     <string name="onboarding_privacy_title">Private by design</string>
-    <string name="onboarding_privacy_body">No internet permission, no ads, no accounts, no tracking. Everything stays on your phone.</string>
+    <string name="onboarding_privacy_body">No ads, no accounts, no tracking. The only time WakeNudge goes online is an optional update check (at most once an hour), which you can switch off in About. Everything else stays on your phone.</string>
     <string name="onboarding_permissions_title">One last thing</string>
     <string name="onboarding_permissions_body">These make sure your alarm can wake you. You can change them later in Alarm health.</string>
     <string name="onboarding_perm_notifications">Notifications</string>
@@ -222,7 +228,19 @@
     <string name="health_summary_ok">Your alarms are set up to ring</string>
     <string name="health_summary_warning">A few things could get in the way</string>
     <string name="health_summary_error">Something may stop your alarm</string>
-    <string name="health_summary_counts">%1$d problems · %2$d warnings</string>
+    <plurals name="health_problems">
+        <item quantity="one">%d problem</item>
+        <item quantity="other">%d problems</item>
+    </plurals>
+    <plurals name="health_warnings">
+        <item quantity="one">%d warning</item>
+        <item quantity="other">%d warnings</item>
+    </plurals>
+    <string name="health_severity_ok">OK</string>
+    <string name="health_severity_info">Note</string>
+    <string name="health_severity_warning">Warning</string>
+    <string name="health_severity_error">Problem</string>
+    <string name="health_badge_attention">Needs attention</string>
     <string name="health_checks">Checks</string>
     <string name="health_test_title">Test alarm</string>
     <string name="health_test_body">Rings through the real alarm path, exactly as a morning alarm would. For the full test, lock your phone right after pressing the button and wait.</string>
@@ -247,7 +265,8 @@
     <string name="backup_include_history">Include wake-up history</string>
     <string name="backup_export_button">Save to a file</string>
     <string name="backup_export_done">Backup saved.</string>
-    <string name="backup_export_failed">Could not save the backup: %1$s</string>
+    <string name="backup_export_failed_file">Could not save the backup there. Pick another place, or free up some space, and try again.</string>
+    <string name="backup_export_failed_other">Could not save the backup. Please try again.</string>
     <string name="backup_restore_title">Restore from a backup</string>
     <string name="backup_restore_body">Replaces your current alarms and settings with the contents of a WakeNudge backup file.</string>
     <string name="backup_restore_button">Restore</string>

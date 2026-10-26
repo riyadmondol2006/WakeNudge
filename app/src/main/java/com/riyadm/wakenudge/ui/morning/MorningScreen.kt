@@ -1,5 +1,8 @@
 package com.riyadm.wakenudge.ui.morning
 
+import androidx.compose.ui.platform.LocalResources
+import com.riyadm.wakenudge.ui.util.spokenDuration
+import androidx.compose.ui.graphics.drawscope.Stroke
 import com.riyadm.wakenudge.ui.util.currentLocale
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -47,7 +50,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -202,8 +204,15 @@ private fun WeekChart(week: List<DayBar>) {
     val scheme = MaterialTheme.colorScheme
     val max = (week.mapNotNull { it.dismissMinutes }.maxOrNull() ?: 10f).coerceAtLeast(10f)
     val locale = currentLocale()
+    val resources = LocalResources.current
+    val noAlarm = stringResource(R.string.morning_chart_no_alarm)
+    val notClean = stringResource(R.string.morning_chart_not_clean)
+    // What the bars show, in words: the day, how long getting up took, and whether it was a clean wake-up.
     val summary = week.joinToString("; ") { d ->
-        d.date.dayOfWeek.getDisplayName(TextStyle.FULL, locale) + ": " + (d.dismissMinutes?.let { "%.0f min".format(it) } ?: "no alarm")
+        val value = d.dismissMinutes?.let { minutes ->
+            spokenDuration(resources, (minutes * 60_000).toLong()) + if (d.successful) "" else ", $notClean"
+        } ?: noAlarm
+        resources.getString(R.string.morning_chart_day, d.date.dayOfWeek.getDisplayName(TextStyle.FULL, locale), value)
     }
     Surface(shape = RoundedCornerShape(28.dp), color = scheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp)) {
@@ -211,6 +220,7 @@ private fun WeekChart(week: List<DayBar>) {
             Text(stringResource(R.string.morning_week_hint), style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
             val primary = scheme.primary
             val error = scheme.error
+            val onError = scheme.onError
             val track = scheme.surfaceContainerHighest
             Canvas(Modifier.fillMaxWidth().height(130.dp).padding(top = 12.dp).semantics { contentDescription = summary }) {
                 val slot = size.width / week.size
@@ -221,6 +231,13 @@ private fun WeekChart(week: List<DayBar>) {
                     if (d.dismissMinutes != null) {
                         val h = (size.height * (d.dismissMinutes / max)).coerceAtLeast(barWidth)
                         drawRoundRect(if (d.successful) primary else error, Offset(x, size.height - h), Size(barWidth, h), CornerRadius(barWidth / 2))
+                        if (!d.successful) {
+                            // A ring at the top marks a morning that was not clean, so colour is not the only sign.
+                            drawCircle(
+                                onError, radius = barWidth * 0.22f, center = Offset(x + barWidth / 2, size.height - h + barWidth / 2),
+                                style = Stroke(width = barWidth * 0.12f),
+                            )
+                        }
                     }
                 }
             }

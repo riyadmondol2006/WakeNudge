@@ -76,7 +76,7 @@ fun SettingsPage(
 /** Theme, colours, clock format and haptics: how the app looks and reads, nothing about how alarms behave. */
 @Composable
 fun AppearanceSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
-    val s by viewModel.settings.collectAsStateWithLifecycle()
+    val s = viewModel.settings.collectAsStateWithLifecycle().value ?: return
     SettingsPage(stringResource(R.string.settings_appearance_page), onBack, modifier) {
         item {
             SectionTitle(stringResource(R.string.settings_appearance))
@@ -129,7 +129,7 @@ fun AppearanceSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, 
 /** What the phone does while an alarm is on screen: buttons, screen and the way out. */
 @Composable
 fun RingingSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
-    val s by viewModel.settings.collectAsStateWithLifecycle()
+    val s = viewModel.settings.collectAsStateWithLifecycle().value ?: return
     SettingsPage(stringResource(R.string.settings_ringing), onBack, modifier, intro = stringResource(R.string.settings_ringing_intro)) {
         item {
             SectionTitle(stringResource(R.string.settings_ringing_controls))
@@ -170,7 +170,7 @@ fun RingingSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, vie
 /** Where the alarm is played and how loud it may be when it would play into someone's ears. */
 @Composable
 fun AudioSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
-    val s by viewModel.settings.collectAsStateWithLifecycle()
+    val s = viewModel.settings.collectAsStateWithLifecycle().value ?: return
     SettingsPage(stringResource(R.string.settings_audio_page), onBack, modifier) {
         item {
             SectionTitle(stringResource(R.string.settings_route))
@@ -211,7 +211,7 @@ fun AudioSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewM
 /** Countdown timers use their own sound so a finished timer is never mistaken for a wake-up alarm. */
 @Composable
 fun TimerSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
-    val s by viewModel.settings.collectAsStateWithLifecycle()
+    val s = viewModel.settings.collectAsStateWithLifecycle().value ?: return
     var pickSound by remember { mutableStateOf(false) }
     SettingsPage(stringResource(R.string.settings_timers), onBack, modifier) {
         item {

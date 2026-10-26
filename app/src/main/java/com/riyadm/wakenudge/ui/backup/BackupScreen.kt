@@ -1,5 +1,12 @@
 package com.riyadm.wakenudge.ui.backup
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -63,8 +70,14 @@ fun BackupScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: B
             )
         },
     ) { padding ->
+        // A result appears at the end of the list; bring it into view instead of leaving it under the fold.
+        val list = rememberLazyListState()
+        LaunchedEffect(state.message) {
+            if (state.message != null) list.animateScrollToItem((list.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
+        }
         LazyColumn(
             Modifier.fillMaxSize(),
+            state = list,
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding() + 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -76,9 +89,13 @@ fun BackupScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: B
                     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(stringResource(R.string.backup_export_title), style = MaterialTheme.typography.titleMedium)
                         Text(stringResource(R.string.backup_export_body), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        // The whole row is the switch, so a screen reader names it and the text is a target too.
+                        Row(
+                            Modifier.toggleable(includeHistory, role = Role.Switch) { includeHistory = it }.padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Text(stringResource(R.string.backup_include_history), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                            ExpressiveSwitch(checked = includeHistory, onCheckedChange = { includeHistory = it })
+                            ExpressiveSwitch(checked = includeHistory, onCheckedChange = null)
                         }
                         Button(onClick = { create.launch(viewModel.suggestedFileName()) }, enabled = !state.working, modifier = Modifier.fillMaxWidth()) {
                             Icon(Icons.Outlined.FileUpload, null, Modifier.padding(end = 8.dp))
@@ -104,10 +121,11 @@ fun BackupScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: B
             }
             state.message?.let { message ->
                 item {
+                    // Announced when it appears: at the end of the list it can be below the fold.
                     Surface(
                         shape = RoundedCornerShape(24.dp),
                         color = if (state.isError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
                     ) {
                         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(message.text(context), style = MaterialTheme.typography.titleSmall)

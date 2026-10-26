@@ -97,7 +97,7 @@ data class AppSettings(
     val emergencyStopHoldSeconds: Int = 3,
     /** Warn some hours before an alarm when the battery is low and not charging, so the phone lasts until it rings. */
     val lowBatteryWarning: Boolean = true,
-    /** GitHub APK only: look for a newer release, at most once an hour. The Play build never reads this or the two below. */
+    /** Look for a newer release on GitHub when the app opens, at most once an hour. */
     val updateChecksEnabled: Boolean = true,
     /** Epoch millis of the last check GitHub answered; 0 when there has not been one. */
     val lastUpdateCheckAt: Long = 0,

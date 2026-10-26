@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.ui.edit
 
+import com.riyadm.wakenudge.ui.components.SelectableFrom
 import androidx.compose.ui.platform.LocalResources
 import com.riyadm.wakenudge.ui.util.currentLocale
 import androidx.activity.compose.BackHandler
@@ -272,7 +273,9 @@ private fun TimeCard(alarm: Alarm, upcoming: List<java.time.ZonedDateTime>, is24
                 text = if (first != null) {
                     Formatters.untilText(context, now.toInstant().toEpochMilli(), first.toInstant().toEpochMilli()) + "  ·  " + Formatters.relativeDay(context, first, now)
                 } else stringResource(R.string.edit_never_rings),
-                style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.titleMedium,
+                // "Will not ring" is a problem to fix before saving, not information.
+                color = if (first != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(top = 8.dp),
             )
             if (upcoming.size > 1) {
@@ -310,6 +313,7 @@ private fun ScheduleCard(alarm: Alarm, firstDay: DayOfWeek, enabled: Boolean, up
                         fullName = day.getDisplayName(TextStyle.FULL, currentLocale()),
                         selected = alarm.repeatsOn(day),
                         enabled = enabled,
+                        modifier = Modifier.weight(1f),
                         onToggle = { on ->
                             update {
                                 val mask = if (on) it.repeatDaysMask or (1 shl (day.value - 1)) else it.repeatDaysMask and (1 shl (day.value - 1)).inv()
@@ -339,8 +343,9 @@ private fun ScheduleCard(alarm: Alarm, firstDay: DayOfWeek, enabled: Boolean, up
         }
     }
     if (picking) {
-        val initial = (alarm.oneTimeDate ?: LocalDate.now()).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
-        val state = rememberDatePickerState(initialSelectedDateMillis = initial)
+        val today = LocalDate.now()
+        val initial = maxOf(alarm.oneTimeDate ?: today, today).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        val state = rememberDatePickerState(initialSelectedDateMillis = initial, selectableDates = remember(today) { SelectableFrom(today.toEpochDay()) })
         DatePickerDialog(
             onDismissRequest = { picking = false },
             confirmButton = {

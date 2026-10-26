@@ -1,5 +1,7 @@
 package com.riyadm.wakenudge.tile
 
+import android.app.AlertDialog
+import android.content.res.Configuration
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.service.quicksettings.Tile
@@ -38,7 +40,42 @@ class NextAlarmTileService : TileService() {
 
     override fun onClick() {
         // Pausing every alarm is not something to do from a locked phone half asleep: ask for the unlock first.
-        if (isLocked) unlockAndRun { toggle() } else toggle()
+        if (isLocked) unlockAndRun { confirmThenToggle() } else confirmThenToggle()
+    }
+
+    /**
+     * Resuming is one tap. Pausing asks first: the tile sits where a finger pulling down the shade lands, and a stray
+     * tap would otherwise leave tomorrow's alarm silent with nothing on screen to say so.
+     */
+    private fun confirmThenToggle() {
+        scope.launch {
+            val state = try {
+                withContext(Dispatchers.Default) { loadState(surfaceEntry()) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (t: Throwable) {
+                Log.w(TAG, "reading the tile state failed", t)
+                return@launch
+            }
+            if (state.vacation) {
+                toggle()
+                return@launch
+            }
+            val night = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+            val theme = if (night) android.R.style.Theme_DeviceDefault_Dialog_Alert else android.R.style.Theme_DeviceDefault_Light_Dialog_Alert
+            val message = state.nextTime?.let { getString(R.string.tile_pause_text_next, it) } ?: getString(R.string.tile_pause_text)
+            val dialog = AlertDialog.Builder(this@NextAlarmTileService, theme)
+                .setTitle(R.string.tile_pause_title)
+                .setMessage(message)
+                .setPositiveButton(R.string.tile_pause_confirm) { _, _ -> toggle() }
+                .setNegativeButton(android.R.string.cancel, null)
+                .create()
+            // A system that will not show it (the panel closed under us) must not leave the tile doing nothing.
+            runCatching { showDialog(dialog) }.onFailure {
+                Log.w(TAG, "the tile could not show its confirmation; pausing directly", it)
+                toggle()
+            }
+        }
     }
 
     private fun toggle() {
@@ -100,7 +137,12 @@ class NextAlarmTileService : TileService() {
                 ?: getString(R.string.tile_subtitle_vacation)
             return TileState(vacation = true, subtitle = subtitle)
         }
-        return TileState(vacation = false, subtitle = nextAlarmSubtitle(entry.outlook().load(), text, entry.time().now()))
+        val outlook = entry.outlook().load()
+        return TileState(
+            vacation = false,
+            subtitle = nextAlarmSubtitle(outlook, text, entry.time().now()),
+            nextTime = outlook.next?.let { text.time(it.at.toLocalTime()) },
+        )
     }
 
     private fun nextAlarmSubtitle(outlook: AlarmOutlook, text: SurfaceText, now: java.time.ZonedDateTime): String {
@@ -114,7 +156,7 @@ class NextAlarmTileService : TileService() {
         }
     }
 
-    private class TileState(val vacation: Boolean, val subtitle: String)
+    private class TileState(val vacation: Boolean, val subtitle: String, val nextTime: String? = null)
 
     private companion object {
         const val TAG = "WakeNudge"

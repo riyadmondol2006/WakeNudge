@@ -1,5 +1,7 @@
 package com.riyadm.wakenudge.ui.ring
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
@@ -22,7 +24,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -39,7 +41,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -165,8 +167,8 @@ fun RingScreen(
                 // Missions always use this one layout, whatever the window's shape. A wide layout used to measure them
                 // inside a scrolling column, which gave the mission no height at all, and switching layouts on rotation
                 // (or when a keyboard changed the window's shape) threw away the mission in progress.
-                Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp)) {
-                    Header(session, settings, now, compact = true)
+                Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 8.dp)) {
+                    MissionTopBar(session, settings, now, mode, onBack = { mode = RingMode.Home })
                     Controls(session, settings, mode, { mode = it }, actions, missionContent, onBottom, Modifier.weight(1f))
                 }
             } else if (wide) {
@@ -199,15 +201,9 @@ private fun Header(session: RingSession, settings: AppSettings, now: Long, compa
     val (digits, suffix) = TimeText.parts(zoned.toLocalTime(), is24)
     val scheme = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            when {
-                session.isTest -> Badge(stringResource(R.string.ring_badge_test))
-                session.kind == RingKind.BACKUP -> Badge(stringResource(R.string.ring_badge_backup))
-                session.kind == RingKind.WAKE_CHECK_RERING -> Badge(stringResource(R.string.ring_badge_recheck))
-            }
-            if (session.snoozeCount > 0 && !session.isTimer) {
-                Badge(pluralStringResource(R.plurals.ring_badge_snoozed, session.snoozeCount, session.snoozeCount))
-            }
+        // Wraps instead of running off the edge when two badges meet a large font.
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            badgeTexts(session).forEach { Badge(it) }
         }
         if (session.phase == RingPhase.SUNRISE) {
             Text(stringResource(R.string.ring_sunrise), style = MaterialTheme.typography.titleMedium, color = scheme.onPrimaryContainer, modifier = Modifier.padding(top = 8.dp))
@@ -242,9 +238,55 @@ private fun Header(session: RingSession, settings: AppSettings, now: Long, compa
     }
 }
 
+/** Why this ring is special (a test, the backup, a re-ring) and how often it was snoozed, in display order. */
+@Composable
+private fun badgeTexts(session: RingSession): List<String> = buildList {
+    when {
+        session.isTest -> add(stringResource(R.string.ring_badge_test))
+        session.kind == RingKind.BACKUP -> add(stringResource(R.string.ring_badge_backup))
+        session.kind == RingKind.WAKE_CHECK_RERING -> add(stringResource(R.string.ring_badge_recheck))
+    }
+    if (session.snoozeCount > 0 && !session.isTimer) {
+        add(pluralStringResource(R.plurals.ring_badge_snoozed, session.snoozeCount, session.snoozeCount))
+    }
+}
+
+/** Plain information, so a solid pill rather than a (disabled, faint, "button") chip. */
 @Composable
 private fun Badge(text: String) {
-    SuggestionChip(onClick = {}, label = { Text(text) }, enabled = false)
+    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f), contentColor = MaterialTheme.colorScheme.onSurface) {
+        Text(text, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+    }
+}
+
+/**
+ * The header above a mission: Back, the time and the label in one row, and what the mission is for under them. The
+ * mission keeps the height it needs (a maths keypad, a puzzle board) even on a small phone.
+ */
+@Composable
+private fun MissionTopBar(session: RingSession, settings: AppSettings, now: Long, mode: RingMode, onBack: () -> Unit) {
+    val is24 = rememberIs24Hour(settings.timeFormat)
+    val time = TimeText.format(java.time.Instant.ofEpochMilli(now).atZone(java.time.ZoneId.systemDefault()).toLocalTime(), is24)
+    val scheme = MaterialTheme.colorScheme
+    val purpose = stringResource(if (mode == RingMode.SnoozeMissions) R.string.ring_missions_snooze else R.string.ring_missions_dismiss)
+    val notes = (listOf(purpose) + badgeTexts(session)).joinToString(" · ")
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        TextButton(onClick = onBack) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.padding(end = 8.dp))
+            Text(stringResource(R.string.action_back))
+        }
+        Column(Modifier.weight(1f).padding(start = 8.dp), horizontalAlignment = Alignment.End) {
+            Text(
+                listOfNotNull(time, session.alarm.label.takeIf { it.isNotBlank() }).joinToString(" · "),
+                style = MaterialTheme.typography.titleLarge, color = scheme.onPrimaryContainer,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                notes, style = MaterialTheme.typography.labelLarge, color = scheme.onPrimaryContainer.copy(alpha = 0.85f),
+                textAlign = TextAlign.End, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
 }
 
 @Composable
@@ -276,7 +318,11 @@ private fun Controls(
                     return@Column
                 }
                 if (session.isTimer) {
-                    FilledTonalButton(onClick = { haptics.click(); actions.onAddMinute() }, modifier = Modifier.fillMaxWidth().height(72.dp)) {
+                    val addMinute = stringResource(R.string.cd_add_minute)
+                    FilledTonalButton(
+                        onClick = { haptics.click(); actions.onAddMinute() },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp).semantics { contentDescription = addMinute },
+                    ) {
                         Text(stringResource(R.string.action_add_minute), style = MaterialTheme.typography.titleMedium)
                     }
                     SlideToDismiss(
@@ -296,7 +342,7 @@ private fun Controls(
                             actions.onInteraction()
                             if (alarm.snoozeMissions.isNotEmpty()) setMode(RingMode.SnoozeMissions) else actions.onSnooze()
                         },
-                        modifier = Modifier.fillMaxWidth().height(72.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp),
                     ) {
                         Icon(Icons.Filled.Snooze, null, Modifier.padding(end = 12.dp))
                         Column(horizontalAlignment = Alignment.Start) {
@@ -313,7 +359,7 @@ private fun Controls(
                 when {
                     session.hasMissions -> Button(
                         onClick = { haptics.click(); actions.onInteraction(); setMode(RingMode.DismissMissions) },
-                        modifier = Modifier.fillMaxWidth().height(72.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp),
                     ) { Text(stringResource(R.string.ring_solve_to_dismiss), style = MaterialTheme.typography.titleMedium) }
 
                     alarm.antiOversleep.holdToDismissSeconds > 0 -> HoldButton(
@@ -334,17 +380,8 @@ private fun Controls(
                 }
             }
 
+            // Back and the purpose of the missions are in the MissionTopBar above.
             RingMode.DismissMissions, RingMode.SnoozeMissions -> Column(Modifier.fillMaxSize()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { setMode(RingMode.Home) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.padding(end = 8.dp))
-                        Text(stringResource(R.string.action_back))
-                    }
-                    Text(
-                        stringResource(if (current == RingMode.SnoozeMissions) R.string.ring_missions_snooze else R.string.ring_missions_dismiss),
-                        style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                }
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     val list = if (current == RingMode.SnoozeMissions) alarm.snoozeMissions else alarm.missions
                     missionContent(
@@ -357,7 +394,7 @@ private fun Controls(
                     )
                 }
                 if (alarm.antiOversleep.emergencyStopEnabled) {
-                    EmergencyStop(settings.emergencyStopHoldSeconds, actions.onEmergencyStop, onBottom, Modifier.padding(top = 8.dp))
+                    EmergencyStop(settings.emergencyStopHoldSeconds, actions.onEmergencyStop, onBottom, Modifier.padding(top = 8.dp), compact = true)
                 }
             }
         }
@@ -369,11 +406,12 @@ private fun Controls(
  * dialog. It bypasses missions and is recorded honestly in the history as an emergency stop.
  */
 @Composable
-private fun EmergencyStop(holdSeconds: Int, onStop: () -> Unit, hintColor: Color, modifier: Modifier = Modifier) {
+private fun EmergencyStop(holdSeconds: Int, onStop: () -> Unit, hintColor: Color, modifier: Modifier = Modifier, compact: Boolean = false) {
     var confirm by remember { mutableStateOf(false) }
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         HoldButton(
-            label = stringResource(R.string.ring_emergency_stop),
+            // Under a mission the button says how to use it itself, which saves the hint line.
+            label = if (compact) stringResource(R.string.ring_emergency_stop_hold, holdSeconds) else stringResource(R.string.ring_emergency_stop),
             holdSeconds = holdSeconds.coerceIn(1, 10),
             actionDescription = stringResource(R.string.ring_emergency_stop),
             onComplete = onStop,
@@ -384,11 +422,13 @@ private fun EmergencyStop(holdSeconds: Int, onStop: () -> Unit, hintColor: Color
             modifier = Modifier.widthIn(max = 420.dp),
             height = 52.dp,
         )
-        Text(
-            stringResource(R.string.ring_emergency_hint, holdSeconds),
-            style = MaterialTheme.typography.bodySmall, color = hintColor,
-            modifier = Modifier.padding(top = 4.dp),
-        )
+        if (!compact) {
+            Text(
+                stringResource(R.string.ring_emergency_hint, holdSeconds),
+                style = MaterialTheme.typography.bodySmall, color = hintColor,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
     }
     if (confirm) {
         AlertDialog(

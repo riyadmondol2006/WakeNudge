@@ -13,7 +13,8 @@ import java.time.temporal.ChronoUnit
 
 /** Something worth telling the user next to (or instead of) the next alarm. */
 sealed interface OutlookNote {
-    data class SkippingOnce(val date: LocalDate) : OutlookNote
+    /** [alarmId] is the alarm whose ring is skipped, so a widget can offer to undo it. */
+    data class SkippingOnce(val date: LocalDate, val alarmId: Long = 0) : OutlookNote
     data class DayOff(val date: LocalDate) : OutlookNote
     data class Vacation(val resumeEpochDay: Long?) : OutlookNote
 
@@ -28,7 +29,7 @@ sealed interface OutlookNote {
 }
 
 /** An occurrence that [NextTriggerCalculator.suppressionOfNaturalNext] reported as not going to ring. */
-data class SuppressedOccurrence(val time: LocalTime, val suppression: Suppression)
+data class SuppressedOccurrence(val time: LocalTime, val suppression: Suppression, val alarmId: Long = 0)
 
 /**
  * What the next-alarm surfaces (widgets, quick-settings tile) say, independent of how it is drawn: the alarm that
@@ -52,7 +53,7 @@ data class AlarmOutlook(val next: NextAlarm?, val note: OutlookNote?) {
                 ?.let { OutlookNote.Vacation(it.resumeEpochDay) }
             val earliestSkip = suppressed.mapNotNull { occurrence ->
                 when (val s = occurrence.suppression) {
-                    is Suppression.SkippedOnce -> OutlookNote.SkippingOnce(s.date) to s.date.atTime(occurrence.time)
+                    is Suppression.SkippedOnce -> OutlookNote.SkippingOnce(s.date, occurrence.alarmId) to s.date.atTime(occurrence.time)
                     is Suppression.Exception -> OutlookNote.DayOff(s.date) to s.date.atTime(occurrence.time)
                     is Suppression.Vacation -> null
                 }

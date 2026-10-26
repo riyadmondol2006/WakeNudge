@@ -5,7 +5,7 @@
 #
 #   PADB=/path/to/pinned-adb-wrapper tools/battery/measure.sh <command> ...
 #
-#   build OUTDIR           build the play-debug app + test APK of this checkout (or $WAKENUDGE_ROOT) under the private id
+#   build OUTDIR           build the debug app + test APK of this checkout (or $WAKENUDGE_ROOT) under the private id
 #                          (needs JAVA_HOME; wrap in your own gradle lock if you share the machine)
 #   setup APK TESTAPK      install both, clear data, bind the three widgets to a throw-away host, seed 4 alarms + a timer
 #   snap LABEL             read-only snapshot (alarms, jobs, broadcasts, process starts, battery) into $OUT/LABEL
@@ -33,9 +33,9 @@ build)
   mkdir -p "$harness"
   cp "$HERE/WidgetHostHarness.kt.txt" "$harness/WidgetHostHarness.kt"
   trap 'rm -rf "$harness"' EXIT
-  (cd "$ROOT" && ./gradlew -I "$HERE/appid.init.gradle" :app:assemblePlayDebug :app:assemblePlayDebugAndroidTest --console=plain -q) || exit 1
-  cp "$ROOT/app/build/outputs/apk/play/debug/app-play-debug.apk" "$out/app.apk"
-  cp "$ROOT/app/build/outputs/apk/androidTest/play/debug/app-play-debug-androidTest.apk" "$out/test.apk"
+  (cd "$ROOT" && ./gradlew -I "$HERE/appid.init.gradle" :app:assembleDebug :app:assembleDebugAndroidTest --console=plain -q) || exit 1
+  cp "$ROOT/app/build/outputs/apk/debug/app-debug.apk" "$out/app.apk"
+  cp "$ROOT/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk" "$out/test.apk"
   ls -la "$out"
   ;;
 setup)

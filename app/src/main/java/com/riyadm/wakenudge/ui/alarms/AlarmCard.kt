@@ -42,6 +42,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.core.TimeText
@@ -81,7 +82,17 @@ fun AlarmCard(
     val repeat = Formatters.repeatSummary(context, alarm, firstDay)
     val status = statusLine(item, now)
     val summaryOnOff = stringResource(if (on) R.string.state_on else R.string.state_off)
-    val spoken = stringResource(R.string.cd_alarm_summary, TimeText.format(alarm.time, is24), repeat, summaryOnOff)
+    val extras = extraBadges(item)
+    val spokenTime = TimeText.format(alarm.time, is24)
+    val title = alarm.label.ifBlank { null }
+    // The card's description replaces its texts for a screen reader, so it has to say everything the card shows: the
+    // label, the status ("In 7 h", "Skipping Mon", a paused profile) and the extras. On or off is the state, said once.
+    val spoken = buildString {
+        append(stringResource(R.string.cd_alarm_summary, spokenTime, listOfNotNull(title, repeat).joinToString(", ")))
+        if (alarm.enabled) append(". ").append(status.text)
+        if (extras.isNotEmpty()) append(". ").append(extras)
+    }
+    val switchLabel = stringResource(R.string.cd_alarm_switch, listOfNotNull(spokenTime, title).joinToString(", "))
     val editLabel = stringResource(R.string.cd_edit_alarm)
 
     Surface(
@@ -113,18 +124,21 @@ fun AlarmCard(
                             )
                         }
                     }
-                    val title = alarm.label.ifBlank { null }
+                    // The days first: a long label is cut short with an ellipsis, never the days it repeats on.
                     Text(
-                        text = if (title != null) "$title · $repeat" else repeat,
+                        text = if (title != null) "$repeat · $title" else repeat,
                         style = MaterialTheme.typography.titleSmall,
                         color = scheme.onSurfaceVariant.copy(alpha = contentAlpha),
                         maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 Box(Modifier.padding(end = 8.dp)) {
                     ExpressiveSwitch(
                         checked = alarm.enabled && on,
                         onCheckedChange = if (item.lockedMinutes != null && alarm.enabled) null else onToggle,
+                        // Among many cards, "On, switch" alone does not say which alarm it is.
+                        modifier = Modifier.semantics { contentDescription = switchLabel },
                     )
                 }
             }
@@ -137,7 +151,6 @@ fun AlarmCard(
                 }
                 CardMenu(item, onSkipNext, onClearSkip, onDuplicate, onDelete)
             }
-            val extras = extraBadges(item)
             if (extras.isNotEmpty()) {
                 Text(
                     extras, style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant.copy(alpha = contentAlpha),

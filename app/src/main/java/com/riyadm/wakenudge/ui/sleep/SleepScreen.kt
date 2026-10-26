@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.ui.sleep
 
+import androidx.compose.material.icons.outlined.CheckCircle
 import com.riyadm.wakenudge.ui.util.currentLocale
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -142,6 +143,7 @@ fun SleepScreen(
             items(options.size) { i ->
                 OptionCard(
                     option = options[i], recommended = options[i].cycles == 5, is24 = is24, mode = mode,
+                    reminderSet = bed.enabled && bed.hour == options[i].time.hour && bed.minute == options[i].time.minute,
                     onRemind = { viewModel.updateBedtime { it.copy(enabled = true, hour = options[i].time.hour, minute = options[i].time.minute) } },
                     onAlarm = { onCreateAlarm(options[i].time.hour, options[i].time.minute) },
                 )
@@ -155,7 +157,15 @@ fun SleepScreen(
 }
 
 @Composable
-private fun OptionCard(option: SleepOption, recommended: Boolean, is24: Boolean, mode: PlannerMode, onRemind: () -> Unit, onAlarm: () -> Unit) {
+private fun OptionCard(
+    option: SleepOption,
+    recommended: Boolean,
+    is24: Boolean,
+    mode: PlannerMode,
+    reminderSet: Boolean,
+    onRemind: () -> Unit,
+    onAlarm: () -> Unit,
+) {
     val scheme = MaterialTheme.colorScheme
     Surface(shape = RoundedCornerShape(28.dp), color = if (recommended) scheme.primaryContainer else scheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp)) {
@@ -171,9 +181,17 @@ private fun OptionCard(option: SleepOption, recommended: Boolean, is24: Boolean,
             }
             Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (mode == PlannerMode.WAKE_AT) {
-                    Button(onClick = onRemind) {
-                        Icon(Icons.Outlined.Bedtime, null, Modifier.padding(end = 8.dp))
-                        Text(stringResource(R.string.sleep_remind_me))
+                    // The bedtime setting it changes is far down the page, so the card itself shows that it took.
+                    if (reminderSet) {
+                        OutlinedButton(onClick = {}, enabled = false) {
+                            Icon(Icons.Outlined.CheckCircle, null, Modifier.padding(end = 8.dp))
+                            Text(stringResource(R.string.sleep_reminder_set))
+                        }
+                    } else {
+                        Button(onClick = onRemind) {
+                            Icon(Icons.Outlined.Bedtime, null, Modifier.padding(end = 8.dp))
+                            Text(stringResource(R.string.sleep_remind_me))
+                        }
                     }
                 } else {
                     OutlinedButton(onClick = onAlarm) { Text(stringResource(R.string.sleep_set_alarm)) }
@@ -225,6 +243,7 @@ private fun BedtimeSettingsCard(viewModel: SleepViewModel, is24: Boolean) {
                             label = day.getDisplayName(TextStyle.NARROW, currentLocale()),
                             fullName = day.getDisplayName(TextStyle.FULL, currentLocale()),
                             selected = bed.daysMask and Alarm.run { day.bit } != 0,
+                            modifier = Modifier.weight(1f),
                             onToggle = { on ->
                                 viewModel.updateBedtime { b ->
                                     val bit = Alarm.run { day.bit }

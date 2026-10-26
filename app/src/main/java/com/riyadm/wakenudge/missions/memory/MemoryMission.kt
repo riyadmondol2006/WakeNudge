@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -42,11 +43,16 @@ import com.riyadm.wakenudge.missions.ui.MissionPrompt
 import com.riyadm.wakenudge.missions.ui.MissionScaffold
 import com.riyadm.wakenudge.missions.ui.errorShake
 import com.riyadm.wakenudge.missions.ui.rememberErrorFeedback
+import com.riyadm.wakenudge.missions.ui.rememberScreenReaderOn
 import com.riyadm.wakenudge.missions.ui.overlay
 import com.riyadm.wakenudge.ui.theme.LocalWakeHaptics
 import com.riyadm.wakenudge.ui.theme.WakeMotion
 import kotlin.random.Random
 import kotlinx.coroutines.delay
+
+/** Playback while a screen reader speaks each tile ("Tile 3") through the prompt's live region. */
+private const val SPOKEN_ON_MS = 1_300L
+private const val SPOKEN_GAP_MS = 500L
 
 private val GameSaver = listSaver<MemoryGame, Int>(save = { it.toSaved() }, restore = { MemoryGame.restore(it) })
 
@@ -80,7 +86,11 @@ internal fun MemoryMission(config: MissionConfig, onInteraction: () -> Unit, onC
     var lit by remember { mutableIntStateOf(-1) }
     var finished by rememberSaveable { mutableStateOf(false) }
     @Suppress("UNUSED_VARIABLE") val observed = revision
-    val (onMillis, gapMillis) = remember(config.difficulty) { playbackTiming(config.difficulty) }
+    // With a screen reader the sequence is spoken tile by tile (below), which needs more time than a flash.
+    val screenReader = rememberScreenReaderOn()
+    val (onMillis, gapMillis) = remember(config.difficulty, screenReader) {
+        if (screenReader) SPOKEN_ON_MS to SPOKEN_GAP_MS else playbackTiming(config.difficulty)
+    }
 
     LaunchedEffect(game.sequenceId) {
         if (game.phase != MemoryGame.Phase.SHOWING) return@LaunchedEffect
@@ -128,6 +138,7 @@ internal fun MemoryMission(config: MissionConfig, onInteraction: () -> Unit, onC
     val showing = game.phase == MemoryGame.Phase.SHOWING
     val status = when {
         game.phase == MemoryGame.Phase.FINISHED -> stringResource(R.string.mission_memory_done)
+        showing && screenReader && lit >= 0 -> stringResource(R.string.mission_memory_tile, lit + 1)
         showing -> stringResource(R.string.mission_memory_watch)
         else -> stringResource(R.string.mission_memory_your_turn, game.inputIndex + 1, game.sequence.size)
     }
@@ -180,6 +191,7 @@ private fun Tile(index: Int, count: Int, lit: Boolean, enabled: Boolean, size: D
     val container by animateColorAsState(if (on) color else scheme.surfaceContainerHighest, WakeMotion.fastEffects(), label = "tile$index")
     val scale by animateFloatAsState(if (on) 1.07f else 1f, WakeMotion.fastSpatial(), label = "tileScale$index")
     val tileName = stringResource(R.string.mission_memory_tile, index + 1)
+    val litText = stringResource(R.string.mission_memory_tile_lit)
     Box(
         Modifier
             .size(size)
@@ -195,6 +207,9 @@ private fun Tile(index: Int, count: Int, lit: Boolean, enabled: Boolean, size: D
                 pressedLit = true
                 onClick()
             }
-            .semantics { contentDescription = tileName },
+            .semantics {
+                contentDescription = tileName
+                if (lit) stateDescription = litText
+            },
     )
 }

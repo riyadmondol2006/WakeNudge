@@ -4,12 +4,12 @@ An alarm clock is judged on the one morning it fails, so testing is split by wha
 
 | Layer | Where it runs | What it proves |
 |---|---|---|
-| **JVM unit tests** (451 for the `play` build, 538 for `github`) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
+| **JVM unit tests** (538) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
 | **Fuzz tests** (12, part of the JVM tests) | Your computer | 20,000 seeded random alarm/clock/zone combinations never crash the scheduler or yield a time in the past; corrupted and hostile backup files are rejected or sanitised, never half-applied |
 | **Instrumented engine tests** (about 130, with the migration tests) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
-| **Instrumented UI tests** (about 35 on the `play` build, plus 25 more for the GitHub-only update popup) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions |
+| **Instrumented UI tests** (about 60, 25 of them for the update popup and the About screen) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions |
 
-Run the JVM tests with `./gradlew :app:testPlayDebugUnitTest :app:testGithubDebugUnitTest`. For the instrumented tests see the warning in the README:
+Run the JVM tests with `./gradlew :app:testDebugUnitTest`. For the instrumented tests see the warning in the README:
 **target exactly one device**.
 
 ## "How will real people break it?" suites
@@ -95,7 +95,13 @@ Hardware: **Google Pixel 6 Pro, Android 17 (API 37)**. No other physical device 
 - Widgets and the Quick Settings tile are **registered** with Android (three `AppWidgetProvider`s and the tile service
   resolve). Their layouts are covered by JVM tests of the data they show.
 
-- **The full instrumented suite of the `play` build: 165 tests, run on the device** after the final changes (the engine,
+- **After the usability changes and the merge into one build: the full instrumented suite, 181 tests, on the device.**
+  The first run shared the phone with another project's instrumented tests, which held the UI-automation connection
+  and the screen: 161 passed. Of the 20 failures, 19 never reached an assertion ("no compose hierarchies", "UiAutomation
+  already registered"), and one was the tone preview losing its sound while the other app had the phone. Re-run once
+  the other tests had stopped, those six classes passed (39 of 40, then the remaining class 9 of 9). A second repeat was cut short the same way when the phone's Settings app came to the front,
+  so every test has passed on the device, but not all in one uninterrupted run.
+- **Before that, on the `play` build: 165 tests on the device** (the engine,
   reliability, abuse, migration, category, settings switch-row, time-picker, audit-fix, ring-screen and mission-flow
   classes, including the 47 added by the reliability
   audit: audio focus loss, dying players, a real `RingService`, failing storage, refused starts, clock changes and crash
@@ -135,7 +141,6 @@ These could not be done safely or at all in the development setup. They are the 
 | **Tablets and foldables** | Layout adapts by window size; not seen on such hardware |
 | Widgets and tile **placed and interacted with** | Registered, not added to a home screen or tile layout (that would change the owner's launcher) |
 | Android 17 **background-audio hardening** | Currently warn-only for alarm apps; a later platform update could enforce more |
-| Google Play review of exact-alarm and full-screen-intent declarations | Policy outcome cannot be tested locally. See [PLAY_STORE.md](PLAY_STORE.md) |
 
 ## Device safety rules used for this project
 

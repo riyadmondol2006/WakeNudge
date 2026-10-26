@@ -2,28 +2,24 @@
 
 WakeNudge asks for as little as an alarm clock can work with. Nothing here is used for anything but the stated purpose.
 
-There are two builds of the same app (product flavour dimension `distribution`):
+The only network permission is `INTERNET`, used at most once an hour (when the app is opened) to ask `api.github.com`
+whether a newer release exists (on by default, switch it off in About, under Updates). It sends nothing about you or
+your alarms and only opens the release page in your browser. No in-app installing, so no `REQUEST_INSTALL_PACKAGES`.
 
-| Build | Where it is published | Network |
-|---|---|---|
-| `play` | Google Play (Android App Bundle) | **None.** The merged manifest has no `INTERNET`, `ACCESS_NETWORK_STATE` or `ACCESS_WIFI_STATE`, and the code contains no update or network code. |
-| `github` | APK on GitHub Releases | Exactly one extra permission, `INTERNET`, used at most once an hour (when the app is opened) to ask `api.github.com` whether a newer release exists (on by default, switch it off in About, under Updates). It sends nothing about you or your alarms and only opens the release page in your browser. No in-app installing, so no `REQUEST_INSTALL_PACKAGES`. |
-
-Both rules are enforced on the **merged** manifest of each variant by the `verifyOfflineManifest*` Gradle tasks (part
-of `check` and CI): `play` may declare none of the three network permissions, `github` may declare only `INTERNET`.
-The shared source manifest (`app/src/main/AndroidManifest.xml`) never declares any of them, and `PlayReadinessTest`
-checks that too. The permissions below are identical in both builds unless stated.
+The `verifyOfflineManifest*` Gradle tasks (part of `check` and CI) fail the build if the **merged** manifest declares any
+other network permission (`ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`), and `ReleaseReadinessTest` checks the source
+manifest (`app/src/main/AndroidManifest.xml`) too.
 
 ## Always granted at install (normal permissions)
 
 | Permission | Why |
 |---|---|
-| `USE_EXACT_ALARM` (Android 13+) | An alarm clock is the core use. Lets `AlarmManager.setAlarmClock` fire on time and cannot be revoked by the user, so a restrictive setting cannot silently break a wake-up alarm. Play Console asks for a declaration (text in [PLAY_STORE.md](PLAY_STORE.md)) |
+| `USE_EXACT_ALARM` (Android 13+) | An alarm clock is the core use. Lets `AlarmManager.setAlarmClock` fire on time and cannot be revoked by the user, so a restrictive setting cannot silently break a wake-up alarm |
 | `SCHEDULE_EXACT_ALARM` (Android 12L and lower only, `maxSdkVersion=32`) | Same job on releases before `USE_EXACT_ALARM` existed. Android 12 and 12L grant it by default but the user can revoke it in Special app access, which Alarm health detects |
 | `RECEIVE_BOOT_COMPLETED` | Re-arm alarms, snoozes, timers and follow-ups after a restart or app update |
 | `WAKE_LOCK` | Keep the CPU awake while an alarm is ringing |
 | `VIBRATE` | Vibration patterns |
-| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK` | The ring service plays the alarm sound as a foreground media-playback service (`foregroundServiceType="mediaPlayback"`). Play Console asks for a declaration and a short demo video |
+| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK` | The ring service plays the alarm sound as a foreground media-playback service (`foregroundServiceType="mediaPlayback"`) |
 | `MODIFY_AUDIO_SETTINGS` | Raise the alarm stream to the configured level while ringing, and put it back afterwards; used by the loudness-enhancer effect of Extra Loud mode |
 | `NFC` | The NFC mission (the feature is optional: `required=false`) |
 
@@ -31,7 +27,7 @@ checks that too. The permissions below are identical in both builds unless state
 
 | Permission | Why | How it is requested |
 |---|---|---|
-| `USE_FULL_SCREEN_INTENT` | Show the ring screen over the lock screen. Declared in Play Console for apps targeting Android 14+; Google pre-grants it to alarm apps | Shown in onboarding and the Alarm health screen with a shortcut to the system setting if it is ever turned off |
+| `USE_FULL_SCREEN_INTENT` | Show the ring screen over the lock screen. On Android 14+ the system grants it to alarm-clock apps | Shown in onboarding and the Alarm health screen with a shortcut to the system setting if it is ever turned off |
 
 ## Runtime permissions (asked only when needed)
 
@@ -48,8 +44,8 @@ completed offers a way out so it can never block you from stopping an alarm (see
 ## Hardware is never required
 
 `uses-feature android:required="false"` is declared for `camera`, `camera.autofocus`, `nfc`,
-`sensor.accelerometer`, `sensor.stepcounter` and `touchscreen`, so the app installs on every device that Play
-can target. A mission whose hardware is missing shows an explanation and a Continue button instead of failing
+`sensor.accelerometer`, `sensor.stepcounter` and `touchscreen`, so the app installs on every device, whatever
+hardware it lacks. A mission whose hardware is missing shows an explanation and a Continue button instead of failing
 (`MissionInfo.isSupported`, `MissionGate`).
 
 ## Not used
@@ -62,7 +58,7 @@ needed on Android 11+ to find the speech engine for spoken announcements.
 
 ## Exported components and who can call them
 
-Only these components are exported; each was reviewed for a hostile or spoofed caller. `PlayReadinessTest` fails if the
+Only these components are exported; each was reviewed for a hostile or spoofed caller. `ReleaseReadinessTest` fails if the
 list changes, so a new exported component forces a conscious review.
 
 | Component | Why exported | Hostile-caller notes |

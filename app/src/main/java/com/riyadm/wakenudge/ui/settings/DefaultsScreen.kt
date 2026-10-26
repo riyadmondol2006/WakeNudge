@@ -27,7 +27,7 @@ import com.riyadm.wakenudge.ui.edit.rememberExpandedCategories
 /** Defaults for new alarms, edited with the very same sections as a real alarm so nothing can drift. */
 @Composable
 fun DefaultsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
-    val alarm by viewModel.defaultsAlarm.collectAsStateWithLifecycle()
+    val alarm = viewModel.defaultsAlarm.collectAsStateWithLifecycle().value ?: return
     val expanded = rememberExpandedCategories()
     Scaffold(
         modifier = modifier,

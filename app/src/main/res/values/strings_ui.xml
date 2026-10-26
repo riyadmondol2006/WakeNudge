@@ -11,7 +11,7 @@
     <string name="state_off">Off</string>
     <string name="cd_back">Back</string>
     <string name="cd_more_options">More options</string>
-    <string name="cd_remove">Remove</string>
+    <string name="cd_remove_named">Remove %1$s</string>
     <string name="cd_settings">Settings</string>
     <string name="cd_sleep_planner">Sleep planner</string>
     <string name="cd_alarm_health">Alarm health</string>
@@ -65,7 +65,30 @@
         <item quantity="one">%1$d alarm</item>
         <item quantity="other">%1$d alarms</item>
     </plurals>
-    <string name="cd_alarm_summary">Alarm at %1$s, %2$s, %3$s</string>
+    <string name="cd_alarm_summary">Alarm at %1$s, %2$s</string>
+    <string name="cd_alarm_switch">Alarm at %1$s</string>
+    <string name="cd_decrease">Decrease %1$s</string>
+    <string name="cd_increase">Increase %1$s</string>
+    <string name="cd_rhythm_record">Tap to record the rhythm</string>
+    <string name="stopwatch_fastest">Fastest</string>
+    <string name="stopwatch_slowest">Slowest</string>
+    <string name="timer_unit_h">h</string>
+    <string name="timer_unit_m">m</string>
+    <string name="timer_unit_s">s</string>
+    <string name="timer_delete_title">Delete this timer?</string>
+    <string name="timer_delete_body">It still has %1$s to go.</string>
+    <plurals name="spoken_hours">
+        <item quantity="one">%d hour</item>
+        <item quantity="other">%d hours</item>
+    </plurals>
+    <plurals name="spoken_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <plurals name="spoken_seconds">
+        <item quantity="one">%d second</item>
+        <item quantity="other">%d seconds</item>
+    </plurals>
     <string name="cd_edit_alarm">Edit alarm</string>
     <string name="card_locked">Protected for %1$d more min</string>
     <string name="card_group_off">Profile “%1$s” is off</string>
@@ -85,12 +108,15 @@
     <string name="badge_sunrise">Sunrise</string>
     <string name="snackbar_locked">Edit protection is on: this alarm is locked for another %1$d min.</string>
     <string name="snackbar_deleted">Alarm deleted</string>
+    <string name="snackbar_profile_only">Only “%1$s” is on now</string>
+    <string name="snackbar_duplicated">Copy added</string>
+    <string name="snackbar_edit">Edit</string>
     <string name="snackbar_undo">Undo</string>
     <string name="snackbar_skipped">The next ring will be skipped</string>
     <string name="snackbar_switched_off">Alarm switched off</string>
     <string name="snackbar_paused">All alarms are paused</string>
     <string name="snackbar_on">Alarm on. Rings %1$s.</string>
-    <string name="snackbar_on_with_group">Alarm on. Rings %1$s. Group \"%2$s\" is on again, with its other alarms.</string>
+    <string name="snackbar_on_with_group">Alarm on. Rings %1$s. Profile “%2$s” is on again, with its other alarms.</string>
 
     <!-- Alarm editor -->
     <string name="edit_title_new">New alarm</string>
@@ -143,9 +169,16 @@
     <string name="sound_system_picker_title">Alarm sound</string>
     <string name="sound_my_audio">A file from my device…</string>
     <string name="sound_current">Selected: %1$s</string>
-    <string name="sound_random">Random</string>
-    <string name="sound_random_bundled_summary">Random of %1$d tones</string>
-    <string name="sound_random_custom_summary">Random of %1$d songs</string>
+    <plurals name="sound_random_bundled_summary">
+        <item quantity="one">Random of %1$d tone</item>
+        <item quantity="other">Random of %1$d tones</item>
+    </plurals>
+    <plurals name="sound_random_custom_summary">
+        <item quantity="one">Random of %1$d song</item>
+        <item quantity="other">Random of %1$d songs</item>
+    </plurals>
+    <string name="sound_random_custom_empty">No songs yet, so a built-in tone rings</string>
+    <string name="sound_custom_fallback">Your sound</string>
     <string name="sound_random_bundled_hint">A different tone each morning. Untick the ones you do not want in the rotation.</string>
     <string name="sound_random_custom_hint">Plays your own music, picking a random track each time. Files stay on your device. If a file is unavailable the alarm falls back to a built-in tone.</string>
     <string name="sound_add_songs">Add songs…</string>
@@ -180,7 +213,10 @@
     <string name="vibration_no_amplitude">This motor only supports full strength.</string>
     <string name="vibration_custom">Your rhythm</string>
     <string name="vibration_custom_empty">Tap to record a rhythm</string>
-    <string name="vibration_custom_set">%1$d taps · tap to re-record</string>
+    <plurals name="vibration_custom_set">
+        <item quantity="one">%1$d tap · tap to re-record</item>
+        <item quantity="other">%1$d taps · tap to re-record</item>
+    </plurals>
     <string name="vibration_try">Try this pattern</string>
     <string name="vib_classic">Classic</string>
     <string name="vib_pulse">Pulse</string>
@@ -280,6 +316,7 @@
     <string name="ring_missions_snooze">Complete to snooze</string>
     <string name="ring_emergency_stop">Emergency stop</string>
     <string name="ring_emergency_hint">Hold for %1$d s to stop without a mission</string>
+    <string name="ring_emergency_stop_hold">Emergency stop · hold %1$d s</string>
     <string name="ring_emergency_title">Stop the alarm now?</string>
     <string name="ring_emergency_body">This skips any missions. It is recorded as an emergency stop in your history.</string>
     <string name="ring_emergency_confirm">Stop alarm</string>
@@ -295,8 +332,9 @@
     <string name="edit_missions_snooze_hint">Optional: require a short mission before a snooze is granted.</string>
     <string name="edit_missions_add">Add mission</string>
     <string name="edit_missions_pick_title">Choose a mission</string>
-    <string name="edit_missions_move_up">Move up</string>
-    <string name="edit_missions_move_down">Move down</string>
+    <string name="edit_missions_move_up_named">Move %1$s up</string>
+    <string name="edit_missions_move_down_named">Move %1$s down</string>
+    <string name="edit_missions_removed">%1$s removed</string>
     <string name="edit_missions_difficulty">Difficulty</string>
     <string name="edit_missions_puzzle_kind">Puzzle</string>
     <string name="edit_missions_needs_setup">Needs one-time setup</string>

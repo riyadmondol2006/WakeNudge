@@ -1,5 +1,12 @@
 package com.riyadm.wakenudge.ui.edit
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -78,6 +85,14 @@ fun MissionListEditor(
     var picking by remember { mutableStateOf(false) }
     var setupIndex by remember { mutableStateOf<Int?>(null) }
     var previewIndex by remember { mutableStateOf<Int?>(null) }
+    // The mission just removed and where it was: a registered QR code, NFC tag or photo is work to set up again.
+    var removed by remember { mutableStateOf<Pair<Int, MissionConfig>?>(null) }
+    LaunchedEffect(removed) {
+        if (removed != null) {
+            delay(10_000)
+            removed = null
+        }
+    }
 
     SectionTitle(title)
     Text(hint, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
@@ -86,7 +101,10 @@ fun MissionListEditor(
             MissionCard(
                 mission = mission, index = index, last = index == missions.lastIndex, enabled = enabled,
                 onChange = { updated -> onChange(missions.toMutableList().also { it[index] = updated }) },
-                onRemove = { onChange(missions.toMutableList().also { it.removeAt(index) }) },
+                onRemove = {
+                    removed = index to mission
+                    onChange(missions.toMutableList().also { it.removeAt(index) })
+                },
                 onMove = { delta ->
                     val target = index + delta
                     if (target in missions.indices) onChange(missions.toMutableList().also { val m = it.removeAt(index); it.add(target, m) })
@@ -94,6 +112,24 @@ fun MissionListEditor(
                 onSetup = { setupIndex = index },
                 onPreview = { previewIndex = index },
             )
+        }
+        removed?.let { (at, config) ->
+            Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.inverseSurface, modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(start = 20.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.edit_missions_removed, stringResource(MissionInfo.titleRes(config.type))),
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.inverseOnSurface,
+                        modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                    TextButton(
+                        onClick = {
+                            onChange(missions.toMutableList().also { it.add(at.coerceAtMost(it.size), config) })
+                            removed = null
+                        },
+                        enabled = enabled && missions.size < maxMissions,
+                    ) { Text(stringResource(R.string.snackbar_undo), color = MaterialTheme.colorScheme.inversePrimary) }
+                }
+            }
         }
         if (missions.size < maxMissions) {
             OutlinedButton(onClick = { haptics.click(); picking = true }, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
@@ -136,7 +172,8 @@ fun MissionListEditor(
 private fun FullScreenDialog(onDismiss: () -> Unit, content: @Composable () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-            Box(Modifier.fillMaxSize().navigationBarsPadding().padding(top = 24.dp)) { content() }
+            // The dialog draws under the system bars; keep its title and close button clear of a tall status bar or cutout.
+            Box(Modifier.fillMaxSize().safeDrawingPadding()) { content() }
         }
     }
 }
@@ -161,13 +198,11 @@ private fun MissionCard(
                 Box(Modifier.size(48.dp).clip(PolygonShape(Blobs.Cookie)).background(scheme.primaryContainer), contentAlignment = Alignment.Center) {
                     Icon(MissionInfo.icon(mission.type), null, tint = scheme.onPrimaryContainer)
                 }
+                // The whole width for the name and description; the move and remove buttons are in the bottom row.
                 Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                     Text("${index + 1}. ${stringResource(MissionInfo.titleRes(mission.type))}", style = MaterialTheme.typography.titleMedium)
                     Text(stringResource(MissionInfo.descriptionRes(mission.type)), style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
                 }
-                IconButton(onClick = { onMove(-1) }, enabled = enabled && index > 0) { Icon(Icons.Filled.KeyboardArrowUp, stringResource(R.string.edit_missions_move_up)) }
-                IconButton(onClick = { onMove(1) }, enabled = enabled && !last) { Icon(Icons.Filled.KeyboardArrowDown, stringResource(R.string.edit_missions_move_down)) }
-                IconButton(onClick = onRemove, enabled = enabled) { Icon(Icons.Filled.Close, stringResource(R.string.cd_remove)) }
             }
             if (usesDifficulty) {
                 Column(Modifier.padding(horizontal = 8.dp)) {
@@ -217,11 +252,16 @@ private fun MissionCard(
                     TextButton(onClick = onSetup, enabled = enabled) { Text(stringResource(if (ok) R.string.edit_missions_change else R.string.edit_missions_set_up)) }
                 }
             }
-            Row(Modifier.padding(horizontal = 12.dp)) {
+            val name = stringResource(MissionInfo.titleRes(mission.type))
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onPreview, enabled = !mission.type.needsSetup || mission.isConfigured) {
                     Icon(Icons.Outlined.PlayCircle, null, Modifier.padding(end = 8.dp))
                     Text(stringResource(R.string.edit_missions_preview))
                 }
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = { onMove(-1) }, enabled = enabled && index > 0) { Icon(Icons.Filled.KeyboardArrowUp, stringResource(R.string.edit_missions_move_up_named, name)) }
+                IconButton(onClick = { onMove(1) }, enabled = enabled && !last) { Icon(Icons.Filled.KeyboardArrowDown, stringResource(R.string.edit_missions_move_down_named, name)) }
+                IconButton(onClick = onRemove, enabled = enabled) { Icon(Icons.Filled.Close, stringResource(R.string.cd_remove_named, name)) }
             }
         }
     }

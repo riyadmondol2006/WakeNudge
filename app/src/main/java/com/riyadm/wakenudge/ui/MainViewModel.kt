@@ -56,7 +56,14 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch { updates.checkIfDue() }
     }
 
-    fun finishOnboarding() = viewModelScope.launch { settingsRepo.update { it.copy(onboardingDone = true) } }
+    /**
+     * The check waits for onboarding, and finishing it does not bring the screen to the foreground again, so look now:
+     * someone who installed an old APK hears about the new one straight away, not on their next visit.
+     */
+    fun finishOnboarding() = viewModelScope.launch {
+        settingsRepo.update { it.copy(onboardingDone = true) }
+        updates.checkIfDue()
+    }
 
     fun handleIntent(intent: Intent?) {
         intent ?: return

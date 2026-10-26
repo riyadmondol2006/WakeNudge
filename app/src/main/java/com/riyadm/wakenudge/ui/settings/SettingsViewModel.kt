@@ -37,13 +37,17 @@ class SettingsViewModel @Inject constructor(
     val soundPreviewer: SoundPreviewer,
     val vibrator: AlarmVibrator,
 ) : ViewModel() {
-    val settings: StateFlow<AppSettings> = repo.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
+    /**
+     * Null until the stored settings are read. The pages wait for them instead of showing the defaults for a moment,
+     * where a quick tap would act on a switch that is about to flip.
+     */
+    val settings: StateFlow<AppSettings?> = repo.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** The "new alarm defaults" shown through the same editor sections as a real alarm. */
-    val defaultsAlarm: StateFlow<Alarm> = repo.settings.map { s ->
+    val defaultsAlarm: StateFlow<Alarm?> = repo.settings.map { s ->
         val d = s.defaults
         Alarm(sound = d.sound, volume = d.volume, vibration = d.vibration, snooze = d.snooze, antiOversleep = d.antiOversleep)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Alarm())
+    }.stateIn<Alarm?>(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun update(block: (AppSettings) -> AppSettings) = viewModelScope.launch { repo.update(block) }
 

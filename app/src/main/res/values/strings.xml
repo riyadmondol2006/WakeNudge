@@ -29,9 +29,11 @@
     <string name="notif_snoozed_text">Rings again at %1$s</string>
     <string name="notif_missed_title">Missed alarm</string>
     <string name="notif_missed_text">%1$s (%2$s) did not get a response.</string>
+    <string name="notif_missed_text_unlabeled">Your %1$s alarm did not get a response.</string>
     <string name="notif_upcoming_title">Alarm at %1$s</string>
     <string name="notif_wake_check_title">Still awake?</string>
     <string name="notif_wake_check_text">Confirm now, or %1$s rings again.</string>
+    <string name="notif_wake_check_text_unlabeled">Tap “I\'m awake”, or the alarm rings again.</string>
     <string name="notif_timer_paused">Paused · %1$s left</string>
     <string name="notif_bedtime_title">Time to wind down</string>
     <string name="notif_bedtime_text">Your bedtime is %1$s.</string>
@@ -50,6 +52,8 @@
     <string name="action_cancel_check">Cancel check</string>
     <string name="action_pause">Pause</string>
     <string name="action_resume">Resume</string>
+    <string name="action_start">Start</string>
+    <string name="cd_add_minute">Add 1 minute</string>
     <string name="action_reset">Reset</string>
 
     <!-- Voice announcements (spoken by text-to-speech) -->

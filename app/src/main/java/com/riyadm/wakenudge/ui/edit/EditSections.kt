@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.ui.edit
 
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -235,7 +236,7 @@ fun VibrationSection(alarm: Alarm, enabled: Boolean, vibrator: AlarmVibrator, on
                     SettingRow(
                         title = stringResource(R.string.vibration_custom),
                         subtitle = if (vib.customTimings.isEmpty()) stringResource(R.string.vibration_custom_empty)
-                        else stringResource(R.string.vibration_custom_set, vib.customTimings.size / 2),
+                        else (vib.customTimings.size / 2).let { pluralStringResource(R.plurals.vibration_custom_set, it, it) },
                         shape = shape, enabled = enabled, onClick = { recording = true },
                     )
                 }

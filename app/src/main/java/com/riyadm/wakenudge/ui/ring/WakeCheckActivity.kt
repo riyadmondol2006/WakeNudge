@@ -8,12 +8,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Button
@@ -133,28 +136,35 @@ private fun WakeCheckScreen(deadlineMillis: Long, onAwake: () -> Unit, onCancel:
         }
     }
     LaunchedEffect(remainingMs) { if (remainingMs == 0L) onExpired() }
-    Box(Modifier.fillMaxSize().background(scheme.tertiaryContainer).safeDrawingPadding()) {
+    // Scrolls and shrinks the countdown in landscape or with a large font, so "I'm awake" is always reachable.
+    BoxWithConstraints(Modifier.fillMaxSize().background(scheme.tertiaryContainer).safeDrawingPadding()) {
+        val short = maxHeight < 560.dp
+        val ring = minOf(220.dp, maxHeight * 0.3f).coerceAtLeast(120.dp)
         Column(
-            Modifier.fillMaxSize().padding(24.dp),
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight).padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Text(stringResource(R.string.wake_check_screen_title), style = MaterialTheme.typography.displayMedium, color = scheme.onTertiaryContainer, textAlign = TextAlign.Center)
+            Text(
+                stringResource(R.string.wake_check_screen_title),
+                style = if (short) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.displayMedium,
+                color = scheme.onTertiaryContainer, textAlign = TextAlign.Center,
+            )
             Text(
                 stringResource(R.string.wake_check_screen_body),
                 style = MaterialTheme.typography.bodyLarge, color = scheme.onTertiaryContainer,
-                textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp, bottom = 32.dp),
+                textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp, bottom = if (short) 16.dp else 32.dp),
             )
             Box(contentAlignment = Alignment.Center) {
-                WavyCircularProgress(progress = (remainingMs.toFloat() / total).coerceIn(0f, 1f), size = 220.dp, color = scheme.tertiary, trackColor = scheme.surface.copy(alpha = 0.4f))
+                WavyCircularProgress(progress = (remainingMs.toFloat() / total).coerceIn(0f, 1f), size = ring, color = scheme.tertiary, trackColor = scheme.surface.copy(alpha = 0.4f))
                 Text(
                     "${(remainingMs + 999) / 1000}", style = ClockType.Readout, color = scheme.onTertiaryContainer,
                 )
             }
             Button(
                 onClick = { haptics.confirm(); onAwake() },
-                modifier = Modifier.padding(top = 40.dp).fillMaxWidth().height(80.dp),
-            ) { Text(stringResource(R.string.action_im_awake), style = MaterialTheme.typography.titleLarge) }
+                modifier = Modifier.padding(top = if (short) 16.dp else 40.dp).fillMaxWidth().heightIn(min = 80.dp),
+            ) { Text(stringResource(R.string.action_im_awake), style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center) }
             TextButton(onClick = onCancel, modifier = Modifier.padding(top = 8.dp)) { Text(stringResource(R.string.action_cancel_check)) }
         }
     }

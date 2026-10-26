@@ -1,5 +1,7 @@
 package com.riyadm.wakenudge.ui.alarms
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
@@ -124,6 +126,21 @@ fun AlarmsScreen(
                         duration = SnackbarDuration.Long,
                     )
                     if (result == SnackbarResult.ActionPerformed) viewModel.undoPause(event.previous)
+                }
+                is AlarmsEvent.ProfileOnly -> {
+                    val result = snackbar.showSnackbar(
+                        message = resources.getString(R.string.snackbar_profile_only, event.name),
+                        actionLabel = resources.getString(R.string.snackbar_undo),
+                        duration = SnackbarDuration.Long,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) viewModel.undoProfileOnly(event.previous)
+                }
+                is AlarmsEvent.Duplicated -> {
+                    val result = snackbar.showSnackbar(
+                        message = resources.getString(R.string.snackbar_duplicated),
+                        actionLabel = resources.getString(R.string.snackbar_edit),
+                    )
+                    if (result == SnackbarResult.ActionPerformed) onEditAlarm(event.id)
                 }
                 is AlarmsEvent.Deleted -> {
                     val result = snackbar.showSnackbar(
@@ -364,7 +381,10 @@ private fun GroupStrip(
                     )
                 }
                 TextButton(onClick = { onProfileOnly(selected.id) }) { Text(stringResource(R.string.group_only_this)) }
-                Switch(checked = selected.enabled, onCheckedChange = { onToggleGroup(selected.id, it) })
+                Switch(
+                    checked = selected.enabled, onCheckedChange = { onToggleGroup(selected.id, it) },
+                    modifier = Modifier.semantics { contentDescription = selected.name },
+                )
             }
         }
     }

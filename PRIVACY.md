@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 21 October 2026_
+_Last updated: 26 October 2026_
 
 **WakeNudge: Alarm Clock** ("WakeNudge", "the app") is a free, open-source alarm clock. This policy explains what the
 app does with information. Short version: **everything stays on your phone.**
@@ -11,19 +11,9 @@ app does with information. Short version: **everything stays on your phone.**
 
 ## The short version
 
-<!-- site:omit-start -->
-- **Google Play version:** the app has **no internet permission**. It cannot send anything anywhere, and the build
-  fails if that ever changes.
-- **GitHub version** (an APK downloaded from the project's GitHub Releases page, not from Google Play): the only
-  network feature is a check for a newer release, at most once an hour. See "Update check in the GitHub version"
+- **Network:** the app's only network feature is a check for a newer release, at most once an hour. See "Update check"
   below. You can switch it off.
-<!-- site:omit-end -->
-<!-- site:only
-- **Network:** the app's only network feature is a check for a newer release, at most once an hour. See "Update check in the
-  GitHub version" below. You can switch it off.
--->
-- There are **no accounts, no ads, no analytics, no crash reporting, no advertising ID and no tracking** of any
-  kind<!-- site:omit-start --> in either version<!-- site:omit-end -->.
+- There are **no accounts, no ads, no analytics, no crash reporting, no advertising ID and no tracking** of any kind.
 - No third-party SDK that collects data is included. The only libraries are open-source Android and Kotlin libraries
   for the user interface, storage, camera and barcode decoding, all running on the device.
 - We (the developer) receive no data from the app, so we hold nothing about you.
@@ -59,17 +49,9 @@ events (for example public holidays) in the calendars you pick, and the app read
 descriptions; **NFC** is used only for the NFC mission. The app never asks for your location, contacts, microphone,
 phone, SMS or files.
 
-## Update check in the GitHub version
+## Update check
 
-<!-- site:omit-start -->
-This section applies **only** to the APK from GitHub Releases. The Google Play version has no such feature and no
-internet permission.
-<!-- site:omit-end -->
-<!-- site:only
-This section applies to the APK from GitHub Releases, the version this website offers.
--->
-
-- The GitHub version holds Android's `INTERNET` permission for one purpose: asking `api.github.com` whether a newer
+- WakeNudge holds Android's `INTERNET` permission for one purpose: asking `api.github.com` whether a newer
   release of WakeNudge exists. It is on by default and can be switched off in About, under Updates.
 - It runs when you open the app, and at most once an hour. The request carries no account, alarm data, settings, device identifier or advertising
   ID. Like any web request it necessarily exposes your IP address and standard request headers (such as the
@@ -100,9 +82,8 @@ server and no account to close.
 
 ## Security
 
-Data is kept in the app's private storage and is not readable by other apps. <!-- site:omit-start -->The Google Play
-version cannot transmit it because it has no internet permission. <!-- site:omit-end --><!-- site:only The only network
-feature is the optional update check described above. -->The app's code is open source, so anyone can check these
+Data is kept in the app's private storage and is not readable by other apps. The only network
+feature is the optional update check described above. The app's code is open source, so anyone can check these
 statements.
 
 ## Children

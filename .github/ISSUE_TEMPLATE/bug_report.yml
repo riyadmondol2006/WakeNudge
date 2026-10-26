@@ -75,8 +75,7 @@ body:
     attributes:
       label: Which build?
       options:
-        - APK from GitHub Releases
-        - Google Play
+        - APK from GitHub Releases or wakenudge.site
         - Built from source
     validations:
       required: true

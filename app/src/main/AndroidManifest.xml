@@ -3,11 +3,11 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!--
-        WakeNudge is fully offline. There is intentionally NO android.permission.INTERNET in this shared manifest, so
-        the Play Store build ("play" flavour) has none. Only the APK published on GitHub Releases ("github" flavour,
-        see src/github/AndroidManifest.xml) holds it, to look for a newer release. The build verifies both cases
-        (verifyOfflineManifest* tasks, run by CI).
+        WakeNudge works offline. INTERNET is used for one thing only: asking api.github.com whether a newer release
+        exists (the optional update check, which the user can switch off). No other network permission is allowed; the
+        build verifies that (verifyOfflineManifest* tasks, run by CI).
     -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- Alarms: exact scheduling. USE_EXACT_ALARM is granted automatically to alarm-clock apps on Android 13+. -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
@@ -47,7 +47,7 @@
     </queries>
 
     <!--
-        Backup policy (deliberate, see docs/PLAY_STORE.md "Backup and data transfer"): no Google cloud backup and no
+        Backup policy (deliberate): no Google cloud backup and no
         device-to-device transfer of app data. Alarms live in device-protected storage, a restored copy would not be
         armed with AlarmManager until the app is opened, the onboarding flag would travel without the runtime
         permissions, and the photo-mission fingerprint belongs to the old phone's camera. People move to a new phone
@@ -109,7 +109,8 @@
             android:showWhenLocked="true"
             android:taskAffinity=""
             android:theme="@style/Theme.WakeNudge"
-            android:turnScreenOn="true" />
+            android:turnScreenOn="true"
+            android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".ui.ring.WakeCheckActivity"

@@ -98,7 +98,7 @@ internal fun CodeScannerView(
         modifier = modifier,
     ) {
         if (cameraFailed) {
-            MissionNotice(Icons.Filled.NoPhotography, stringResource(R.string.mission_camera_failed_title), stringResource(R.string.mission_camera_failed_body), modifier) {
+            MissionNotice(Icons.Filled.NoPhotography, stringResource(R.string.mission_camera_failed_title), stringResource(R.string.mission_camera_failed_body), modifier, scrollable = true) {
                 MissionWayOut()
             }
         } else {

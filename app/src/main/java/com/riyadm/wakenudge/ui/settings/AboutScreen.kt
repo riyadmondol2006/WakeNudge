@@ -62,7 +62,7 @@ fun AboutScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 /**
- * The About page. [updates] adds the "Updates" section, which only the GitHub APK has; [openLink] is how a link row
+ * The About page. [updates] adds the "Updates" section (UI tests of the links leave it out); [openLink] is how a link row
  * reaches the browser (the default hands the address to the system).
  */
 @Composable

@@ -42,6 +42,12 @@ data class Alarm(
     val isRepeating: Boolean get() = repeatDaysMask != 0
     val oneTimeDate: LocalDate? get() = oneTimeEpochDay?.let(LocalDate::ofEpochDay)
 
+    /**
+     * Whether one tap may end this alarm (a notification button, a volume key). False when it has a mission or asks for
+     * a hold, so no shortcut gets around what the user set up against oversleeping.
+     */
+    val dismissesWithOneTap: Boolean get() = missions.isEmpty() && antiOversleep.holdToDismissSeconds == 0
+
     val repeatDays: Set<DayOfWeek>
         get() = DayOfWeek.entries.filterTo(linkedSetOf()) { repeatDaysMask and it.bit != 0 }
 

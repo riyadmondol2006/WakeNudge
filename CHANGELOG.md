@@ -4,6 +4,50 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 Releases are built and published automatically from `main` and numbered `MAJOR.MINOR.N`, where `N` is the commit count
 (see [docs/RELEASING.md](docs/RELEASING.md)); the notes of each GitHub release list the commits it contains.
 
+## One app, published as an APK
+
+- **There is now one WakeNudge.** The separate Google Play build is gone, and releases carry only the signed APK
+  (`WakeNudge-<version>.apk`, also as `WakeNudge.apk`), its R8 mapping and the checksums; no more `.aab`
+- Every install has the optional update check (About, Updates) and holds `INTERNET` for it alone; switch it off and
+  WakeNudge never goes online. No other network permission is allowed, and the build still enforces that
+- Finishing onboarding now looks for an update straight away, so someone who installs an old APK is offered the new
+  one at once instead of on their next visit
+
+## Easier to use, half asleep or not
+
+A review of every screen, as a groggy, rushed or screen-reader user meets it. What changed:
+
+### Waking up
+- Above a mission the ring screen keeps to one slim row (Back, the time, the label), so the maths keypad's bottom row
+  no longer falls below the screen on a phone of ordinary size; the problem and keys shrink to fit
+- A wrong maths answer stays on screen in red with "Not quite, try again"; an empty ✓ no longer buzzes
+- The snoozed notification no longer offers Dismiss for an alarm that needs a mission or a hold
+- The Quick Settings tile asks before it pauses every alarm; the widget offers "Undo skip", and its "Turn off" for a
+  one-time alarm takes a second tap
+- The ring buttons, the slider and the "Still awake?" screen grow and scroll with large fonts and in landscape; the
+  typing mission's keyboard no longer covers it; a failed camera's Continue stays reachable
+- NFC switched off and not switched on from the settings now offers Continue; with TalkBack the memory sequence is
+  spoken tile by tile and pattern dots can be tapped in order; the photo meter no longer talks over itself
+- Ring badges such as "Snoozed 2 times" are readable instead of faint, and notifications read well without a label
+
+### Setting up
+- Deleting from the editor really offers Undo on the list, as its dialog promised
+- "Only this" profile and Duplicate say what they did (with Undo and Edit); a copy of a switched-off alarm stays off
+- Removing a mission offers Undo; its move and remove buttons no longer squeeze its name
+- Date pickers start at today, the vacation picker has Cancel, and "This alarm will not ring" is shown as a problem
+- Seven weekday chips fit a 360 dp phone; long sound names, long labels and large fonts no longer crush setting rows,
+  cards or the onboarding permissions page, which now scrolls and shows the battery setting as done
+- TalkBack hears the whole alarm card (label, status, missions) and which alarm or profile a switch belongs to, the
+  severity of each Alarm Health item and the health badge; counts use proper plurals ("1 problem")
+- Settings pages no longer flash default values before the stored ones; the test alarm's time follows the app's
+  12/24-hour choice; backup results are announced and scrolled into view, with plain words for errors
+
+### Clock tools
+- Spoken times keep their seconds ("1 minute, 30 seconds"); a new timer's button says Start; deleting a running timer
+  asks first; the new-timer sheet and the stopwatch scroll in landscape; fastest and slowest laps are named
+- World clock cards keep the city readable on small phones; Plan ahead moves in whole hours with one tap back to now
+- "Remind me" in the sleep planner shows which bedtime is set; the morning chart marks unclean mornings by shape too
+
 ## Real-life audit
 
 Every part of the app was read again as a half-awake user would break it. What changed:

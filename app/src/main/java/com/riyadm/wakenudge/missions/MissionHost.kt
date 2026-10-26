@@ -273,15 +273,18 @@ private fun MissionHeader(missions: List<MissionConfig>, completed: Int, preview
     val total = missions.size
     val current = missions.getOrNull(completed)
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            if (total > 1) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
-                    missions.forEachIndexed { index, mission -> StepChip(mission.type, index, completed) }
+        // A single mission at ring time has neither steps nor a preview badge: no empty row taking the mission's height.
+        if (total > 1 || previewMode) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                if (total > 1) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
+                        missions.forEachIndexed { index, mission -> StepChip(mission.type, index, completed) }
+                    }
+                } else {
+                    Spacer(Modifier.weight(1f))
                 }
-            } else {
-                Spacer(Modifier.weight(1f))
+                if (previewMode) PreviewBadge()
             }
-            if (previewMode) PreviewBadge()
         }
         if (current != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {

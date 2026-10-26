@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.ui.edit
 
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.platform.LocalResources
 import android.app.Activity
 import android.content.Intent
@@ -68,7 +69,8 @@ fun rememberSoundTitle(sound: SoundSettings): String {
     val context = LocalContext.current
     val resources = LocalResources.current
     val bundledName = BundledTones.byId(sound.bundledId)?.let { stringResource(it.nameRes) } ?: stringResource(R.string.tone_sunrise)
-    val random = stringResource(R.string.sound_random)
+    // Shown while a song's or ringtone's name is being looked up, and when it has none: never "Random" for one sound.
+    val fallback = stringResource(R.string.sound_custom_fallback)
     val custom = produceState(initialValue = "", sound) {
         value = withContext(Dispatchers.IO) {
             when {
@@ -81,9 +83,14 @@ fun rememberSoundTitle(sound: SoundSettings): String {
         }
     }
     return when (sound.mode) {
-        SoundMode.RANDOM_BUNDLED -> stringResource(R.string.sound_random_bundled_summary, if (sound.randomPool.isEmpty()) BundledTones.all.size else sound.randomPool.size)
-        SoundMode.RANDOM_CUSTOM -> stringResource(R.string.sound_random_custom_summary, sound.playlist.size)
-        SoundMode.SINGLE -> if (sound.source == SoundSource.BUNDLED) bundledName else custom.value.ifBlank { random }
+        SoundMode.RANDOM_BUNDLED -> (if (sound.randomPool.isEmpty()) BundledTones.all.size else sound.randomPool.size)
+            .let { pluralStringResource(R.plurals.sound_random_bundled_summary, it, it) }
+        SoundMode.RANDOM_CUSTOM -> if (sound.playlist.isEmpty()) {
+            stringResource(R.string.sound_random_custom_empty)
+        } else {
+            pluralStringResource(R.plurals.sound_random_custom_summary, sound.playlist.size, sound.playlist.size)
+        }
+        SoundMode.SINGLE -> if (sound.source == SoundSource.BUNDLED) bundledName else custom.value.ifBlank { fallback }
     }
 }
 
@@ -268,7 +275,7 @@ fun SoundPickerSheet(
                             }
                             Text(title.ifBlank { uri }, Modifier.weight(1f), maxLines = 1, style = MaterialTheme.typography.bodyLarge)
                             IconButton(onClick = { onChange(sound.copy(playlist = sound.playlist - uri)) }) {
-                                Icon(Icons.Filled.Close, stringResource(R.string.cd_remove))
+                                Icon(Icons.Filled.Close, stringResource(R.string.cd_remove_named, title.ifBlank { uri }))
                             }
                         }
                     }

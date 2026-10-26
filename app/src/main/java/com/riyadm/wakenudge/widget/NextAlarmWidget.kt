@@ -14,6 +14,7 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.LocalContext
 import androidx.glance.LocalSize
+import androidx.glance.action.Action
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -33,6 +34,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.riyadm.wakenudge.R
+import com.riyadm.wakenudge.domain.scheduling.NextAlarm
 
 /**
  * About 2x1: the next alarm's time, day and label, an honest status line when something is skipped or paused, and a
@@ -76,6 +78,8 @@ private fun NextAlarmContent(model: WidgetModel) {
     val tall = size.height >= WidgetBreakpoints.TALL
     val skipInline = next != null && wide && mid && !tall
     val skipBelow = next != null && tall
+    // While the ring just before the shown one is skipped, the button takes that back instead of skipping another.
+    val undoSkipOf = (outlook.note as? OutlookNote.SkippingOnce)?.alarmId?.takeIf { it != 0L }
 
     WidgetSurface(GlanceModifier.clickable(openAlarmsAction(context))) {
         Column(
@@ -121,21 +125,37 @@ private fun NextAlarmContent(model: WidgetModel) {
                         }
                     }
                 }
-                if (skipInline) SkipButton(next.alarm.id, next.at.toInstant().toEpochMilli(), next.alarm.isRepeating, GlanceModifier)
+                if (skipInline) SkipOrUndoButton(next, undoSkipOf, GlanceModifier)
             }
             if (skipBelow) {
                 Spacer(modifier = GlanceModifier.height(8.dp))
-                SkipButton(next.alarm.id, next.at.toInstant().toEpochMilli(), next.alarm.isRepeating, GlanceModifier.fillMaxWidth())
+                SkipOrUndoButton(next, undoSkipOf, GlanceModifier.fillMaxWidth())
             }
         }
     }
 }
 
 @Composable
-private fun SkipButton(alarmId: Long, occurrenceAt: Long, repeating: Boolean, modifier: GlanceModifier) {
+private fun SkipOrUndoButton(next: NextAlarm?, undoSkipOf: Long?, modifier: GlanceModifier) {
+    when {
+        undoSkipOf != null -> WidgetButton(
+            LocalContext.current.getString(R.string.widget_action_undo_skip),
+            actionRunCallback<UndoSkipCallback>(actionParametersOf(AlarmIdKey to undoSkipOf)),
+            modifier,
+        )
+        next != null -> WidgetButton(
+            LocalContext.current.getString(if (next.alarm.isRepeating) R.string.widget_action_skip_next else R.string.widget_action_turn_off),
+            actionRunCallback<SkipNextCallback>(actionParametersOf(AlarmIdKey to next.alarm.id, OccurrenceKey to next.at.toInstant().toEpochMilli())),
+            modifier,
+        )
+    }
+}
+
+@Composable
+private fun WidgetButton(text: String, onClick: Action, modifier: GlanceModifier) {
     FilledButton(
-        text = LocalContext.current.getString(if (repeating) R.string.widget_action_skip_next else R.string.widget_action_turn_off),
-        onClick = actionRunCallback<SkipNextCallback>(actionParametersOf(AlarmIdKey to alarmId, OccurrenceKey to occurrenceAt)),
+        text = text,
+        onClick = onClick,
         modifier = modifier,
         colors = ButtonDefaults.buttonColors(
             backgroundColor = GlanceTheme.colors.secondaryContainer,

@@ -1,5 +1,9 @@
 package com.riyadm.wakenudge.ui.health
 
+import com.riyadm.wakenudge.ui.util.rememberIs24Hour
+import com.riyadm.wakenudge.core.TimeText
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.ui.platform.LocalResources
 import android.content.ClipData
 import android.content.Intent
@@ -74,6 +78,7 @@ fun HealthScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: H
     val report by viewModel.report.collectAsStateWithLifecycle()
     val events by viewModel.events.collectAsStateWithLifecycle()
     val testArmedAt by viewModel.testArmedAt.collectAsStateWithLifecycle()
+    val timeFormat by viewModel.timeFormat.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val resources = LocalResources.current
     val clipboard = LocalClipboard.current
@@ -99,7 +104,7 @@ fun HealthScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: H
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item { Summary(report?.worstSeverity, report?.count(Severity.ERROR) ?: 0, report?.count(Severity.WARNING) ?: 0) }
-            item { TestAlarmCard(testArmedAt, onTest10 = { viewModel.armTestAlarm(10) }, onTest60 = { viewModel.armTestAlarm(60) }) }
+            item { TestAlarmCard(testArmedAt, rememberIs24Hour(timeFormat), onTest10 = { viewModel.armTestAlarm(10) }, onTest60 = { viewModel.armTestAlarm(60) }) }
             val items = report?.bySeverity.orEmpty()
             if (items.isNotEmpty()) item { SectionTitle(stringResource(R.string.health_checks)) }
             items(items, key = { it.id }) { item -> HealthRow(item) { item.fix?.launch(context) } }
@@ -108,7 +113,7 @@ fun HealthScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: H
                 Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(stringResource(R.string.health_diagnostics_hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = {
                                 scope.launch {
                                     val text = viewModel.buildReport()
@@ -159,8 +164,13 @@ private fun Summary(worst: Severity?, errors: Int, warnings: Int) {
             }
             Column(Modifier.padding(start = 20.dp)) {
                 Text(title, style = MaterialTheme.typography.titleLarge, color = onContainer)
-                if (worst != null) {
-                    Text(stringResource(R.string.health_summary_counts, errors, warnings), style = MaterialTheme.typography.bodyMedium, color = onContainer)
+                // "1 problem · 2 warnings", or nothing at all when there is neither.
+                val counts = listOfNotNull(
+                    errors.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.health_problems, it, it) },
+                    warnings.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.health_warnings, it, it) },
+                )
+                if (worst != null && counts.isNotEmpty()) {
+                    Text(counts.joinToString(" · "), style = MaterialTheme.typography.bodyMedium, color = onContainer)
                 }
             }
         }
@@ -170,13 +180,14 @@ private fun Summary(worst: Severity?, errors: Int, warnings: Int) {
 private data class Quad(val a: androidx.compose.ui.graphics.Color, val b: androidx.compose.ui.graphics.Color, val c: ImageVector, val d: String)
 
 @Composable
-private fun TestAlarmCard(armedAt: Long, onTest10: () -> Unit, onTest60: () -> Unit) {
+private fun TestAlarmCard(armedAt: Long, is24: Boolean, onTest10: () -> Unit, onTest60: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Surface(shape = RoundedCornerShape(28.dp), color = scheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.health_test_title), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.health_test_body), style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Wraps on a small phone or with a large font instead of squeezing the second button.
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = onTest10) { Text(stringResource(R.string.health_test_10)) }
                 OutlinedButton(onClick = onTest60) { Text(stringResource(R.string.health_test_60)) }
             }
@@ -191,7 +202,10 @@ private fun TestAlarmCard(armedAt: Long, onTest10: () -> Unit, onTest60: () -> U
             }
             if (armedAt > now) {
                 Text(
-                    stringResource(R.string.health_test_armed, DateFormat.getTimeInstance(DateFormat.MEDIUM).format(Date(armedAt))),
+                    stringResource(
+                        R.string.health_test_armed,
+                        TimeText.formatWithSeconds(java.time.Instant.ofEpochMilli(armedAt).atZone(java.time.ZoneId.systemDefault()).toLocalTime(), is24),
+                    ),
                     style = MaterialTheme.typography.bodyMedium, color = scheme.primary,
                 )
             }
@@ -210,7 +224,8 @@ private fun HealthRow(item: HealthItem, onFix: () -> Unit) {
     }
     Surface(shape = RoundedCornerShape(24.dp), color = scheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
-            Icon(icon, null, tint = tint, modifier = Modifier.padding(top = 2.dp))
+            // The icon's colour is not the only sign of how serious it is: a screen reader hears it too.
+            Icon(icon, stringResource(severityLabel(item.severity)), tint = tint, modifier = Modifier.padding(top = 2.dp))
             Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
                 Text(stringResource(item.title), style = MaterialTheme.typography.titleSmall)
                 Text(item.detail, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
@@ -220,4 +235,11 @@ private fun HealthRow(item: HealthItem, onFix: () -> Unit) {
             }
         }
     }
+}
+
+private fun severityLabel(severity: Severity): Int = when (severity) {
+    Severity.OK -> R.string.health_severity_ok
+    Severity.INFO -> R.string.health_severity_info
+    Severity.WARNING -> R.string.health_severity_warning
+    Severity.ERROR -> R.string.health_severity_error
 }

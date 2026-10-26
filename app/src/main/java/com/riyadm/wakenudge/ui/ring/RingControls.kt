@@ -11,7 +11,7 @@ import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,6 +32,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -43,6 +46,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.riyadm.wakenudge.ui.theme.Blobs
@@ -75,7 +80,7 @@ fun SlideToDismiss(
     BoxWithConstraints(
         modifier
             .fillMaxWidth()
-            .height(72.dp)
+            .heightIn(min = 72.dp)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.primary)
             .semantics {
@@ -87,13 +92,17 @@ fun SlideToDismiss(
     ) {
         val density = LocalDensity.current
         val maxOffset = with(density) { (maxWidth - thumb - inset * 2).toPx() }.coerceAtLeast(1f)
+        // Two lines at most, and the track grows to hold them: a large font must not cut the instruction off.
         Text(
             label,
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onPrimary,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .align(Alignment.Center)
-                .padding(start = thumb)
+                .padding(start = thumb + 12.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
                 .graphicsLayer { alpha = (1f - offset.value / maxOffset * 1.4f).coerceIn(0f, 1f) },
         )
         Box(
@@ -151,9 +160,15 @@ fun HoldButton(
     Box(
         modifier
             .fillMaxWidth()
-            .height(height)
+            .heightIn(min = height)
             .clip(CircleShape)
             .background(container)
+            .drawBehind {
+                // The fill grows from the start edge (the right one in right-to-left languages).
+                val width = size.width * progress.value.coerceIn(0f, 1f)
+                val left = if (layoutDirection == LayoutDirection.Rtl) size.width - width else 0f
+                drawRect(fill, topLeft = Offset(left, 0f), size = Size(width, size.height))
+            }
             .semantics {
                 role = Role.Button
                 contentDescription = actionDescription
@@ -179,9 +194,14 @@ fun HoldButton(
             },
         contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.align(Alignment.CenterStart).fillMaxWidth(progress.value.coerceIn(0f, 1f)).height(height).background(fill))
-        Text(label, style = MaterialTheme.typography.titleMedium, color = content)
-        if (progress.value >= 1f) Icon(Icons.Filled.Check, null, tint = content)
+        if (progress.value >= 1f) {
+            Icon(Icons.Filled.Check, null, tint = content)
+        } else {
+            Text(
+                label, style = MaterialTheme.typography.titleMedium, color = content, textAlign = TextAlign.Center,
+                maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+        }
     }
 }
 

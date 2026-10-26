@@ -189,7 +189,7 @@ class Notifier @Inject constructor(
                         if (snoozeNeedsMission) open else broadcast(Actions.SNOOZE, alarm.id),
                     )
                 }
-                val dismissDirect = alarm.missions.isEmpty() && alarm.antiOversleep.holdToDismissSeconds == 0
+                val dismissDirect = alarm.dismissesWithOneTap
                 builder.addAction(
                     0,
                     context.getString(if (dismissDirect) R.string.action_dismiss else R.string.action_solve_to_dismiss),
@@ -260,7 +260,8 @@ class Notifier @Inject constructor(
             .setChronometerCountDown(true)
             .setContentIntent(mainIntent(alarm.id))
             .addAction(0, context.getString(R.string.action_wake_now), broadcast(Actions.SNOOZE_WAKE_NOW, alarm.id))
-        if (alarm.missions.isEmpty()) {
+        // Like the ring notification: an alarm that needs a mission or a hold is ended on the ring screen, not here.
+        if (alarm.dismissesWithOneTap) {
             b.addAction(0, context.getString(R.string.action_dismiss), broadcast(Actions.DISMISS, alarm.id))
         }
         post(NotificationIds.snoozed(alarm.id), b.build())
@@ -273,7 +274,10 @@ class Notifier @Inject constructor(
         val b = NotificationCompat.Builder(context, Channels.MISSED)
             .setSmallIcon(R.drawable.ic_stat_alarm)
             .setContentTitle(context.getString(R.string.notif_missed_title))
-            .setContentText(context.getString(R.string.notif_missed_text, alarm.label.ifBlank { when_ }, when_))
+            .setContentText(
+                if (alarm.label.isBlank()) context.getString(R.string.notif_missed_text_unlabeled, when_)
+                else context.getString(R.string.notif_missed_text, alarm.label, when_),
+            )
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)
             .setContentIntent(mainIntent(alarm.id))
@@ -310,7 +314,10 @@ class Notifier @Inject constructor(
         val b = NotificationCompat.Builder(context, Channels.WAKE_CHECK)
             .setSmallIcon(R.drawable.ic_stat_alarm)
             .setContentTitle(context.getString(R.string.notif_wake_check_title))
-            .setContentText(context.getString(R.string.notif_wake_check_text, alarm.label.ifBlank { context.getString(R.string.notif_alarm_default_title) }))
+            .setContentText(
+                if (alarm.label.isBlank()) context.getString(R.string.notif_wake_check_text_unlabeled)
+                else context.getString(R.string.notif_wake_check_text, alarm.label),
+            )
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)

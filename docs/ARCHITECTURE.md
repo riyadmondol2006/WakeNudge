@@ -169,9 +169,8 @@ fallback (including the emergency beeper), a ring that was cut short by a crash,
 ## Offline guarantee
 
 `app/build.gradle.kts` registers `verifyOfflineManifest<Variant>` for every variant: it fails the build when the merged
-manifest declares `ACCESS_NETWORK_STATE` or `ACCESS_WIFI_STATE`, and, for the `play` flavour, also `INTERNET` (the
-`github` flavour may hold `INTERNET` and nothing else; see "Two builds" below). `ACCESS_NETWORK_STATE`, which some
-libraries add, is removed in the manifest with `tools:node="remove"`.
+manifest declares `ACCESS_NETWORK_STATE` or `ACCESS_WIFI_STATE`. The app holds `INTERNET` and no other network
+permission; see "Update check" below. `ACCESS_NETWORK_STATE`, which some libraries add, is removed in the manifest with `tools:node="remove"`.
 
 ## UI
 
@@ -180,19 +179,14 @@ in the stable artifact: spring specs (`WakeMotion`), blob/cookie shapes from `gr
 picker, wavy progress, and an expressive switch and day chips. Navigation uses type-safe Navigation-Compose routes and a
 `NavigationSuiteScaffold` that adapts between bottom bar and rail.
 
-## Two builds, one codebase
+## Update check
 
-`app/build.gradle.kts` defines a `distribution` flavour dimension:
-
-| Flavour | Network permission | What is different |
-|---|---|---|
-| `play` | none | `NoUpdateChecker` is bound; no HTTP code, update strings or `INTERNET` exist in the build. |
-| `github` | `INTERNET` only | `UpdateManager` asks `api.github.com` for the latest release (at most once an hour, on app open, never during a ring) and offers a popup that opens the release page in the browser. The user can switch it off in About, then Updates. |
-
-The shared code only knows the `UpdateChecker` interface (`update/`); each flavour's source set binds it with a Hilt
-module. The `verifyOfflineManifest<Variant>` tasks fail the build if the merged manifest of a variant declares anything
-beyond what its flavour allows, and a JVM test (`OfflineClaimsTest`) checks that no user-facing text claims the app has
-no internet access where the build has some.
+`UpdateManager` (`update/`) asks `api.github.com` for the latest release (at most once an hour, on app open and when
+onboarding finishes, never during a ring) and offers a popup that opens the release page in the browser. The user can
+switch it off in About, then Updates; debug builds never check by themselves. The main screen only knows the
+`UpdateChecker` interface, so its view model is tested without the network, and UI tests swap the GitHub client for a
+scripted one (`TestUpdateModule`). A JVM test (`OfflineClaimsTest`) checks that no user-facing text claims the app
+cannot go online, and that text about going online names the update check and says it can be switched off.
 
 ## Database migrations
 

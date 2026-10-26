@@ -8,48 +8,35 @@ Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT
 
 ## Ground rules
 
-1. **Stay offline.** No analytics, no remote config, no network-capable dependency, no new network permission. The Play
-   flavour declares no network permission at all, and the GitHub flavour holds only `INTERNET` for its update check. The
-   build enforces this; do not work around it.
+1. **Stay offline.** No analytics, no remote config, no network-capable dependency, no new network permission. The app
+   holds only `INTERNET`, for the optional update check. The build enforces this; do not work around it.
 2. **A mission must never trap the user.** Anything that can be impossible on some phone needs a way out, and the
    Emergency stop must work wherever the alarm has it switched on (it is on by default; a strict alarm may turn it off).
 3. **Restore what you change.** Anything modifying system state (alarm volume, brightness) must put it back.
 4. **No placeholders.** No TODO-shaped UI, no mock buttons, no dead settings.
 
-## Build flavours and Gradle tasks
+## Gradle tasks
 
-The app has two product flavours in the `distribution` dimension:
-
-| Flavour | Used for | Network |
-|---|---|---|
-| `play` | The Google Play bundle | None, and no update code |
-| `github` | The APK on GitHub Releases | `INTERNET` only, for the update popup |
-
-Variant names combine flavour and build type (`playDebug`, `githubDebug`, `playRelease`, `githubRelease`), so tasks look
-like `assemblePlayDebug` or `testGithubDebugUnitTest`. Code shared by both lives in `src/main`; code or manifest entries
-for one flavour live in `app/src/<flavour>/`.
+There is one app and the usual `debug` and `release` build types.
 
 ```bash
-./gradlew :app:assemblePlayDebug                  # debug APK for the Play flavour
-./gradlew :app:assembleGithubDebug                # debug APK for the GitHub flavour
-./gradlew :app:bundlePlayRelease                  # minified release AAB (signed only if signing is configured)
-./gradlew :app:testPlayDebugUnitTest              # JVM unit and fuzz tests
-./gradlew :app:lintPlayDebug                      # lint
-./gradlew :app:verifyOfflineManifestPlayDebug     # fails if the merged manifest has a network permission
-./gradlew :app:verifyOfflineManifestGithubDebug   # fails if it has anything but INTERNET
+./gradlew :app:assembleDebug                  # debug APK
+./gradlew :app:assembleRelease                # minified release APK (signed only if signing is configured)
+./gradlew :app:testDebugUnitTest              # JVM unit and fuzz tests
+./gradlew :app:lintDebug                      # lint
+./gradlew :app:verifyOfflineManifestDebug     # fails if the merged manifest has a network permission other than INTERNET
 ```
 
 ## Before a pull request
 
 ```bash
-./gradlew :app:testPlayDebugUnitTest :app:lintPlayDebug :app:verifyOfflineManifestPlayDebug :app:verifyOfflineManifestGithubDebug
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:verifyOfflineManifestDebug
 ```
 
-must pass. If you touched flavour-specific code, also run `testGithubDebugUnitTest` and `lintGithubDebug`. The
-[pull request template](.github/PULL_REQUEST_TEMPLATE.md) lists the rest.
+must pass. The [pull request template](.github/PULL_REQUEST_TEMPLATE.md) lists the rest.
 
 For anything touching `engine/`, also run the instrumented tests on **one** device, and mention which device and Android
-version. **Do not run `./gradlew connectedPlayDebugAndroidTest` with several devices attached**: it installs on and runs
+version. **Do not run `./gradlew connectedDebugAndroidTest` with several devices attached**: it installs on and runs
 against every one of them. Use `adb -s <SERIAL>` as shown in the README's "Instrumented tests" section. These tests ring
 real alarms with real audio, so use a test device, not the phone you sleep with.
 

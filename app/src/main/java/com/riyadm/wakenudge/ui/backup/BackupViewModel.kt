@@ -39,8 +39,13 @@ class BackupViewModel @Inject constructor(
             _state.value = try {
                 manager.exportTo(uri, includeHistory)
                 BackupUiState(message = BackupMessage(R.string.backup_export_done))
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (t: Throwable) {
-                BackupUiState(message = BackupMessage(R.string.backup_export_failed, listOf(t.message ?: t.javaClass.simpleName)), isError = true)
+                // Plain words instead of an exception message; the cause is in the log for a bug report.
+                android.util.Log.w("WakeNudge", "backup export failed", t)
+                val text = if (t is java.io.IOException || t is SecurityException) R.string.backup_export_failed_file else R.string.backup_export_failed_other
+                BackupUiState(message = BackupMessage(text), isError = true)
             }
         }
     }

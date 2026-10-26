@@ -71,3 +71,15 @@ fun TextInputDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
 }
+
+/**
+ * For date pickers whose day is only useful from [firstEpochDay] on (a one-time alarm, a day off, the end of a
+ * vacation): earlier days cannot be picked, so nobody saves an alarm that can never ring. The picker hands out UTC
+ * midnights, which is why the day is compared in UTC.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+class SelectableFrom(private val firstEpochDay: Long) : androidx.compose.material3.SelectableDates {
+    override fun isSelectableDate(utcTimeMillis: Long): Boolean = Math.floorDiv(utcTimeMillis, 86_400_000L) >= firstEpochDay
+
+    override fun isSelectableYear(year: Int): Boolean = year >= java.time.LocalDate.ofEpochDay(firstEpochDay).year
+}

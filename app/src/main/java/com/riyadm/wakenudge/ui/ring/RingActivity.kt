@@ -175,7 +175,7 @@ class RingActivity : ComponentActivity() {
                 true
             }
             VolumeKeyAction.DISMISS -> {
-                if (session.isTimer || (!session.hasMissions && alarm.antiOversleep.holdToDismissSeconds == 0)) {
+                if (session.isTimer || alarm.dismissesWithOneTap) {
                     lifecycleScope.launch { controller.dismiss(RingTarget.of(session)) }
                 }
                 true

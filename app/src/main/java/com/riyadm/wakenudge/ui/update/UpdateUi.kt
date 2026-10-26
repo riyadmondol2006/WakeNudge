@@ -185,7 +185,7 @@ fun UpdateAvailableDialog(
     }
 }
 
-/** The "Updates" section of the About screen. Absent from the Play build, which defines an empty one. */
+/** The "Updates" section of the About screen. */
 fun LazyListScope.updatesSection() {
     item {
         val viewModel: UpdateViewModel = hiltViewModel()

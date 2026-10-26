@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.ui
 
+import androidx.compose.ui.text.style.TextOverflow
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
@@ -112,7 +113,7 @@ fun WakeNudgeRoot(viewModel: MainViewModel) {
                 OnboardingScreen(onFinish = viewModel::finishOnboarding)
             } else {
                 MainNav(viewModel)
-                // After onboarding only; empty in the Play build. The alarm screen is a separate activity and never sees it.
+                // After onboarding only. The alarm screen is a separate activity and never sees it.
                 UpdatePromptHost()
             }
         }
@@ -154,7 +155,8 @@ private fun MainNav(viewModel: MainViewModel) {
                         }
                     },
                     icon = { androidx.compose.material3.Icon(tab.icon, contentDescription = null) },
-                    label = { Text(stringResource(tab.label)) },
+                    // One line: at a large font "Stopwatch" would wrap inside the fixed-height bar.
+                    label = { Text(stringResource(tab.label), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) },
                 )
             }
         },

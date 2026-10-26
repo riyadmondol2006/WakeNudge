@@ -66,7 +66,7 @@ class SettingsNav(
  */
 @Composable
 fun SettingsScreen(nav: SettingsNav, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
-    val s by viewModel.settings.collectAsStateWithLifecycle()
+    val s = viewModel.settings.collectAsStateWithLifecycle().value ?: return
     val scroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(

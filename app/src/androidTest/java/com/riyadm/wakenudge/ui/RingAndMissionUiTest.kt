@@ -1,5 +1,9 @@
 package com.riyadm.wakenudge.ui
 
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -116,11 +120,42 @@ class RingAndMissionUiTest {
         val problem = compose.onNode(hasContentDescriptionMatching(Regex("[\\d()]+.*[+−×÷-].*\\d+.*")))
             .fetchSemanticsNode().config[SemanticsProperties.ContentDescription].first()
         val answer = evaluate(problem)
-        answer.toString().forEach { compose.onNodeWithText(it.toString()).performClick() }
+        answer.toString().forEach { pressKey(it) }
         compose.onNodeWithContentDescription("Submit answer").performClick()
         compose.waitForIdle()
         assertTrue("mission completed with the correct answer ($problem = $answer)", completed == 1)
     }
+
+    @Test fun aWrongMathAnswerStaysVisibleAndTheNextKeyStartsAgain() {
+        var completed = 0
+        compose.setContent {
+            WakeNudgeTheme { MissionHost(listOf(MissionConfig(MissionType.MATH, Difficulty.EASY, 1)), onComplete = { completed++ }) }
+        }
+        val problem = compose.onNode(hasContentDescriptionMatching(Regex("[\\d()]+.*[+−×÷-].*\\d+.*")))
+            .fetchSemanticsNode().config[SemanticsProperties.ContentDescription].first()
+        val answer = evaluate(problem)
+
+        // Submitting nothing is not an attempt.
+        compose.onNodeWithContentDescription("Submit answer").performClick()
+        compose.onAllNodesWithText("Not quite, try again").assertCountEquals(0)
+
+        val wrong = (answer + 1).toString()
+        wrong.forEach { pressKey(it) }
+        compose.onNodeWithContentDescription("Submit answer").performClick()
+        compose.onNodeWithText("Not quite, try again").assertIsDisplayed()
+        compose.onNode(hasText(wrong) and hasClickAction().not()).assertIsDisplayed()
+        assertEquals(0, completed)
+
+        // Typing again replaces the wrong answer instead of adding to it.
+        answer.toString().forEach { pressKey(it) }
+        compose.onAllNodesWithText("Not quite, try again").assertCountEquals(0)
+        compose.onNodeWithContentDescription("Submit answer").performClick()
+        compose.waitForIdle()
+        assertEquals("solved after the retry ($problem = $answer)", 1, completed)
+    }
+
+    /** A keypad key, not the answer shown above it, which can hold the same digit. */
+    private fun pressKey(digit: Char) = compose.onNode(hasText(digit.toString()) and hasClickAction()).performClick()
 
     @Test fun previewModeCanAlwaysBeSkipped() {
         var completed = 0

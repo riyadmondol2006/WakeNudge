@@ -1,5 +1,7 @@
 package com.riyadm.wakenudge.ui.components
 
+import com.riyadm.wakenudge.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -110,6 +112,8 @@ fun WheelPicker(
         }
     }
 
+    val increaseLabel = stringResource(R.string.cd_increase, description)
+    val decreaseLabel = stringResource(R.string.cd_decrease, description)
     Box(
         modifier = modifier
             .width(width)
@@ -119,8 +123,8 @@ fun WheelPicker(
                 stateDescription = label(selected)
                 if (enabled) {
                     customActions = listOf(
-                        CustomAccessibilityAction("Increase $description") { onSelected((selected + 1) % count); true },
-                        CustomAccessibilityAction("Decrease $description") { onSelected((selected - 1 + count) % count); true },
+                        CustomAccessibilityAction(increaseLabel) { onSelected((selected + 1) % count); true },
+                        CustomAccessibilityAction(decreaseLabel) { onSelected((selected - 1 + count) % count); true },
                     )
                 }
             },

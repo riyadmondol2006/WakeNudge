@@ -1,5 +1,9 @@
 package com.riyadm.wakenudge.ui.onboarding
 
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.BoxWithConstraints
+import android.os.PowerManager
 import android.Manifest
 import android.app.NotificationManager
 import android.content.Intent
@@ -47,7 +51,6 @@ import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Psychology
-import androidx.compose.material.icons.outlined.WifiOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -83,7 +86,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
-import com.riyadm.wakenudge.BuildConfig
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.missions.ui.findActivity
 import com.riyadm.wakenudge.ui.components.rememberReduceMotion
@@ -120,8 +122,8 @@ fun OnboardingScreen(onFinish: () -> Unit, modifier: Modifier = Modifier, openLi
                 )
                 1 -> InfoPage(Icons.Outlined.Lock, Blobs.Cookie, R.string.onboarding_reliable_title, R.string.onboarding_reliable_body, MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
                 2 -> InfoPage(Icons.Outlined.Psychology, Blobs.Clover, R.string.onboarding_missions_title, R.string.onboarding_missions_body, MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
-                // The GitHub APK may go online for the update check, so it must not claim to be "offline" with this icon.
-                3 -> InfoPage(if (BuildConfig.UPDATE_CHECKS) Icons.Outlined.PrivacyTip else Icons.Outlined.WifiOff, Blobs.Flower, R.string.onboarding_privacy_title, R.string.onboarding_privacy_body, MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+                // WakeNudge may go online for the update check, so this page must not claim to be "offline" with its icon.
+                3 -> InfoPage(Icons.Outlined.PrivacyTip, Blobs.Flower, R.string.onboarding_privacy_title, R.string.onboarding_privacy_body, MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
                 else -> PermissionsPage()
             }
         }
@@ -250,6 +252,9 @@ private fun PermissionsPage() {
     val fullScreenGranted = remember(refresh) {
         Build.VERSION.SDK_INT < 34 || context.getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
     }
+    val batteryUnrestricted = remember(refresh) {
+        runCatching { context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName) }.getOrDefault(false)
+    }
     // Refused twice, Android stops showing its dialog and every request fails at once; the button then opens the app's
     // notification settings instead of doing nothing.
     var blocked by rememberSaveable { mutableStateOf(false) }
@@ -260,46 +265,52 @@ private fun PermissionsPage() {
         }
     }
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), verticalArrangement = Arrangement.Center) {
-        Text(stringResource(R.string.onboarding_permissions_title), style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        Text(
-            stringResource(R.string.onboarding_permissions_body), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 24.dp),
-        )
-        PermissionRow(
-            icon = Icons.Outlined.Notifications, title = R.string.onboarding_perm_notifications, body = R.string.onboarding_perm_notifications_body,
-            granted = notificationsGranted,
-            action = {
-                if (blocked) {
+    // Scrolls in landscape and with large fonts, where the three rows and their buttons do not fit; centred otherwise.
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight).padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(stringResource(R.string.onboarding_permissions_title), style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            Text(
+                stringResource(R.string.onboarding_permissions_body), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 24.dp),
+            )
+            PermissionRow(
+                icon = Icons.Outlined.Notifications, title = R.string.onboarding_perm_notifications, body = R.string.onboarding_perm_notifications_body,
+                granted = notificationsGranted,
+                action = {
+                    if (blocked) {
+                        runCatching {
+                            context.startActivity(
+                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        }
+                    } else {
+                        request.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                },
+            )
+            Spacer(Modifier.height(8.dp))
+            PermissionRow(
+                icon = Icons.Outlined.Fullscreen, title = R.string.onboarding_perm_fullscreen, body = R.string.onboarding_perm_fullscreen_body,
+                granted = fullScreenGranted,
+                action = {
                     runCatching {
                         context.startActivity(
-                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:${context.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                         )
                     }
-                } else {
-                    request.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }
-            },
-        )
-        Spacer(Modifier.height(8.dp))
-        PermissionRow(
-            icon = Icons.Outlined.Fullscreen, title = R.string.onboarding_perm_fullscreen, body = R.string.onboarding_perm_fullscreen_body,
-            granted = fullScreenGranted,
-            action = {
-                runCatching {
-                    context.startActivity(
-                        Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:${context.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                    )
-                }
-            },
-        )
-        Spacer(Modifier.height(8.dp))
-        PermissionRow(
-            icon = Icons.Outlined.BatteryChargingFull, title = R.string.onboarding_perm_battery, body = R.string.onboarding_perm_battery_body,
-            granted = null,
-            actionLabel = R.string.onboarding_open_settings,
-            action = { runCatching { context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } },
-        )
+                },
+            )
+            Spacer(Modifier.height(8.dp))
+            PermissionRow(
+                icon = Icons.Outlined.BatteryChargingFull, title = R.string.onboarding_perm_battery, body = R.string.onboarding_perm_battery_body,
+                granted = batteryUnrestricted,
+                actionLabel = R.string.onboarding_open_settings,
+                action = { runCatching { context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } },
+            )
+        }
     }
 }
 
@@ -313,16 +324,21 @@ private fun PermissionRow(
     actionLabel: Int = R.string.onboarding_allow,
 ) {
     val scheme = MaterialTheme.colorScheme
+    // With a large font the button goes under the text, which would otherwise be squeezed into a narrow column.
+    val stacked = LocalDensity.current.fontScale >= 1.3f
     Surface(shape = RoundedCornerShape(28.dp), color = scheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = scheme.primary)
             Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
                 Text(stringResource(title), style = MaterialTheme.typography.titleMedium)
                 Text(stringResource(body), style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+                if (stacked && granted != true) {
+                    OutlinedButton(onClick = action, modifier = Modifier.padding(top = 8.dp)) { Text(stringResource(actionLabel)) }
+                }
             }
             if (granted == true) {
                 Icon(Icons.Outlined.CheckCircle, stringResource(R.string.onboarding_granted), tint = scheme.primary)
-            } else {
+            } else if (!stacked) {
                 OutlinedButton(onClick = action) { Text(stringResource(actionLabel)) }
             }
         }

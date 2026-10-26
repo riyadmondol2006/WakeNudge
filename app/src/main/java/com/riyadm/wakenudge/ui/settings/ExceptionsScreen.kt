@@ -1,5 +1,8 @@
 package com.riyadm.wakenudge.ui.settings
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
+import com.riyadm.wakenudge.ui.components.SelectableFrom
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -139,8 +142,15 @@ fun ExceptionsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewMode
                 }
                 items(state.calendars, key = { "cal-${it.id}" }) { cal ->
                     Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
-                        Row(Modifier.padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = cal.id in state.selectedCalendarIds, onCheckedChange = { viewModel.toggleCalendar(cal.id, it) })
+                        // The whole row toggles, and a screen reader hears the calendar's name with the checkbox.
+                        val checked = cal.id in state.selectedCalendarIds
+                        Row(
+                            Modifier
+                                .toggleable(checked, role = Role.Checkbox) { viewModel.toggleCalendar(cal.id, it) }
+                                .padding(horizontal = 12.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(checked = checked, onCheckedChange = null, modifier = Modifier.padding(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(cal.name, style = MaterialTheme.typography.bodyLarge)
                                 Text(cal.account, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -166,7 +176,9 @@ fun ExceptionsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewMode
                             Text(Formatters.dateShort(LocalDate.ofEpochDay(d.epochDay)), style = MaterialTheme.typography.titleSmall)
                             if (d.label.isNotBlank()) Text(d.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        IconButton(onClick = { viewModel.removeDate(d.epochDay) }) { Icon(Icons.Filled.Close, stringResource(R.string.cd_remove)) }
+                        IconButton(onClick = { viewModel.removeDate(d.epochDay) }) {
+                            Icon(Icons.Filled.Close, stringResource(R.string.cd_remove_named, Formatters.dateShort(LocalDate.ofEpochDay(d.epochDay))))
+                        }
                     }
                 }
             }
@@ -179,8 +191,11 @@ fun ExceptionsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewMode
         }
     }
     if (pickResume) {
-        val initial = (state.vacation.resumeEpochDay?.let(LocalDate::ofEpochDay) ?: LocalDate.now().plusDays(7)).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
-        val resumeState = rememberDatePickerState(initialSelectedDateMillis = initial)
+        // Alarms resume on the chosen day, so it is tomorrow at the earliest; a past day would end the vacation at once.
+        val tomorrow = LocalDate.now().plusDays(1)
+        val initial = maxOf(state.vacation.resumeEpochDay?.let(LocalDate::ofEpochDay) ?: LocalDate.now().plusDays(7), tomorrow)
+            .atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        val resumeState = rememberDatePickerState(initialSelectedDateMillis = initial, selectableDates = remember(tomorrow) { SelectableFrom(tomorrow.toEpochDay()) })
         DatePickerDialog(
             onDismissRequest = { pickResume = false },
             confirmButton = {
@@ -190,12 +205,19 @@ fun ExceptionsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewMode
                 }) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.setVacation(true, null); pickResume = false }) { Text(stringResource(R.string.settings_vacation_manual)) }
+                Row {
+                    TextButton(onClick = { viewModel.setVacation(true, null); pickResume = false }) { Text(stringResource(R.string.settings_vacation_manual)) }
+                    TextButton(onClick = { pickResume = false }) { Text(stringResource(R.string.action_cancel)) }
+                }
             },
         ) { DatePicker(resumeState) }
     }
     if (picking) {
-        val state0 = rememberDatePickerState(initialSelectedDateMillis = LocalDate.now().atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
+        val today = LocalDate.now()
+        val state0 = rememberDatePickerState(
+            initialSelectedDateMillis = today.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
+            selectableDates = remember(today) { SelectableFrom(today.toEpochDay()) },
+        )
         DatePickerDialog(
             onDismissRequest = { picking = false },
             confirmButton = {

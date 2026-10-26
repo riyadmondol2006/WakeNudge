@@ -24,7 +24,7 @@ val requireSigning = providers.environmentVariable("WAKENUDGE_REQUIRE_SIGNING").
 
 // --- Versioning (see docs/RELEASING.md and scripts/compute-version.sh, which implements the same rules) -------------
 // versionName = <major>.<minor>.<N> and versionCode = N. major.minor come from version.properties; N is the number of
-// commits reachable from HEAD, which only ever grows on `main` (what Google Play needs from a versionCode). CI computes
+// commits reachable from HEAD, which only ever grows on `main`, so every release can install over the previous one. CI computes
 // both once and passes them in as WAKENUDGE_VERSION_CODE / WAKENUDGE_VERSION_NAME, so the build and the release agree.
 // Precedence: Gradle property (-Pwakenudge.versionCode / -Pwakenudge.versionName), then the env var, then git. Without
 // git (a source tarball) the code is 1 and the name <major>.<minor>.0.
@@ -51,7 +51,7 @@ val gitCommitCount: Int? by lazy {
     }.getOrNull()?.takeIf { it > 0 }
 }
 
-val maxVersionCode = 2_100_000_000 // Google Play rejects anything above this
+val maxVersionCode = 2_100_000_000 // the ceiling app stores (Google Play among them) accept
 val buildNumber: Int? = versionOverride("wakenudge.versionCode", "WAKENUDGE_VERSION_CODE")?.let { raw ->
     raw.takeIf { Regex("[1-9][0-9]{0,9}").matches(it) }?.toLongOrNull()?.takeIf { it <= maxVersionCode }?.toInt()
         ?: throw GradleException("versionCode '$raw' must be an integer between 1 and $maxVersionCode")
@@ -71,27 +71,19 @@ tasks.register("printVersion") {
 }
 
 /**
- * Fails the build if the merged manifest of a variant requests network permissions. WakeNudge is offline-only; the one
- * exception is the `github` flavour (the APK on GitHub Releases), which may hold INTERNET to look for a newer release.
- * Nothing but INTERNET is ever allowed, and the Play flavour must stay completely offline.
+ * Fails the build if the merged manifest of a variant requests a network permission other than INTERNET. WakeNudge works
+ * offline; INTERNET is there only for the optional check for a newer release on GitHub, and nothing else is allowed.
  */
 abstract class VerifyOfflineManifestTask : DefaultTask() {
     @get:InputFile
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val mergedManifest: RegularFileProperty
 
-    @get:Input
-    abstract val allowInternet: Property<Boolean>
-
     @TaskAction
     fun verify() {
         val text = mergedManifest.get().asFile.readText()
         val declared = Regex("""<uses-permission[^>]*android:name="([^"]+)"""").findAll(text).map { it.groupValues[1] }.toSet()
-        val forbidden = buildSet {
-            if (!allowInternet.get()) add("android.permission.INTERNET")
-            add("android.permission.ACCESS_NETWORK_STATE")
-            add("android.permission.ACCESS_WIFI_STATE")
-        }
+        val forbidden = setOf("android.permission.ACCESS_NETWORK_STATE", "android.permission.ACCESS_WIFI_STATE")
         val offending = declared.intersect(forbidden)
         check(offending.isEmpty()) { "Network permissions are not allowed in this WakeNudge variant but the merged manifest declares: $offending" }
     }
@@ -111,20 +103,6 @@ android {
         vectorDrawables.useSupportLibrary = true
         buildConfigField("String", "REPO_URL", "\"https://github.com/riyadmondol2006/WakeNudge\"")
         buildConfigField("String", "SITE_URL", "\"https://wakenudge.site\"")
-    }
-
-    // Two ways to ship the same app. `play` is the Play Store bundle: no network permission, no update code.
-    // `github` is the APK on GitHub Releases: it may check GitHub for a newer release (the user can switch that off).
-    flavorDimensions += "distribution"
-    productFlavors {
-        create("play") {
-            dimension = "distribution"
-            buildConfigField("boolean", "UPDATE_CHECKS", "false")
-        }
-        create("github") {
-            dimension = "distribution"
-            buildConfigField("boolean", "UPDATE_CHECKS", "true")
-        }
     }
 
     signingConfigs {
@@ -200,7 +178,6 @@ androidComponents {
         val capName = variant.name.replaceFirstChar { it.uppercase() }
         val verify = tasks.register<VerifyOfflineManifestTask>("verifyOfflineManifest$capName") {
             mergedManifest.set(variant.artifacts.get(SingleArtifact.MERGED_MANIFEST))
-            allowInternet.set(variant.flavorName == "github")
         }
         tasks.matching { it.name == "check" }.configureEach { dependsOn(verify) }
     }

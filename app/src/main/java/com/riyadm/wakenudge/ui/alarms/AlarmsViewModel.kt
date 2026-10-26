@@ -72,6 +72,12 @@ sealed interface AlarmsEvent {
 
     /** Every alarm was paused with one tap; [previous] is what Undo puts back. */
     data class Paused(val previous: VacationMode) : AlarmsEvent
+
+    /** "Only this" switched the other profiles off; [previous] is each profile's on/off state before, for Undo. */
+    data class ProfileOnly(val name: String, val previous: Map<Long, Boolean>) : AlarmsEvent
+
+    /** A copy was added; the snackbar offers to open it, since it looks exactly like the original. */
+    data class Duplicated(val id: Long) : AlarmsEvent
 }
 
 @HiltViewModel
@@ -87,11 +93,17 @@ class AlarmsViewModel @Inject constructor(
     private val contextProvider: SchedulingContextProvider,
     private val ringQuery: ActiveRingQuery,
     private val time: TimeSource,
+    deletedInEditor: DeletedAlarmRelay,
 ) : ViewModel() {
 
     private val filter = MutableStateFlow<Long?>(null)
     private val _events = Channel<AlarmsEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
+
+    init {
+        // Deleted from the editor: the list shows the same Undo as for a delete made here.
+        viewModelScope.launch { deletedInEditor.alarms.collect { _events.send(AlarmsEvent.Deleted(it)) } }
+    }
 
     private val ticker = flow {
         while (true) {
@@ -169,7 +181,9 @@ class AlarmsViewModel @Inject constructor(
 
     fun clearSkip(item: AlarmItem) = viewModelScope.launch { actions.clearSkip(item.alarm.id) }
 
-    fun duplicate(item: AlarmItem) = viewModelScope.launch { actions.duplicate(item.alarm.id) }
+    fun duplicate(item: AlarmItem) = viewModelScope.launch {
+        actions.duplicate(item.alarm.id)?.let { _events.send(AlarmsEvent.Duplicated(it)) }
+    }
 
     fun setGroupEnabled(groupId: Long, enabled: Boolean) = persist {
         groupRepo.setEnabled(groupId, enabled)
@@ -178,8 +192,18 @@ class AlarmsViewModel @Inject constructor(
 
     /** Switches to a profile: turns this group on and every other group off. */
     fun activateProfileOnly(groupId: Long) = persist {
-        groupRepo.getGroups().forEach { groupRepo.setEnabled(it.id, it.id == groupId) }
+        val groups = groupRepo.getGroups()
+        val target = groups.firstOrNull { it.id == groupId } ?: return@persist
+        groups.forEach { groupRepo.setEnabled(it.id, it.id == groupId) }
         scheduler.rescheduleAll("profile-switch")
+        // One tap can silence whole profiles of alarms, so it is said out loud and can be taken back.
+        _events.send(AlarmsEvent.ProfileOnly(target.name, groups.associate { it.id to it.enabled }))
+    }
+
+    fun undoProfileOnly(previous: Map<Long, Boolean>) = persist {
+        val existing = groupRepo.getGroups().map { it.id }.toSet()
+        previous.forEach { (id, enabled) -> if (id in existing) groupRepo.setEnabled(id, enabled) }
+        scheduler.rescheduleAll("profile-switch undone")
     }
 
     fun setVacation(enabled: Boolean, resumeEpochDay: Long? = null) = persist {

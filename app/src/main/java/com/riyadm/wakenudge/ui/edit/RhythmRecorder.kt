@@ -45,6 +45,7 @@ fun RhythmRecorderDialog(
 ) {
     val haptics = LocalWakeHaptics.current
     val steps = remember { mutableStateListOf<Long>().apply { addAll(initial) } }
+    val recordLabel = stringResource(R.string.cd_rhythm_record)
     var lastEnd by remember { mutableStateOf(0L) }
     var started by remember { mutableStateOf(0L) }
     var pressing by remember { mutableStateOf(false) }
@@ -66,7 +67,7 @@ fun RhythmRecorderDialog(
                         )
                         .semantics {
                             role = Role.Button
-                            contentDescription = "Tap to record the rhythm"
+                            contentDescription = recordLabel
                         }
                         .pointerInput(Unit) {
                             detectTapGestures(

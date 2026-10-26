@@ -121,7 +121,8 @@ internal fun PhotoMission(config: MissionConfig, onInteraction: () -> Unit, onCo
 
     MissionScaffold(scrollable = false, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (total > 1) MissionProgress(found.toFloat() / total, stringResource(R.string.mission_photo_progress, minOf(found + 1, total), total))
-        MissionPrompt(stringResource(R.string.mission_photo_prompt), body = stringResource(R.string.mission_photo_hint))
+        // Without a camera the hint about holding still is noise, and its lines are better spent on the notice.
+        MissionPrompt(stringResource(R.string.mission_photo_prompt), body = if (cameraFailed) null else stringResource(R.string.mission_photo_hint))
         PermissionGate(
             permission = android.Manifest.permission.CAMERA,
             icon = Icons.Filled.PhotoCamera,
@@ -130,7 +131,10 @@ internal fun PhotoMission(config: MissionConfig, onInteraction: () -> Unit, onCo
             modifier = Modifier.weight(1f),
         ) {
             if (cameraFailed) {
-                MissionNotice(Icons.Filled.NoPhotography, stringResource(R.string.mission_camera_failed_title), stringResource(R.string.mission_camera_failed_body)) {
+                MissionNotice(
+                    Icons.Filled.NoPhotography, stringResource(R.string.mission_camera_failed_title), stringResource(R.string.mission_camera_failed_body),
+                    Modifier.weight(1f), scrollable = true,
+                ) {
                     MissionWayOut()
                 }
             } else {
@@ -219,16 +223,20 @@ private fun MatchMeter(score: Float, threshold: Float, holdProgress: Float, succ
         modifier
             .clip(MaterialTheme.shapes.large)
             .background(Color.Black.copy(alpha = 0.55f))
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-            .semantics(mergeDescendants = true) {
-                contentDescription = description
-                liveRegion = LiveRegionMode.Polite
-            },
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(status, style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.SemiBold)
-            Text(stringResource(R.string.mission_photo_percent, percent), style = MaterialTheme.typography.titleMedium, color = Color.White)
+            // Only the status is announced as it changes (searching, hold, matched); the percentage moves with every
+            // camera frame and would keep a screen reader talking, so it is read when focused, not pushed.
+            Text(
+                status, style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+            Text(
+                stringResource(R.string.mission_photo_percent, percent), style = MaterialTheme.typography.titleMedium, color = Color.White,
+                modifier = Modifier.semantics { contentDescription = description },
+            )
         }
         Box(Modifier.fillMaxWidth()) {
             val barColor = if (reached) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary

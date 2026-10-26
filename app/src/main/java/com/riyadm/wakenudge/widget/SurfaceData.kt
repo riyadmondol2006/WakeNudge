@@ -63,7 +63,7 @@ class AlarmOutlookProvider @Inject constructor(
         val now = time.now()
         val suppressed = all.mapNotNull { alarm ->
             calculator.suppressionOfNaturalNext(alarm, now, context.forAlarm(alarm))
-                ?.let { SuppressedOccurrence(alarm.time, it) }
+                ?.let { SuppressedOccurrence(alarm.time, it, alarm.id) }
         }
         return AlarmOutlook.decide(next, suppressed, totalAlarms = all.size, enabledAlarms = all.count { it.enabled })
     }

@@ -98,3 +98,19 @@ fun rememberIs24Hour(preference: TimeFormat): Boolean {
 @androidx.compose.runtime.Composable
 @androidx.compose.runtime.ReadOnlyComposable
 fun currentLocale(): Locale = androidx.compose.ui.text.intl.Locale.current.platformLocale
+
+/**
+ * A length of time for a screen reader: every unit that is not zero, in words and the user's language ("1 minute,
+ * 30 seconds"). The compact "1 min" seen on screen drops the seconds, which a timer of 1:30 cannot afford.
+ */
+fun spokenDuration(res: android.content.res.Resources, totalMillis: Long): String {
+    val total = (totalMillis / 1000).coerceAtLeast(0)
+    val hours = (total / 3600).toInt()
+    val minutes = ((total % 3600) / 60).toInt()
+    val seconds = (total % 60).toInt()
+    return buildList {
+        if (hours > 0) add(res.getQuantityString(R.plurals.spoken_hours, hours, hours))
+        if (minutes > 0) add(res.getQuantityString(R.plurals.spoken_minutes, minutes, minutes))
+        if (seconds > 0 || isEmpty()) add(res.getQuantityString(R.plurals.spoken_seconds, seconds, seconds))
+    }.joinToString(", ")
+}

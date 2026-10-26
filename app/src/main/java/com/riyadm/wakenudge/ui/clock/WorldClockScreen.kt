@@ -1,5 +1,9 @@
 package com.riyadm.wakenudge.ui.clock
 
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -113,12 +117,17 @@ fun WorldClockScreen(modifier: Modifier = Modifier, viewModel: WorldClockViewMod
                     Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(stringResource(R.string.clock_plan_ahead), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
-                            Text(
-                                if (offsetHours == 0f) stringResource(R.string.clock_now) else stringResource(R.string.clock_hours_ahead, offsetHours.toInt()),
-                                style = MaterialTheme.typography.labelLarge,
-                            )
+                            if (offsetHours == 0f) {
+                                Text(stringResource(R.string.clock_now), style = MaterialTheme.typography.labelLarge)
+                            } else {
+                                // Getting back to "now" by dragging to exactly zero is fiddly; one tap does it.
+                                TextButton(onClick = { offsetHours = 0f }) {
+                                    Text(stringResource(R.string.clock_hours_ahead_back, offsetHours.toInt()), style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
                         }
-                        Slider(value = offsetHours, onValueChange = { offsetHours = Math.round(it).toFloat() }, valueRange = -12f..48f)
+                        // One step per hour, so the slider (and a screen reader's adjust gesture) moves in whole hours.
+                        Slider(value = offsetHours, onValueChange = { offsetHours = Math.round(it).toFloat() }, valueRange = -12f..48f, steps = 59)
                     }
                 }
             }
@@ -178,15 +187,22 @@ private fun ClockCard(
         shape = RoundedCornerShape(if (primary) 36.dp else 28.dp),
         color = if (primary) scheme.primaryContainer else scheme.surfaceContainerHigh,
     ) {
-        Row(Modifier.padding(horizontal = 24.dp, vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant, maxLines = 2)
-            }
+        // On a narrow phone or with a large font the time goes under the city, which keeps a readable width.
+        val density = LocalDensity.current
+        val stacked = density.fontScale > 1.3f || with(density) { LocalWindowInfo.current.containerSize.width.toDp() } < 380.dp
+        val clock: @Composable () -> Unit = {
             Row(verticalAlignment = Alignment.Bottom) {
                 AnimatedClockText(digits, if (primary) ClockType.Card else ClockType.Card.copy(fontSize = androidx.compose.ui.unit.TextUnit(40f, androidx.compose.ui.unit.TextUnitType.Sp)), spokenText = TimeText.format(zoned.toLocalTime(), is24))
                 if (suffix.isNotEmpty()) Text(suffix, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 4.dp, bottom = 6.dp))
             }
+        }
+        Row(Modifier.padding(horizontal = 24.dp, vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (stacked) clock()
+            }
+            if (!stacked) clock()
             Icon(if (daytime) Icons.Outlined.LightMode else Icons.Outlined.DarkMode, null, tint = scheme.tertiary, modifier = Modifier.padding(start = 12.dp))
             if (onRemove != null) {
                 IconButton(onClick = onRemove) { Icon(Icons.Outlined.Close, stringResource(R.string.cd_remove_city, title)) }

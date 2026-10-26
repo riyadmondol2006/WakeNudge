@@ -31,6 +31,8 @@
     <!-- Buttons -->
     <string name="widget_action_skip_next">Skip next</string>
     <string name="widget_action_turn_off">Turn off</string>
+    <string name="widget_action_undo_skip">Undo skip</string>
+    <string name="widget_confirm_turn_off">Tap Turn off again to switch off your %1$s alarm</string>
     <string name="widget_action_add_alarm">Add alarm</string>
     <string name="widget_alarm_icon_description">Alarm</string>
     <string name="widget_add_icon_description">Add alarm</string>
@@ -64,4 +66,8 @@
     <string name="tile_description">Alarms are on. Tap to switch vacation mode on and pause them all.</string>
     <string name="tile_description_vacation">Vacation mode is on. Tap to resume your alarms.</string>
     <string name="tile_preferences_label">WakeNudge alarms</string>
+    <string name="tile_pause_title">Pause all alarms?</string>
+    <string name="tile_pause_text_next">Your %1$s alarm will not ring, and nor will any other until you resume them here or in the app.</string>
+    <string name="tile_pause_text">No alarm will ring until you resume them here or in the app.</string>
+    <string name="tile_pause_confirm">Pause</string>
 </resources>

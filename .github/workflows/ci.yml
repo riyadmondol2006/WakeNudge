@@ -47,22 +47,18 @@ jobs:
       - name: Accept Android SDK licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
-      - name: Unit tests (play and github)
-        run: ./gradlew :app:testPlayDebugUnitTest :app:testGithubDebugUnitTest --stacktrace
+      - name: Unit tests
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
 
-      - name: Lint (play and github)
-        run: ./gradlew :app:lintPlayDebug :app:lintGithubDebug --stacktrace
+      - name: Lint
+        run: ./gradlew :app:lintDebug --stacktrace
 
-      # The Play bundle must never hold a network permission; the github APK may hold INTERNET and nothing else.
-      - name: Verify the network permissions of all four variants
-        run: >
-          ./gradlew
-          :app:verifyOfflineManifestPlayDebug :app:verifyOfflineManifestPlayRelease
-          :app:verifyOfflineManifestGithubDebug :app:verifyOfflineManifestGithubRelease
-          --stacktrace
+      # The app may hold INTERNET (for the optional update check) and no other network permission.
+      - name: Verify the network permissions
+        run: ./gradlew :app:verifyOfflineManifestDebug :app:verifyOfflineManifestRelease --stacktrace
 
-      - name: Assemble the debug builds
-        run: ./gradlew :app:assemblePlayDebug :app:assembleGithubDebug --stacktrace
+      - name: Assemble the debug build
+        run: ./gradlew :app:assembleDebug --stacktrace
 
       - name: Upload test and lint reports
         if: always()
@@ -75,11 +71,11 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      - name: Upload debug APKs
+      - name: Upload the debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: wakenudge-debug-apks
-          path: app/build/outputs/apk/*/debug/*.apk
+          name: wakenudge-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
           retention-days: 7
 
   release:
@@ -156,7 +152,7 @@ jobs:
 
           echo "WAKENUDGE_KEYSTORE_PATH=$keystore" >> "$GITHUB_ENV"
 
-      - name: Build the signed APK (github) and AAB (play)
+      - name: Build the signed APK
         env:
           WAKENUDGE_KEYSTORE_PASSWORD: ${{ secrets.WAKENUDGE_KEYSTORE_PASSWORD }}
           WAKENUDGE_KEY_ALIAS: ${{ secrets.WAKENUDGE_KEY_ALIAS }}
@@ -166,11 +162,10 @@ jobs:
           WAKENUDGE_VERSION_CODE: ${{ steps.version.outputs.version_code }}
         run: >
           ./gradlew
-          :app:verifyOfflineManifestPlayRelease :app:verifyOfflineManifestGithubRelease
-          :app:assembleGithubRelease :app:bundlePlayRelease
+          :app:verifyOfflineManifestRelease :app:assembleRelease
           --stacktrace
 
-      - name: Verify the signed artifacts
+      - name: Verify the signed APK
         id: artifacts
         env:
           WAKENUDGE_KEYSTORE_PASSWORD: ${{ secrets.WAKENUDGE_KEYSTORE_PASSWORD }}
@@ -179,8 +174,7 @@ jobs:
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
         run: >
           scripts/verify-release.sh
-          --apk app/build/outputs/apk/github/release/app-github-release.apk
-          --aab app/build/outputs/bundle/playRelease/app-play-release.aab
+          --apk app/build/outputs/apk/release/app-release.apk
           --version-name "$VERSION_NAME"
           --version-code "$VERSION_CODE"
 
@@ -192,10 +186,8 @@ jobs:
           scripts/stage-release.sh
           --version-name "$VERSION_NAME"
           --cert-sha256 "$CERT_SHA256"
-          --apk app/build/outputs/apk/github/release/app-github-release.apk
-          --aab app/build/outputs/bundle/playRelease/app-play-release.aab
-          --mapping-play app/build/outputs/mapping/playRelease/mapping.txt
-          --mapping-github app/build/outputs/mapping/githubRelease/mapping.txt
+          --apk app/build/outputs/apk/release/app-release.apk
+          --mapping app/build/outputs/mapping/release/mapping.txt
           --out build/release-dist
           --notes-file build/release-notes.md
 
@@ -226,7 +218,6 @@ jobs:
             echo "### WakeNudge $VERSION_NAME"
             echo
             echo "Version code $VERSION_CODE, signing certificate SHA-256 \`$CERT_SHA256\`."
-            echo "Upload \`WakeNudge-$VERSION_NAME.aab\` to Google Play (docs/RELEASING.md)."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Remove the signing key
@@ -262,7 +253,7 @@ jobs:
           target: google_apis
           arch: x86_64
           disable-animations: true
-          script: ./gradlew :app:connectedPlayDebugAndroidTest --stacktrace
+          script: ./gradlew :app:connectedDebugAndroidTest --stacktrace
       - name: Upload instrumented test reports
         if: always()
         uses: actions/upload-artifact@v4

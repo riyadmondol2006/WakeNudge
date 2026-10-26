@@ -7,7 +7,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 
-/** The GitHub APK's update machinery. The Play build has a sibling module in src/play that binds a no-op instead. */
+/** The update machinery: the real manager and the GitHub client. UI tests replace this module with a scripted one. */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class UpdateModule {

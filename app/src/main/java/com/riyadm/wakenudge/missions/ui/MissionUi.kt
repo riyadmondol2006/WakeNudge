@@ -267,6 +267,8 @@ internal fun MissionNotice(
     title: String,
     body: String,
     modifier: Modifier = Modifier,
+    // Only where the notice has a bounded height (a weighted slot): there its button must stay reachable at any font.
+    scrollable: Boolean = false,
     actions: @Composable ColumnScope.() -> Unit = {},
 ) {
     Column(
@@ -274,6 +276,7 @@ internal fun MissionNotice(
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.extraLarge)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -312,6 +315,17 @@ internal val LocalMissionWayOut = staticCompositionLocalOf<(() -> Unit)?> { null
 internal fun ColumnScope.MissionWayOut() {
     val wayOut = LocalMissionWayOut.current ?: return
     MissionButton(stringResource(R.string.mission_continue), wayOut, Modifier.fillMaxWidth())
+}
+
+/** True while a touch-exploring screen reader (TalkBack) is on; looked at again on every resume. */
+@Composable
+internal fun rememberScreenReaderOn(): Boolean {
+    val context = LocalContext.current
+    val resumes = rememberResumeCount()
+    return remember(resumes) {
+        runCatching { context.getSystemService(android.view.accessibility.AccessibilityManager::class.java)?.isTouchExplorationEnabled == true }
+            .getOrDefault(false)
+    }
 }
 
 /** Increments each time the host activity resumes; lets a composable re-check things the user may have changed in system settings. */

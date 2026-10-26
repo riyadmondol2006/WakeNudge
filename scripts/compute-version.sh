@@ -11,7 +11,8 @@
 # and the name <major>.<minor>.0.
 #
 # --strict is for releases: a stable release must never get a guessed version, so it refuses to run without full git
-# history (a shallow clone counts too few commits and could hand Google Play a versionCode that went backwards).
+# history (a shallow clone counts too few commits and could produce a versionCode that went backwards, and Android will
+# not install a release over a newer one).
 set -euo pipefail
 
 strict=false
@@ -22,7 +23,7 @@ case "${1:-}" in
 esac
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
-max_code=2100000000 # Google Play rejects anything above this
+max_code=2100000000 # the ceiling app stores (Google Play among them) accept; kept equal to app/build.gradle.kts
 
 fail() { echo "compute-version: $*" >&2; exit 1; }
 

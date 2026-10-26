@@ -34,7 +34,7 @@ fail() { echo "publish-release: $*" >&2; exit 1; }
 shopt -s nullglob
 assets=("$dist"/*)
 shopt -u nullglob
-for required in "WakeNudge-$version_name.apk" "WakeNudge-$version_name.aab" SHA256SUMS.txt; do
+for required in "WakeNudge-$version_name.apk" WakeNudge.apk SHA256SUMS.txt; do
   [[ -f $dist/$required ]] || fail "$dist/$required is missing"
 done
 

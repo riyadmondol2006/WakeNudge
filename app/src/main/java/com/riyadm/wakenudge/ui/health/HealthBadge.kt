@@ -1,5 +1,9 @@
 package com.riyadm.wakenudge.ui.health
 
+import com.riyadm.wakenudge.R
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,12 +30,15 @@ fun HealthBadge(viewModel: HealthBadgeViewModel = hiltViewModel()) {
     val worst by viewModel.worst.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
     if (worst >= Severity.WARNING) {
+        val attention = stringResource(R.string.health_badge_attention)
         Box(
             Modifier
                 .offset(x = 14.dp, y = (-2).dp)
                 .size(10.dp)
                 .clip(CircleShape)
-                .background(if (worst == Severity.ERROR) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary),
+                .background(if (worst == Severity.ERROR) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary)
+                // Merges into the health button, which then says that something needs attention, not just its name.
+                .semantics { contentDescription = attention },
         )
     }
 }

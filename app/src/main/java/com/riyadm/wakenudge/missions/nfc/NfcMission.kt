@@ -63,6 +63,7 @@ import com.riyadm.wakenudge.missions.ui.SetupFrame
 import com.riyadm.wakenudge.missions.ui.errorShake
 import com.riyadm.wakenudge.missions.ui.findActivity
 import com.riyadm.wakenudge.missions.ui.rememberErrorFeedback
+import com.riyadm.wakenudge.missions.ui.MissionWayOut
 import com.riyadm.wakenudge.missions.ui.rememberResumeCount
 import com.riyadm.wakenudge.ui.theme.LocalWakeHaptics
 import kotlinx.coroutines.delay
@@ -141,16 +142,27 @@ private fun openNfcSettings(context: Context) {
     }
 }
 
-/** The "NFC is off" state shared by the mission and its setup. */
+/**
+ * The "NFC is off" state shared by the mission and its setup. During a ring, someone who went to the settings and came
+ * back with NFC still off (a locked phone that would not open them, a setting they cannot find) is offered Continue,
+ * like a refused camera permission: a tag that cannot be read must not trap them.
+ */
 @Composable
 private fun NfcOffNotice() {
     val context = LocalContext.current
+    val resumes = rememberResumeCount()
+    var openedAt by remember { mutableIntStateOf(-1) }
     MissionNotice(
         icon = Icons.Filled.Nfc,
         title = stringResource(R.string.mission_nfc_off_title),
         body = stringResource(R.string.mission_nfc_off_body),
     ) {
-        MissionButton(stringResource(R.string.mission_nfc_open_settings), { openNfcSettings(context) }, Modifier.fillMaxWidth(), icon = Icons.Filled.Settings)
+        MissionButton(
+            stringResource(R.string.mission_nfc_open_settings),
+            { openedAt = resumes; openNfcSettings(context) },
+            Modifier.fillMaxWidth(), icon = Icons.Filled.Settings,
+        )
+        if (openedAt >= 0 && resumes > openedAt) MissionWayOut()
     }
 }
 
@@ -241,7 +253,9 @@ internal fun NfcMission(config: MissionConfig, onInteraction: () -> Unit, onComp
     MissionScaffold(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (total > 1) MissionProgress(tapped.toFloat() / total, stringResource(R.string.mission_nfc_progress, minOf(tapped + 1, total), total))
         if (adapter == null) {
-            MissionNotice(Icons.Filled.SensorsOff, stringResource(R.string.mission_nfc_missing_title), stringResource(R.string.mission_unsupported_nfc))
+            MissionNotice(Icons.Filled.SensorsOff, stringResource(R.string.mission_nfc_missing_title), stringResource(R.string.mission_unsupported_nfc)) {
+                MissionWayOut()
+            }
         } else if (!nfcEnabled) {
             NfcOffNotice()
         } else {

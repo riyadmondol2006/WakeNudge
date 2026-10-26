@@ -9,7 +9,7 @@ Please report privately, not in a public issue:
 
 1. Go to the repository's **Security** tab and choose **Report a vulnerability**
    ([direct link](https://github.com/riyadmondol2006/WakeNudge/security/advisories/new)).
-2. Describe what you found, the Android version and build (GitHub APK or Google Play), and how to reproduce it.
+2. Describe what you found, the Android version and WakeNudge version, and how to reproduce it.
 
 You will get a reply within about a week. WakeNudge is maintained by one person, so this is a best-effort promise
 rather than a service level. Once a fix is released, the advisory is published and you are credited if you wish.
@@ -19,9 +19,8 @@ rather than a service level. Once a fix is released, the advisory is published a
 - Another app, a crafted intent, a crafted backup file or a crafted NFC tag or QR code that can delete, disable, silence
   or reschedule alarms, or stop an alarm from ringing, without the user's action.
 - Any way to read WakeNudge's alarms, history, settings, backups or diagnostics from another app or over the network.
-- A flaw in the update check of the GitHub APK (for example, one that would let someone else's file be offered as an update).
-- A build that declares a network permission it should not: the Play build must declare none, and the GitHub APK may hold
-  only `INTERNET`.
+- A flaw in the update check (for example, one that would let someone else's file be offered as an update).
+- A build that declares a network permission it should not: the app may hold only `INTERNET`.
 
 ## Not security issues (please use a normal issue)
 
@@ -37,5 +36,4 @@ Only the [latest release](https://github.com/riyadmondol2006/WakeNudge/releases/
 
 ## Verifying what you install
 
-Each GitHub release includes `SHA256SUMS.txt`. The Play build declares no network permission, and the GitHub APK holds only
-`INTERNET` for its update check; see [docs/PERMISSIONS.md](docs/PERMISSIONS.md) and [PRIVACY.md](PRIVACY.md).
+Each GitHub release includes `SHA256SUMS.txt`. The app holds only `INTERNET`, for its update check; see [docs/PERMISSIONS.md](docs/PERMISSIONS.md) and [PRIVACY.md](PRIVACY.md).

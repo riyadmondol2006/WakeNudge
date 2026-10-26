@@ -1,5 +1,10 @@
 package com.riyadm.wakenudge.ui.stopwatch
 
+import androidx.compose.ui.platform.LocalResources
+import com.riyadm.wakenudge.ui.util.spokenDuration
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -102,59 +107,77 @@ fun StopwatchScreen(modifier: Modifier = Modifier, viewModel: StopwatchViewModel
         contentWindowInsets = topLevelInsets(),
         topBar = { LargeTopAppBar(title = { Text(stringResource(R.string.stopwatch_title)) }, scrollBehavior = scroll) },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()), horizontalAlignment = Alignment.CenterHorizontally) {
-            val text = TimeText.clockDuration(elapsed, withHundredths = true)
-            Text(
-                text,
-                style = ClockType.Readout.copy(fontSize = androidx.compose.ui.unit.TextUnit(68f, androidx.compose.ui.unit.TextUnitType.Sp)),
-                color = if (s.running) scheme.primary else scheme.onSurface,
-                modifier = Modifier.padding(vertical = 32.dp).semantics { contentDescription = TimeText.duration(elapsed) },
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                FilledTonalIconButton(
-                    onClick = { haptics.tick(); viewModel.reset() },
-                    enabled = elapsed > 0 && !s.running, modifier = Modifier.size(64.dp),
-                ) { Icon(Icons.Outlined.Replay, stringResource(R.string.action_reset)) }
-                FilledIconButton(
-                    onClick = { haptics.click(); viewModel.startOrPause() },
-                    modifier = Modifier.size(96.dp), shape = PolygonShape(Blobs.Cookie),
-                ) {
-                    Icon(if (s.running) Icons.Filled.Pause else Icons.Filled.PlayArrow, stringResource(if (s.running) R.string.action_pause else R.string.stopwatch_start), Modifier.size(42.dp))
+        val resources = LocalResources.current
+        val laps = s.laps
+        val splits = laps.mapIndexed { i, t -> if (i == 0) t else t - laps[i - 1] }
+        val best = splits.minOrNull()
+        val worst = splits.maxOrNull()
+        // One list for the readout, the buttons and the laps: in landscape it scrolls (collapsing the big title)
+        // instead of cutting the buttons off below a readout that cannot move.
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding(), bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            item(key = "readout") {
+                val text = TimeText.clockDuration(elapsed, withHundredths = true)
+                // One line whatever the font size: past an hour ("1:00:00.00") the readout shrinks to fit the width.
+                BoxWithConstraints(Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
+                    val fitting = with(LocalDensity.current) { (maxWidth / (text.length * 0.62f)).toSp() }
+                    Text(
+                        text,
+                        style = ClockType.Readout.copy(fontSize = minOf(68f, fitting.value).sp),
+                        color = if (s.running) scheme.primary else scheme.onSurface,
+                        maxLines = 1, softWrap = false,
+                        modifier = Modifier.semantics { contentDescription = spokenDuration(resources, elapsed) },
+                    )
                 }
-                FilledTonalIconButton(
-                    onClick = { haptics.tick(); viewModel.lap() },
-                    enabled = s.running, modifier = Modifier.size(64.dp),
-                ) { Icon(Icons.Outlined.Flag, stringResource(R.string.stopwatch_lap)) }
             }
-            val laps = s.laps
-            if (laps.isNotEmpty()) {
-                val splits = laps.mapIndexed { i, t -> if (i == 0) t else t - laps[i - 1] }
-                val best = splits.min()
-                val worst = splits.max()
-                LazyColumn(
-                    Modifier.fillMaxSize().padding(top = 24.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    itemsIndexed(splits.asReversed()) { reversedIndex, split ->
-                        val number = splits.size - reversedIndex
-                        val total = laps[number - 1]
-                        Surface(shape = RoundedCornerShape(16.dp), color = scheme.surfaceContainerHigh) {
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.stopwatch_lap_number, number), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                                val color = when {
-                                    splits.size > 1 && split == best -> scheme.primary
-                                    splits.size > 1 && split == worst -> scheme.error
-                                    else -> scheme.onSurface
-                                }
-                                Text(TimeText.clockDuration(split, true), style = MaterialTheme.typography.titleMedium, color = color, modifier = Modifier.padding(end = 24.dp))
-                                Text(TimeText.clockDuration(total, true), style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
+            item(key = "buttons") {
+                Row(Modifier.padding(bottom = 24.dp), horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    FilledTonalIconButton(
+                        onClick = { haptics.tick(); viewModel.reset() },
+                        enabled = elapsed > 0 && !s.running, modifier = Modifier.size(64.dp),
+                    ) { Icon(Icons.Outlined.Replay, stringResource(R.string.action_reset)) }
+                    FilledIconButton(
+                        onClick = { haptics.click(); viewModel.startOrPause() },
+                        modifier = Modifier.size(96.dp), shape = PolygonShape(Blobs.Cookie),
+                    ) {
+                        Icon(if (s.running) Icons.Filled.Pause else Icons.Filled.PlayArrow, stringResource(if (s.running) R.string.action_pause else R.string.stopwatch_start), Modifier.size(42.dp))
+                    }
+                    FilledTonalIconButton(
+                        onClick = { haptics.tick(); viewModel.lap() },
+                        enabled = s.running, modifier = Modifier.size(64.dp),
+                    ) { Icon(Icons.Outlined.Flag, stringResource(R.string.stopwatch_lap)) }
+                }
+            }
+            itemsIndexed(splits.asReversed(), key = { reversedIndex, _ -> "lap-${splits.size - reversedIndex}" }) { reversedIndex, split ->
+                val number = splits.size - reversedIndex
+                val total = laps[number - 1]
+                // Fastest and slowest are named, not only coloured.
+                val mark = when {
+                    splits.size > 1 && split == best -> stringResource(R.string.stopwatch_fastest)
+                    splits.size > 1 && split == worst -> stringResource(R.string.stopwatch_slowest)
+                    else -> null
+                }
+                Surface(shape = RoundedCornerShape(16.dp), color = scheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.stopwatch_lap_number, number), style = MaterialTheme.typography.titleMedium)
+                            if (mark != null) {
+                                Text(mark, style = MaterialTheme.typography.labelMedium, color = if (split == best) scheme.primary else scheme.error)
                             }
                         }
+                        val color = when {
+                            splits.size > 1 && split == best -> scheme.primary
+                            splits.size > 1 && split == worst -> scheme.error
+                            else -> scheme.onSurface
+                        }
+                        Text(TimeText.clockDuration(split, true), style = MaterialTheme.typography.titleMedium, color = color, modifier = Modifier.padding(end = 24.dp))
+                        Text(TimeText.clockDuration(total, true), style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
                     }
                 }
-            } else {
-                Box(Modifier.fillMaxSize())
             }
         }
     }

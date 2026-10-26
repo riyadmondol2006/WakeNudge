@@ -1,5 +1,8 @@
 package com.riyadm.wakenudge.ui.components
 
+import com.riyadm.wakenudge.ui.util.currentLocale
+import com.riyadm.wakenudge.core.TimeText
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -56,12 +59,17 @@ fun AlarmTimePicker(
             enabled = enabled,
         )
         if (!is24) {
+            val locale = currentLocale()
+            val amPm = remember(locale) {
+                listOf(java.time.LocalTime.of(9, 0), java.time.LocalTime.of(21, 0)).map { TimeText.parts(it, is24 = false, locale).second }
+            }
             Row(Modifier.width(12.dp)) {}
             WheelPicker(
                 count = 2,
                 selected = if (pm) 1 else 0,
                 onSelected = { i -> onChange((hour % 12) + if (i == 1) 12 else 0, minute) },
-                label = { if (it == 0) "AM" else "PM" },
+                // The locale's own markers, as on the alarm cards ("AM"/"PM", "vorm."/"nachm.", ...).
+                label = { amPm[it] },
                 description = stringResource(R.string.picker_am_pm),
                 loop = false,
                 width = 88.dp,

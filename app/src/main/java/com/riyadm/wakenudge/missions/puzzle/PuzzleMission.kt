@@ -39,6 +39,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -52,6 +55,7 @@ import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.domain.model.Difficulty
 import com.riyadm.wakenudge.domain.model.MissionConfig
 import com.riyadm.wakenudge.domain.model.PuzzleKind
+import com.riyadm.wakenudge.missions.ui.rememberScreenReaderOn
 import com.riyadm.wakenudge.missions.ui.MissionProgress
 import com.riyadm.wakenudge.missions.ui.MissionPrompt
 import com.riyadm.wakenudge.missions.ui.MissionScaffold
@@ -302,6 +306,8 @@ private fun ColumnScope.PatternTraceGame(difficulty: Difficulty, onInteraction: 
     }
 
     val dotNames = stringArrayResource(R.array.mission_dot_names)
+    val connectedText = stringResource(R.string.mission_puzzle_dot_connected)
+    val screenReader = rememberScreenReaderOn()
     val description = stringResource(R.string.mission_puzzle_pattern_description, pattern.joinToString(", ") { dotNames[it] })
     val scheme = MaterialTheme.colorScheme
     val numberStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = scheme.onPrimary)
@@ -403,6 +409,34 @@ private fun ColumnScope.PatternTraceGame(difficulty: Difficulty, onInteraction: 
                     if (order == 0) drawCircle(scheme.primary, radius = 24.dp.toPx(), center = c, style = Stroke(3.dp.toPx()))
                     val label = measurer.measure("${order + 1}", numberStyle)
                     drawText(label, topLeft = Offset(c.x - label.size.width / 2f, c.y - label.size.height / 2f))
+                }
+            }
+        }
+        // A screen reader cannot drag across the dots, so each dot is also a button: double-tap them in order.
+        if (screenReader) {
+            val cell = with(density) { cellPx.toDp() }
+            Box(Modifier.size(side)) {
+                for (node in 0 until PatternGrid.NODES) {
+                    val connected = node in tracer.visited
+                    Box(
+                        Modifier
+                            .offset(cell * (node % PatternGrid.SIDE), cell * (node / PatternGrid.SIDE))
+                            .size(cell)
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = dotNames[node]
+                                if (connected) stateDescription = connectedText
+                                onClick {
+                                    if (!solved && !wrong) {
+                                        onInteraction()
+                                        if (tracer.enter(node)) haptics.frequentTick()
+                                        revision++
+                                        if (!tracer.isOnTrack || tracer.visited.size >= pattern.size) finishStroke()
+                                    }
+                                    true
+                                }
+                            },
+                    )
                 }
             }
         }
