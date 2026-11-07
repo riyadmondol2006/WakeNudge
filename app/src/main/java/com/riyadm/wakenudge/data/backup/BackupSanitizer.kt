@@ -269,7 +269,8 @@ object BackupSanitizer {
             backupDelayMinutes = int(a.backupDelayMinutes, 1..60),
             backupCount = int(a.backupCount, 0..RingIds.MAX_BACKUPS),
             editLockMinutes = int(a.editLockMinutes, 0..120),
-            ringTimeoutMinutes = int(a.ringTimeoutMinutes, 1..60),
+            // 0 is the "Never" choice, not a value to clamp; anything else out of range becomes a real timeout.
+            ringTimeoutMinutes = if (a.ringTimeoutMinutes == AntiOversleepSettings.RING_TIMEOUT_NEVER) a.ringTimeoutMinutes else int(a.ringTimeoutMinutes, 1..60),
         )
 
         private fun missions(label: String, owner: Alarm, source: List<MissionConfig>): List<MissionConfig> {

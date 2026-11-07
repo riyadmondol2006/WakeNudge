@@ -383,8 +383,10 @@ class AlarmSchedulerImpl @Inject constructor(
             when (check.phase) {
                 WakeCheck.Phase.WAITING ->
                     pending.setExact(TriggerKind.WAKE_CHECK_PROMPT, check.alarmId, maxOf(check.promptAt, nowMs + 1_000))
-                WakeCheck.Phase.PROMPTED ->
+                // No deadline means it already fired and rang the alarm again; arming it anew would ring out of nowhere.
+                WakeCheck.Phase.PROMPTED -> if (check.deadlineAt > 0) {
                     pending.setAlarmClock(TriggerKind.WAKE_CHECK_DEADLINE, check.alarmId, maxOf(check.deadlineAt, nowMs + 1_000))
+                }
             }
         }
     }

@@ -4,6 +4,23 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 Releases are built and published automatically from `main` and numbered `MAJOR.MINOR.N`, where `N` is the commit count
 (see [docs/RELEASING.md](docs/RELEASING.md)); the notes of each GitHub release list the commits it contains.
 
+## An alarm that rings until it is dealt with
+
+- **"Stop ringing after" can now be Never**: step below 1 min and an ignored alarm keeps ringing until you dismiss or
+  snooze it. Backups still upgrade it while it rings. New alarms stay at 10 minutes; timers and the test alarm keep
+  their own short timeouts, and backups restore a Never alarm as Never
+- The ring service now renews its wake lock while it rings; it used to lapse after 45 minutes
+
+### Fixed
+- A snoozed alarm stayed silent if the phone restarted (or the app was force-stopped) more than an hour after the
+  alarm first rang: start-up housekeeping closed the ring as missed, so the restored snooze found nothing to ring
+- An ignored "Still awake?" re-ring could ring again hours later, when the next reschedule re-armed a deadline that had
+  already fired. It now ends the check as failed once nothing is left to ring, instead of leaving it pending for good
+- "Wake now" on a snoozed test alarm did nothing and left its notification stuck, and with an unreadable history it
+  cancelled a real snooze without ringing
+- Dismissing a snoozed alarm from its notification skipped the still-awake check and did not delete a delete-after-use alarm
+- A timer stayed silent if the database could not be read or written when it finished
+
 ## One app, published as an APK
 
 - **There is now one WakeNudge.** The separate Google Play build is gone, and releases carry only the signed APK

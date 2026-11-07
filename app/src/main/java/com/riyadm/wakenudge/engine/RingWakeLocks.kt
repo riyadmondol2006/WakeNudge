@@ -24,6 +24,7 @@ class RingWakeLocks @Inject constructor(
     private var ring: PowerManager.WakeLock? = null
     private var handoff: PowerManager.WakeLock? = null
     private var screen: PowerManager.WakeLock? = null
+    private var ticksSinceRenewal = 0
 
     val ringHeld: Boolean get() = synchronized(this) { ring?.isHeld == true }
     val handoffHeld: Boolean get() = synchronized(this) { handoff?.isHeld == true }
@@ -32,6 +33,17 @@ class RingWakeLocks @Inject constructor(
     @Synchronized fun acquireRing(timeoutMs: Long = RING_MAX_MS): Boolean {
         val lock = ring ?: create(PowerManager.PARTIAL_WAKE_LOCK, "WakeNudge:ring")?.also { ring = it } ?: return false
         return hold(lock, timeoutMs)
+    }
+
+    /**
+     * Called by the ring service about once a second. The ring lock is timed so that a leak cannot outlive it, but a ring
+     * can last longer than that timeout (an alarm set to ring until it is dealt with), so a live service keeps renewing it.
+     */
+    @Synchronized fun onRingTick() {
+        if (++ticksSinceRenewal >= RENEW_EVERY_TICKS) {
+            ticksSinceRenewal = 0
+            acquireRing()
+        }
     }
 
     @Synchronized fun releaseRing() = release(ring)
@@ -70,8 +82,9 @@ class RingWakeLocks @Inject constructor(
     }
 
     companion object {
-        /** Longest ring timeout is 30 minutes (see the alarm editor), plus slack for a sunrise lead-in. */
+        /** How long the ring lock outlives a ring service that stopped renewing it (see [onRingTick]). */
         const val RING_MAX_MS = 45 * 60_000L
+        const val RENEW_EVERY_TICKS = 60
         const val HANDOFF_MS = 15_000L
         const val SCREEN_MS = 10_000L
     }

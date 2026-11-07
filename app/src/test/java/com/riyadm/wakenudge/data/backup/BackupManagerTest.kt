@@ -189,7 +189,7 @@ class BackupManagerTest {
                 "vibration":{"strength":0},
                 "snooze":{"minutes":0,"maxCount":-2,"decreaseStepMinutes":99},
                 "wakeCheck":{"delayMinutes":500,"responseSeconds":1,"maxChecks":99,"maxReRings":-1},
-                "antiOversleep":{"holdToDismissSeconds":999,"backupDelayMinutes":0,"backupCount":40,"editLockMinutes":-5,"ringTimeoutMinutes":0},
+                "antiOversleep":{"holdToDismissSeconds":999,"backupDelayMinutes":0,"backupCount":40,"editLockMinutes":-5,"ringTimeoutMinutes":-7},
                 "sunrise":{"leadMinutes":0},"voice":{"repeatSeconds":1},"upcomingNoticeMinutes":99999}]""",
         )
         val result = rig.manager.import(json).success()
@@ -218,6 +218,53 @@ class BackupManagerTest {
         assertEquals(5, a.voice.repeatSeconds)
         assertEquals(720, a.upcomingNoticeMinutes)
         assertTrue(result.has(R.plurals.backup_warn_clamped))
+    }
+
+    @Test fun `a ring timeout of Never survives a restore, in an alarm and in the defaults, with nothing to warn about`() = runTest {
+        val rig = BackupRig()
+        val json = backupJson(
+            alarms = """[{"id":1,"hour":7,"minute":0,"antiOversleep":{"ringTimeoutMinutes":0}}]""",
+            settings = """{"defaults":{"antiOversleep":{"ringTimeoutMinutes":0}}}""",
+        )
+        val result = rig.manager.import(json).success()
+        assertEquals(0, rig.store.contents.alarms.single().antiOversleep.ringTimeoutMinutes)
+        assertEquals(0, rig.store.contents.settings.defaults.antiOversleep.ringTimeoutMinutes)
+        assertFalse(result.has(R.plurals.backup_warn_clamped))
+    }
+
+    @Test fun `old backups keep their ring timeouts when they are restored`() = runTest {
+        val rig = BackupRig()
+        val json = backupJson(
+            alarms = """[{"id":1,"hour":7,"minute":0,"antiOversleep":{"ringTimeoutMinutes":45}},
+                {"id":2,"hour":8,"minute":0,"antiOversleep":{"ringTimeoutMinutes":1}},
+                {"id":3,"hour":9,"minute":0,"antiOversleep":{"ringTimeoutMinutes":60}},
+                {"id":4,"hour":10,"minute":0,"antiOversleep":{"backupCount":2}},
+                {"id":5,"hour":11,"minute":0}]""",
+        )
+        val result = rig.manager.import(json).success()
+        assertEquals(listOf(45, 1, 60, 10, 10), rig.store.contents.alarms.map { it.antiOversleep.ringTimeoutMinutes })
+        assertFalse(result.has(R.plurals.backup_warn_clamped))
+    }
+
+    @Test fun `a ring timeout out of range is clamped and never turns into Never`() = runTest {
+        val rig = BackupRig()
+        val json = backupJson(
+            alarms = """[{"id":1,"hour":7,"minute":0,"antiOversleep":{"ringTimeoutMinutes":-1}},
+                {"id":2,"hour":8,"minute":0,"antiOversleep":{"ringTimeoutMinutes":9000}}]""",
+        )
+        val result = rig.manager.import(json).success()
+        assertEquals(listOf(1, 60), rig.store.contents.alarms.map { it.antiOversleep.ringTimeoutMinutes })
+        assertTrue(result.has(R.plurals.backup_warn_clamped))
+    }
+
+    @Test fun `an exported Never alarm comes back as Never`() = runTest {
+        val rig = BackupRig()
+        rig.store.contents = rig.store.contents.copy(
+            alarms = listOf(Alarm(id = 1, antiOversleep = com.riyadm.wakenudge.domain.model.AntiOversleepSettings(ringTimeoutMinutes = 0))),
+        )
+        val exported = rig.manager.export(includeHistory = false)
+        rig.manager.import(exported).success()
+        assertEquals(0, rig.store.contents.alarms.single().antiOversleep.ringTimeoutMinutes)
     }
 
     @Test fun `unknown enum values fall back to defaults instead of failing the alarm`() = runTest {

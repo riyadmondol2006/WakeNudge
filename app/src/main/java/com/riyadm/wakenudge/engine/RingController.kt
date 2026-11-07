@@ -239,9 +239,11 @@ class RingController @Inject constructor(
     }
 
     suspend fun onTimerFired(timerId: Long): RingRequest? = mutex.withLock {
-        val timer = timers.getTimer(timerId) ?: return@withLock null
+        // As for alarms: storage trouble never decides whether it rings. Only a timer known to be gone or stopped stays quiet.
+        val timer = tryDb("loading timer $timerId", CountdownTimer(id = timerId, durationMs = 0, state = TimerState.RUNNING)) { timers.getTimer(timerId) }
+            ?: return@withLock null
         if (timer.state != TimerState.RUNNING) return@withLock null
-        timers.save(timer.copy(state = TimerState.RINGING, remainingMs = 0))
+        tryDb("marking timer $timerId as ringing", Unit) { timers.save(timer.copy(state = TimerState.RINGING, remainingMs = 0)) }
         notifier.cancelTimer(timerId)
         surfaces.refreshAll()
         RingRequest(RingIds.TIMER_ALARM_BASE - timerId, -1, time.nowMillis(), RingKind.TIMER, timerId = timerId)
@@ -412,10 +414,15 @@ class RingController @Inject constructor(
             store.update { it.copy(intensified = true) }
             diagnostics.info("Ring", "alarm ${s.alarm.id} ignored for 40 s: intensifying")
         }
-        if (now - s.lastInteractionAt >= timeoutOf(s)) onRingTimeout(s)
+        val timeout = timeoutOf(s) ?: return
+        if (now - s.lastInteractionAt >= timeout) onRingTimeout(s)
     }
 
-    private fun timeoutOf(s: RingSession): Long = s.alarm.antiOversleep.ringTimeoutMinutes.coerceAtLeast(1) * 60_000L
+    /** How long this ring may go ignored before it ends; null for an alarm set to ring until it is dealt with. */
+    private fun timeoutOf(s: RingSession): Long? {
+        val minutes = s.alarm.antiOversleep.ringTimeoutMinutes
+        return if (minutes == AntiOversleepSettings.RING_TIMEOUT_NEVER) null else minutes.coerceAtLeast(1) * 60_000L
+    }
 
     // ---- user decisions ------------------------------------------------------------------------------------
 
@@ -480,15 +487,29 @@ class RingController @Inject constructor(
         cancelBackups(alarmId)
         notifier.cancelSnoozed(alarmId)
         val open = history.recent(30).firstOrNull { it.alarmId == alarmId && it.outcome == AlarmOutcome.RINGING }
-        if (open != null) history.update(open.copy(outcome = AlarmOutcome.DISMISSED, endedAt = time.nowMillis()))
+        // No open ring means this was a late tap on a Dismiss button of a ring that is already over: nothing more to do.
+        if (open != null) {
+            history.update(open.copy(outcome = AlarmOutcome.DISMISSED, endedAt = time.nowMillis(), snoozeUntil = 0, pendingBackups = emptyList()))
+            alarms.getAlarm(alarmId)?.let { afterDismissal(it, open.id) }
+        }
         surfaces.refreshAll()
     }
 
-    /** Ring now instead of waiting out the snooze. */
+    /**
+     * Ring now instead of waiting out the snooze. A snooze without an open event still rings: the test alarm has no
+     * history, and neither has a ring whose history could not be written or read. Only a notification that outlived its
+     * snooze rings nothing.
+     */
     suspend fun wakeNow(alarmId: Long): RingRequest? {
-        pending.cancel(TriggerKind.SNOOZE, alarmId)
-        val open = history.recent(30).firstOrNull { it.alarmId == alarmId && it.outcome == AlarmOutcome.RINGING } ?: return null
-        return onSnoozeExpired(alarmId, open.id)
+        val armed = pending.isScheduled(TriggerKind.SNOOZE, alarmId)
+        val open = tryDb("looking up the snooze of alarm $alarmId", null) {
+            history.recent(30).firstOrNull { it.alarmId == alarmId && it.outcome == AlarmOutcome.RINGING }
+        }
+        if (open == null && !armed) {
+            notifier.cancelSnoozed(alarmId)
+            return null
+        }
+        return onSnoozeExpired(alarmId, open?.id ?: -1)
     }
 
     // ---- timers --------------------------------------------------------------------------------------------
@@ -524,7 +545,8 @@ class RingController @Inject constructor(
         val s = store.current ?: return@withLock
         if (s.phase != RingPhase.RINGING || !RingTarget.of(seen).matches(s) || s.eventId != seen.eventId) return@withLock
         val now = time.nowMillis()
-        if (now - s.lastInteractionAt < timeoutOf(s)) return@withLock
+        val timeout = timeoutOf(s) ?: return@withLock
+        if (now - s.lastInteractionAt < timeout) return@withLock
         try {
             if (s.isTimer) {
                 resetRungTimer(s.timerId)
@@ -543,7 +565,14 @@ class RingController @Inject constructor(
         } finally {
             val backupsLeft = !s.isTimer && (1..RingIds.MAX_BACKUPS).any { pending.isScheduled(TriggerKind.BACKUP, s.alarm.id, it) }
             finishSession(s)
-            if (!s.isTimer && !backupsLeft && !s.isTest) notifier.showMissed(s.alarm, s.scheduledAt)
+            if (!s.isTimer && !backupsLeft && !s.isTest) {
+                notifier.showMissed(s.alarm, s.scheduledAt)
+                // Nothing will ring again for this "Still awake?" check. Left behind, it stays pending on the morning
+                // screen for good and a delete-after-use alarm waiting for it is never deleted.
+                tryDb("ending the check of alarm ${s.alarm.id}", Unit) {
+                    if (wakeChecks.reRingsFor(s.alarm.id, s.eventId) > 0) wakeChecks.abandon(s.alarm.id, WakeCheckStatus.FAILED)
+                }
+            }
         }
     }
 
@@ -588,24 +617,29 @@ class RingController @Inject constructor(
             }
         }
         if (outcome == AlarmOutcome.DISMISSED && !s.isTest) {
-            if (s.alarm.wakeCheck.enabled) {
-                // Carried over from earlier unanswered checks however this ring came back (a snoozed re-ring returns as
-                // a snooze, and counting from zero again would let it re-ring past its limit).
-                wakeChecks.startAfterDismissal(s.alarm, s.eventId, wakeChecks.reRingsFor(s.alarm.id, s.eventId))
-            }
-            if (s.alarm.deleteAfterUse && !s.alarm.isRepeating) {
-                if (s.alarm.wakeCheck.enabled) {
-                    // The "Still awake?" check needs the alarm to ask about and to ring again: it is kept, switched off,
-                    // and the check deletes it when it is over.
-                    alarms.setEnabled(s.alarm.id, false)
-                    scheduler.schedule(s.alarm.id)
-                } else {
-                    alarms.delete(s.alarm.id)
-                    scheduler.cancel(s.alarm.id)
-                }
-            }
+            afterDismissal(s.alarm, s.eventId)
         } else if (outcome == AlarmOutcome.EMERGENCY_STOPPED) {
             wakeChecks.abandon(s.alarm.id, WakeCheckStatus.NONE)
+        }
+    }
+
+    /** What a dismissal sets off, whether it came from the ring screen or from the notification of a snoozed alarm. */
+    private suspend fun afterDismissal(alarm: Alarm, eventId: Long) {
+        if (alarm.wakeCheck.enabled) {
+            // Carried over from earlier unanswered checks however this ring came back (a snoozed re-ring returns as
+            // a snooze, and counting from zero again would let it re-ring past its limit).
+            wakeChecks.startAfterDismissal(alarm, eventId, wakeChecks.reRingsFor(alarm.id, eventId))
+        }
+        if (alarm.deleteAfterUse && !alarm.isRepeating) {
+            if (alarm.wakeCheck.enabled) {
+                // The "Still awake?" check needs the alarm to ask about and to ring again: it is kept, switched off,
+                // and the check deletes it when it is over.
+                alarms.setEnabled(alarm.id, false)
+                scheduler.schedule(alarm.id)
+            } else {
+                alarms.delete(alarm.id)
+                scheduler.cancel(alarm.id)
+            }
         }
     }
 
@@ -718,7 +752,10 @@ class RingController @Inject constructor(
             history.openEvents().forEach { e ->
                 val hasFollowUp = pending.isScheduled(TriggerKind.SNOOZE, e.alarmId) ||
                     (1..RingIds.MAX_BACKUPS).any { pending.isScheduled(TriggerKind.BACKUP, e.alarmId, it) }
-                if (e.firedAt < staleBefore && !hasFollowUp) {
+                // At process start after a reboot or force-stop Android holds no triggers yet, and this runs before the
+                // reschedule that restores them. Closing the event then would make the restored snooze find nothing to ring.
+                val restorable = (e.snoozeUntil > 0 && now - e.snoozeUntil <= STALE_RING_MS) || e.pendingBackups.any { now - it <= STALE_RING_MS }
+                if (e.firedAt < staleBefore && !hasFollowUp && !restorable) {
                     history.update(e.copy(outcome = AlarmOutcome.MISSED, endedAt = e.endedAt ?: now))
                 }
             }

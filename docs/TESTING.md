@@ -4,7 +4,7 @@ An alarm clock is judged on the one morning it fails, so testing is split by wha
 
 | Layer | Where it runs | What it proves |
 |---|---|---|
-| **JVM unit tests** (538) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
+| **JVM unit tests** (574) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
 | **Fuzz tests** (12, part of the JVM tests) | Your computer | 20,000 seeded random alarm/clock/zone combinations never crash the scheduler or yield a time in the past; corrupted and hostile backup files are rejected or sanitised, never half-applied |
 | **Instrumented engine tests** (about 130, with the migration tests) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
 | **Instrumented UI tests** (about 60, 25 of them for the update popup and the About screen) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions |
@@ -72,6 +72,14 @@ began life as a question; the ones that found real bugs are marked ✱ and were 
   - Missions that were **too hard to be fair half asleep**: maths (easy was 87 + 56), a fully shuffled 15-puzzle,
     pattern lines that pass 5 dp from other dots, 90-character typing phrases, a photo match that failed when the
     reference was taken under a lamp and the alarm rang in daylight.
+- ✱ Third audit (JVM tests in `ThirdAuditFixesTest`, each watched failing first; not yet run on a device):
+  - A **snooze across a restart or force-stop** stayed silent if the alarm first rang more than an hour earlier: start-up
+    housekeeping, which runs before the reschedule, closed the ring as missed and the restored snooze found nothing to ring.
+  - An **ignored "Still awake?" re-ring** rang again hours later, when the next reschedule re-armed a spent deadline.
+  - **"Wake now"** on a snoozed test alarm did nothing and stuck its notification; with an unreadable history it cancelled
+    a real snooze without ringing.
+  - **Dismiss on a snoozed alarm's notification** skipped the still-awake check and did not delete a delete-after-use alarm.
+  - A **timer finishing with a full disk or an unreadable database** stayed silent.
 - The app force-killed mid-ring (chaos test): the backup alarm still rings.
 - Rapid snooze/dismiss mashing, double-delivered triggers, concurrent settings writes, missions that cannot be completed
   on this phone, permission revoked mid-flow, huge and hostile labels, 200 % font, RTL, time-zone jumps, DST gaps.
@@ -123,6 +131,7 @@ These could not be done safely or at all in the development setup. They are the 
 
 | Scenario | Why it matters / status |
 |---|---|
+| An **hours-long ring** with the ring timeout set to Never | The state machine, the backup interplay and the wake-lock renewal are JVM-tested with a moved clock and a mock lock; a real multi-hour ring on a device (renewal in `dumpsys power`, playback, vendor battery managers, Android 15+ service limits) was not observed |
 | A real **process kill during a ring** (`START_REDELIVER_INTENT`) and a real **crash of the ring screen** (`RingCrashGuard` rescue) | The service flag is checked with `dumpsys` and the rescue trigger is armed and replayed in tests, but the OS restarting a killed process and the second-long gap in sound were not observed |
 | **Android 15+ foreground-service limits** (media services from a boot receiver; `onTimeout`) | The refused-start retry and fallback notification are tested with a simulated refusal; the real restriction and a real timeout were not provoked |
 | **Notifications blocked, ring channel muted or full-screen permission revoked** | The sound path does not use any of them (tested with no ring screen); the decision and the direct launch of the screen are tested, but the system was not put in those states |

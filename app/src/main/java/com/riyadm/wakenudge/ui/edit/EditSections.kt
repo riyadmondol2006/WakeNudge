@@ -454,13 +454,15 @@ fun AntiOversleepSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> A
             }
         }
         item { shape ->
+            val neverValue = com.riyadm.wakenudge.domain.model.AntiOversleepSettings.RING_TIMEOUT_NEVER
+            val never = a.ringTimeoutMinutes == neverValue
             StepperRow(
                 title = stringResource(R.string.ao_timeout),
-                subtitle = stringResource(R.string.ao_timeout_hint),
-                valueText = minutesLabel(a.ringTimeoutMinutes),
-                onMinus = { set { it.copy(ringTimeoutMinutes = (a.ringTimeoutMinutes - 1).coerceAtLeast(1)) } },
+                subtitle = stringResource(if (never) R.string.ao_timeout_hint_never else R.string.ao_timeout_hint),
+                valueText = if (never) stringResource(R.string.ao_timeout_never) else minutesLabel(a.ringTimeoutMinutes),
+                onMinus = { set { it.copy(ringTimeoutMinutes = (a.ringTimeoutMinutes - 1).coerceAtLeast(neverValue)) } },
                 onPlus = { set { it.copy(ringTimeoutMinutes = (a.ringTimeoutMinutes + 1).coerceAtMost(30)) } },
-                canMinus = a.ringTimeoutMinutes > 1, canPlus = a.ringTimeoutMinutes < 30, shape = shape, enabled = enabled,
+                canMinus = !never, canPlus = a.ringTimeoutMinutes < 30, shape = shape, enabled = enabled,
             )
         }
         item { shape ->

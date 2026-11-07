@@ -207,6 +207,7 @@ class RingService : Service() {
                     controller.tick()
                     resurfaceIfAbandoned()
                 }
+                guard("wake lock") { locks.onRingTick() }
             }
         }
     }

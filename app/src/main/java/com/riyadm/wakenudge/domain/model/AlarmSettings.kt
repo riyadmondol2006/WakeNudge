@@ -95,15 +95,19 @@ data class AntiOversleepSettings(
     val backupCount: Int = 1,
     /** Minutes before ringing during which the alarm cannot be edited/disabled; 0 disables the protection. */
     val editLockMinutes: Int = 0,
-    /** Auto-silence after this many minutes of ringing without any action. */
+    /** Auto-silence after this many minutes of ringing without any action; [RING_TIMEOUT_NEVER] rings until it is dealt with. */
     val ringTimeoutMinutes: Int = 10,
     /**
      * Whether the ring screen offers the press-and-hold Emergency stop, which ends the alarm without its missions. On by
-     * default so nobody is ever trapped; a strict alarm can switch it off. The ring timeout and missions that this phone
-     * cannot perform still end the alarm either way.
+     * default so nobody is ever trapped; a strict alarm can switch it off. Missions that this phone cannot perform still
+     * offer Continue either way, and the ring timeout still ends the alarm unless it is set to [RING_TIMEOUT_NEVER].
      */
     val emergencyStopEnabled: Boolean = true,
-)
+) {
+    companion object {
+        const val RING_TIMEOUT_NEVER = 0
+    }
+}
 
 @Serializable
 data class SunriseSettings(

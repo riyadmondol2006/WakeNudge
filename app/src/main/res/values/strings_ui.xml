@@ -262,7 +262,9 @@
     <string name="ao_backup_delay">Backup after</string>
     <string name="ao_backup_count">Number of backups</string>
     <string name="ao_timeout">Stop ringing after</string>
-    <string name="ao_timeout_hint">The alarm silences itself if you do nothing for this long. A backup (if on) still follows.</string>
+    <string name="ao_timeout_hint">The alarm silences itself if you do nothing for this long. A backup (if on) still follows. Below 1 min is Never: it rings until you deal with it.</string>
+    <string name="ao_timeout_never">Never</string>
+    <string name="ao_timeout_hint_never">The alarm keeps ringing until you dismiss or snooze it, however long that takes.</string>
     <string name="ao_edit_lock">Lock before it rings</string>
     <string name="ao_edit_lock_hint">Stops you switching the alarm off or changing it in the minutes before it rings.</string>
     <string name="ao_emergency_note">Every restriction is reversible. The alarm screen always has an Emergency stop that works without puzzles and is available to screen readers.</string>
@@ -361,8 +363,8 @@
 
     <string name="ao_emergency_stop">Emergency stop</string>
     <string name="ao_emergency_stop_on">A press-and-hold button on the ring screen that ends the alarm without its missions.</string>
-    <string name="ao_emergency_stop_off">Off: only dismissing normally (missions and all) ends this alarm, or the ring timeout below.</string>
-    <string name="ao_emergency_note_off">A strict alarm. If a mission cannot be done on this phone (no camera, permission refused) it still offers Continue, and the alarm stops by itself after the ring timeout.</string>
+    <string name="ao_emergency_stop_off">Off: only dismissing normally (missions and all) ends this alarm, or the ring timeout below if it is not set to Never.</string>
+    <string name="ao_emergency_note_off">A strict alarm. If a mission cannot be done on this phone (no camera, permission refused) it still offers Continue. The alarm stops by itself after the ring timeout, unless that is set to Never.</string>
     <string name="ao_emergency_off_title">Turn off the Emergency stop?</string>
     <string name="ao_emergency_off_body">Nothing on the ring screen will be able to skip this alarm\'s missions. Pick this for alarms you really must get up for, and make sure the missions are ones you can always do.</string>
     <string name="ao_emergency_off_confirm">Turn off</string>

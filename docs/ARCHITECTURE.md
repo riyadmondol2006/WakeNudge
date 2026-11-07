@@ -59,6 +59,8 @@ exact-alarm permission change, restore, watchdog, tile). It is:
 - **Duplicates**: the same occurrence delivered twice (the OS can replay a broadcast) is ignored if it is already on
   screen or snoozed, so an alarm never rings twice for one occurrence.
 - **Outcomes** are written to history (`RINGING`, `DISMISSED`, `SNOOZED`, `MISSED`, …) with the follow-ups they own.
+- **Ring timeout**: an ignored ring ends after `ringTimeoutMinutes`. 0 is "Never": only a dismissal, a snooze or an
+  Emergency stop ends it (a backup firing just upgrades it). Timers and the test alarm carry their own fixed timeouts.
 
 ### Audio
 
@@ -107,7 +109,8 @@ One rule: **persistence, the notification and the ring screen never decide wheth
 - **The ring service.** `RingService` returns `START_REDELIVER_INTENT`, so after the OS kills the process mid-ring the
   service is started again with the original request. Its coroutine scope has an exception handler and every step
   (notification, sound, vibration, voice, escalation) is guarded separately. Wake locks live in `RingWakeLocks`: every one
-  is timed, a short "handoff" lock bridges the gap between the trigger receiver and the service. Destroyed while still
+  is timed (the service renews the ring lock while it runs, because a ring can outlast the timeout), a short "handoff"
+  lock bridges the gap between the trigger receiver and the service. Destroyed while still
   ringing, the service arms a `RING_RETRY` and drops its orphaned session (otherwise later alarms would queue behind it).
   If the system refuses `startForeground` the service carries on as best it can and lines up a `RING_RETRY` too.
   `onTimeout` (Android 15+ foreground-service time limits) hands the ring to a fresh service.
