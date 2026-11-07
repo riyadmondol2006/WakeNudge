@@ -1,16 +1,20 @@
 package com.riyadm.wakenudge.data.backup
 
 import com.riyadm.wakenudge.domain.model.Alarm
+import com.riyadm.wakenudge.domain.model.AlarmDefaults
 import com.riyadm.wakenudge.domain.model.AlarmEvent
 import com.riyadm.wakenudge.domain.model.AlarmGroup
 import com.riyadm.wakenudge.domain.model.AlarmOutcome
+import com.riyadm.wakenudge.domain.model.AntiOversleepSettings
 import com.riyadm.wakenudge.domain.model.SoundMode
 import com.riyadm.wakenudge.domain.model.SoundSettings
 import com.riyadm.wakenudge.domain.model.SoundSource
 import com.riyadm.wakenudge.domain.model.VacationMode
 import com.riyadm.wakenudge.domain.model.VibrationPattern
 import com.riyadm.wakenudge.domain.model.VibrationSettings
+import com.riyadm.wakenudge.domain.model.VolumeKeyAction
 import com.riyadm.wakenudge.domain.model.VolumeSettings
+import com.riyadm.wakenudge.domain.model.WakeCheckSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -147,5 +151,42 @@ class BackupSanitizerTest {
         assertEquals("", result.file.settings.skippedUpdateVersion)
         assertTrue(result.warnings.toString(), result.warnings.isEmpty())
         assertEquals(result.file, sanitize(result.file).file)
+    }
+
+    @Test fun `the per-alarm ring settings are clamped to what the engine supports`() {
+        val low = AntiOversleepSettings(volumeFloorPercent = -5, muteBudget = -1, muteSeconds = 1, wayOutDelayMinutes = -1, wayOutCount = 0, fallbackCount = 0, resumeWindowMinutes = -9)
+        val high = AntiOversleepSettings(volumeFloorPercent = 900, muteBudget = 99, muteSeconds = 999, wayOutDelayMinutes = 99, wayOutCount = 99, fallbackCount = 99, resumeWindowMinutes = 99_999)
+        val (a, b) = sanitize(BackupFile(alarms = listOf(Alarm(id = 1, antiOversleep = low), Alarm(id = 2, antiOversleep = high)))).file.alarms.map { it.antiOversleep }
+        assertEquals(AntiOversleepSettings(volumeFloorPercent = 0, muteBudget = 0, muteSeconds = 5, wayOutDelayMinutes = 0, wayOutCount = 3, fallbackCount = 1, resumeWindowMinutes = 0), a)
+        assertEquals(AntiOversleepSettings(volumeFloorPercent = 100, muteBudget = 5, muteSeconds = 60, wayOutDelayMinutes = 30, wayOutCount = 30, fallbackCount = 20, resumeWindowMinutes = 1_440), b)
+    }
+
+    @Test fun `the defaults for new alarms are clamped the same way`() {
+        val settings = Sample.settings.copy(defaults = AlarmDefaults(antiOversleep = AntiOversleepSettings(wayOutCount = 0, muteSeconds = 0)))
+        val cleaned = sanitize(BackupFile(settings = settings)).file.settings.defaults.antiOversleep
+        assertEquals(3, cleaned.wayOutCount)
+        assertEquals(5, cleaned.muteSeconds)
+    }
+
+    @Test fun `a strict alarm is never restored without a way out it can finish`() {
+        val r = kotlin.random.Random(41)
+        repeat(500) {
+            val anti = AntiOversleepSettings(emergencyStopEnabled = false, wayOutCount = r.nextInt(-1000, 1000), wayOutDelayMinutes = r.nextInt(-1000, 1000))
+            val cleaned = sanitize(BackupFile(alarms = listOf(Alarm(id = 1, antiOversleep = anti)))).file.alarms.single().antiOversleep
+            assertTrue("way out of ${cleaned.wayOutCount} sums", cleaned.wayOutCount in 3..30)
+            assertTrue("way out after ${cleaned.wayOutDelayMinutes} min", cleaned.wayOutDelayMinutes in 0..30)
+        }
+    }
+
+    @Test fun `a ring settings value already in range restores unchanged and without a warning`() {
+        val anti = AntiOversleepSettings(
+            volumeFloorPercent = 50, volumeKeyAction = VolumeKeyAction.NOTHING, returnToAlarm = false, forceReturn = true, muteBudget = 1, muteSeconds = 15,
+            wayOutDelayMinutes = 10, wayOutCount = 20, fallbackCount = 8, calmOnlyOnProgress = true, resumeWindowMinutes = 720, lockOverrideMission = true,
+            powerGuard = true, fullBrightness = true, forceSpeaker = true, torchWhenIgnored = true,
+        )
+        val file = BackupFile(alarms = listOf(Alarm(id = 1, antiOversleep = anti, wakeCheck = WakeCheckSettings(requireProof = true))))
+        val result = sanitize(file)
+        assertEquals(file.alarms, result.file.alarms)
+        assertTrue(result.warnings.toString(), result.warnings.isEmpty())
     }
 }

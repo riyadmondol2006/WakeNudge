@@ -1,0 +1,415 @@
+{
+    "formatVersion": 1,
+    "app": "WakeNudge",
+    "appVersion": "1.0.63-debug",
+    "createdAt": 1792560600000,
+    "settings": {
+        "onboardingDone": true,
+        "themeMode": "AMOLED",
+        "dynamicColor": false,
+        "haptics": true,
+        "timeFormat": "H24",
+        "weekStart": "SYSTEM",
+        "showSeconds": false,
+        "vacation": {
+            "enabled": true,
+            "resumeEpochDay": 20600
+        },
+        "calendarExceptions": {
+            "enabled": false,
+            "calendarIds": [
+                4,
+                9
+            ]
+        },
+        "bedtime": {
+            "enabled": true,
+            "hour": 22,
+            "minute": 15,
+            "daysMask": 127,
+            "reminderLeadMinutes": 20,
+            "sleepGoalMinutes": 480,
+            "fallAsleepMinutes": 15
+        },
+        "defaults": {
+            "sound": {
+                "mode": "SINGLE",
+                "source": "BUNDLED",
+                "bundledId": "sunrise",
+                "playlist": [],
+                "randomPool": []
+            },
+            "volume": {
+                "level": 80,
+                "rampSeconds": 30,
+                "rampStartPercent": 15,
+                "extraLoud": false,
+                "extraLoudPercent": 100,
+                "useMaxSystemVolume": false,
+                "escalateWhenIgnored": true
+            },
+            "vibration": {
+                "enabled": true,
+                "pattern": "PULSE",
+                "strength": 100,
+                "customTimings": []
+            },
+            "snooze": {
+                "enabled": true,
+                "minutes": 10,
+                "maxCount": 3,
+                "decreasing": false,
+                "decreaseStepMinutes": 2
+            },
+            "antiOversleep": {
+                "holdToDismissSeconds": 0,
+                "backupEnabled": true,
+                "backupDelayMinutes": 10,
+                "backupCount": 2,
+                "editLockMinutes": 0,
+                "ringTimeoutMinutes": 10,
+                "emergencyStopEnabled": false
+            }
+        },
+        "volumeKeyAction": "SILENCE_TEMPORARILY",
+        "audioRoute": "SYSTEM_DEFAULT",
+        "hearingSafetyCap": true,
+        "headphoneCapPercent": 55,
+        "upcomingNoticeMinutes": 15,
+        "timerSound": {
+            "mode": "SINGLE",
+            "source": "BUNDLED",
+            "bundledId": "chime",
+            "playlist": [],
+            "randomPool": []
+        },
+        "timerVibrate": true,
+        "stopwatch": {
+            "running": false,
+            "startedAtMillis": 0,
+            "accumulatedMs": 0,
+            "laps": []
+        },
+        "keepRingScreenFront": false,
+        "emergencyStopHoldSeconds": 4,
+        "lowBatteryWarning": true,
+        "updateChecksEnabled": true,
+        "lastUpdateCheckAt": 0,
+        "skippedUpdateVersion": ""
+    },
+    "alarms": [
+        {
+            "id": 1,
+            "label": "Wake up",
+            "hour": 6,
+            "minute": 45,
+            "enabled": true,
+            "repeatDaysMask": 31,
+            "groupId": 3,
+            "sound": {
+                "mode": "RANDOM_BUNDLED",
+                "source": "BUNDLED",
+                "bundledId": "bell",
+                "playlist": [],
+                "randomPool": [
+                    "bell",
+                    "chime"
+                ]
+            },
+            "volume": {
+                "level": 70,
+                "rampSeconds": 45,
+                "rampStartPercent": 10,
+                "extraLoud": true,
+                "extraLoudPercent": 100,
+                "useMaxSystemVolume": false,
+                "escalateWhenIgnored": true
+            },
+            "vibration": {
+                "enabled": true,
+                "pattern": "CUSTOM",
+                "strength": 80,
+                "customTimings": [
+                    0,
+                    300,
+                    200,
+                    300
+                ]
+            },
+            "snooze": {
+                "enabled": true,
+                "minutes": 7,
+                "maxCount": 2,
+                "decreasing": true,
+                "decreaseStepMinutes": 2
+            },
+            "voice": {
+                "enabled": true,
+                "announceTime": true,
+                "announceLabel": true,
+                "repeatSeconds": 30
+            },
+            "sunrise": {
+                "enabled": false,
+                "leadMinutes": 10
+            },
+            "wakeCheck": {
+                "enabled": true,
+                "delayMinutes": 4,
+                "responseSeconds": 45,
+                "maxChecks": 2,
+                "maxReRings": 2
+            },
+            "antiOversleep": {
+                "holdToDismissSeconds": 3,
+                "backupEnabled": true,
+                "backupDelayMinutes": 8,
+                "backupCount": 2,
+                "editLockMinutes": 15,
+                "ringTimeoutMinutes": 10,
+                "emergencyStopEnabled": true
+            },
+            "missions": [
+                {
+                    "type": "MATH",
+                    "difficulty": "HARD",
+                    "count": 4,
+                    "params": {}
+                },
+                {
+                    "type": "QR_BARCODE",
+                    "difficulty": "MEDIUM",
+                    "count": 1,
+                    "params": {
+                        "code": "ABC-123"
+                    }
+                }
+            ],
+            "snoozeMissions": [
+                {
+                    "type": "TYPING",
+                    "difficulty": "EASY",
+                    "count": 1,
+                    "params": {}
+                }
+            ],
+            "skipEpochDay": 20400,
+            "respectExceptions": true,
+            "ignoreVacation": false,
+            "upcomingNoticeMinutes": 30,
+            "deleteAfterUse": false,
+            "createdAt": 1700000000000,
+            "updatedAt": 1700000100000
+        },
+        {
+            "id": 2,
+            "label": "Flight",
+            "hour": 4,
+            "minute": 15,
+            "enabled": true,
+            "repeatDaysMask": 0,
+            "oneTimeEpochDay": 20500,
+            "sound": {
+                "mode": "SINGLE",
+                "source": "BUNDLED",
+                "bundledId": "sunrise",
+                "playlist": [],
+                "randomPool": []
+            },
+            "volume": {
+                "level": 80,
+                "rampSeconds": 30,
+                "rampStartPercent": 15,
+                "extraLoud": false,
+                "extraLoudPercent": 100,
+                "useMaxSystemVolume": false,
+                "escalateWhenIgnored": true
+            },
+            "vibration": {
+                "enabled": true,
+                "pattern": "PULSE",
+                "strength": 100,
+                "customTimings": []
+            },
+            "snooze": {
+                "enabled": true,
+                "minutes": 10,
+                "maxCount": 3,
+                "decreasing": false,
+                "decreaseStepMinutes": 2
+            },
+            "voice": {
+                "enabled": false,
+                "announceTime": true,
+                "announceLabel": true,
+                "repeatSeconds": 45
+            },
+            "sunrise": {
+                "enabled": false,
+                "leadMinutes": 10
+            },
+            "wakeCheck": {
+                "enabled": false,
+                "delayMinutes": 5,
+                "responseSeconds": 60,
+                "maxChecks": 1,
+                "maxReRings": 3
+            },
+            "antiOversleep": {
+                "holdToDismissSeconds": 0,
+                "backupEnabled": true,
+                "backupDelayMinutes": 10,
+                "backupCount": 1,
+                "editLockMinutes": 0,
+                "ringTimeoutMinutes": 0,
+                "emergencyStopEnabled": false
+            },
+            "missions": [],
+            "snoozeMissions": [],
+            "respectExceptions": true,
+            "ignoreVacation": true,
+            "upcomingNoticeMinutes": 0,
+            "deleteAfterUse": true,
+            "createdAt": 0,
+            "updatedAt": 0
+        },
+        {
+            "id": 5,
+            "label": "",
+            "hour": 23,
+            "minute": 59,
+            "enabled": false,
+            "repeatDaysMask": 64,
+            "sound": {
+                "mode": "SINGLE",
+                "source": "BUNDLED",
+                "bundledId": "sunrise",
+                "playlist": [],
+                "randomPool": []
+            },
+            "volume": {
+                "level": 80,
+                "rampSeconds": 30,
+                "rampStartPercent": 15,
+                "extraLoud": false,
+                "extraLoudPercent": 100,
+                "useMaxSystemVolume": false,
+                "escalateWhenIgnored": true
+            },
+            "vibration": {
+                "enabled": true,
+                "pattern": "PULSE",
+                "strength": 100,
+                "customTimings": []
+            },
+            "snooze": {
+                "enabled": true,
+                "minutes": 10,
+                "maxCount": 3,
+                "decreasing": false,
+                "decreaseStepMinutes": 2
+            },
+            "voice": {
+                "enabled": false,
+                "announceTime": true,
+                "announceLabel": true,
+                "repeatSeconds": 45
+            },
+            "sunrise": {
+                "enabled": false,
+                "leadMinutes": 10
+            },
+            "wakeCheck": {
+                "enabled": false,
+                "delayMinutes": 5,
+                "responseSeconds": 60,
+                "maxChecks": 1,
+                "maxReRings": 3
+            },
+            "antiOversleep": {
+                "holdToDismissSeconds": 0,
+                "backupEnabled": true,
+                "backupDelayMinutes": 10,
+                "backupCount": 1,
+                "editLockMinutes": 0,
+                "ringTimeoutMinutes": 10,
+                "emergencyStopEnabled": true
+            },
+            "missions": [],
+            "snoozeMissions": [],
+            "respectExceptions": true,
+            "ignoreVacation": false,
+            "upcomingNoticeMinutes": 0,
+            "deleteAfterUse": false,
+            "createdAt": 0,
+            "updatedAt": 0
+        }
+    ],
+    "groups": [
+        {
+            "id": 3,
+            "name": "Work",
+            "enabled": true,
+            "accent": 2,
+            "sortOrder": 1
+        }
+    ],
+    "worldClocks": [
+        {
+            "zoneId": "Asia/Tokyo",
+            "label": "Tokyo",
+            "sortOrder": 0
+        },
+        {
+            "zoneId": "Europe/Berlin",
+            "label": "Berlin",
+            "sortOrder": 1
+        }
+    ],
+    "exceptionDates": [
+        {
+            "epochDay": 20450,
+            "label": "Holiday"
+        },
+        {
+            "epochDay": 20451,
+            "label": ""
+        }
+    ],
+    "history": [
+        {
+            "id": 11,
+            "alarmId": 1,
+            "label": "Wake up",
+            "scheduledAt": 1700000000000,
+            "firedAt": 1700000001000,
+            "endedAt": 1700000090000,
+            "outcome": "DISMISSED",
+            "snoozeCount": 1,
+            "missionsDone": 2,
+            "missionsTotal": 2,
+            "backupFired": false,
+            "wakeCheck": "PASSED",
+            "wakeCheckReRings": 0,
+            "snoozeUntil": 0,
+            "pendingBackups": []
+        },
+        {
+            "id": 12,
+            "alarmId": 2,
+            "label": "Flight",
+            "scheduledAt": 1700100000000,
+            "firedAt": 1700100002000,
+            "endedAt": 1700100200000,
+            "outcome": "MISSED",
+            "snoozeCount": 0,
+            "missionsDone": 0,
+            "missionsTotal": 0,
+            "backupFired": true,
+            "wakeCheck": "NONE",
+            "wakeCheckReRings": 0,
+            "snoozeUntil": 0,
+            "pendingBackups": []
+        }
+    ]
+}

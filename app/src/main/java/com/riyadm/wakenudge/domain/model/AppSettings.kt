@@ -56,6 +56,10 @@ data class AlarmDefaults(
     val antiOversleep: AntiOversleepSettings = AntiOversleepSettings(),
 )
 
+/** This alarm's copy of the choices that used to be global, as they were set in [settings]. */
+fun AntiOversleepSettings.withGlobalsOf(settings: AppSettings): AntiOversleepSettings =
+    copy(volumeKeyAction = settings.volumeKeyAction, returnToAlarm = settings.keepRingScreenFront)
+
 @Serializable
 data class StopwatchState(
     val running: Boolean = false,

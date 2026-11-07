@@ -3,10 +3,12 @@ package com.riyadm.wakenudge.data.backup
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.model.AlarmOutcome
+import com.riyadm.wakenudge.domain.model.AntiOversleepSettings
 import com.riyadm.wakenudge.domain.model.AppSettings
 import com.riyadm.wakenudge.domain.model.MissionType
 import com.riyadm.wakenudge.domain.model.SoundSettings
 import com.riyadm.wakenudge.domain.model.StopwatchState
+import com.riyadm.wakenudge.domain.model.VolumeKeyAction
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import kotlinx.coroutines.test.runTest
@@ -449,5 +451,64 @@ class BackupManagerTest {
         assertEquals(FixedTime().nowMillis(), parsed.file.createdAt)
         assertNotNull(parsed.file.appVersion)
         assertEquals(1, parsed.file.formatVersion)
+    }
+
+    // ---- a file written before the ring settings moved onto each alarm ------------------------------------------
+
+    private val goldenV1: String
+        get() = checkNotNull(javaClass.getResource("/backup/golden-v1.json")) { "fixture missing" }.readText()
+
+    @Test fun `a backup from before the per-alarm settings gets the file's global choices on every alarm`() = runTest {
+        val rig = BackupRig()
+        rig.manager.import(goldenV1).success()
+        val restored = rig.store.contents
+        assertEquals(3, restored.alarms.size)
+        for (alarm in restored.alarms) {
+            assertEquals(alarm.label, VolumeKeyAction.SILENCE_TEMPORARILY, alarm.antiOversleep.volumeKeyAction)
+            assertEquals(alarm.label, false, alarm.antiOversleep.returnToAlarm)
+        }
+        // The settings themselves stay as they were, so an older app can still read a file exported from this one.
+        assertEquals(VolumeKeyAction.SILENCE_TEMPORARILY, restored.settings.volumeKeyAction)
+        assertEquals(false, restored.settings.keepRingScreenFront)
+        assertEquals(VolumeKeyAction.SILENCE_TEMPORARILY, restored.settings.defaults.antiOversleep.volumeKeyAction)
+        assertEquals(false, restored.settings.defaults.antiOversleep.returnToAlarm)
+    }
+
+    @Test fun `a strict alarm in an old backup gets its way out, and nothing else about any alarm changes`() = runTest {
+        val rig = BackupRig()
+        rig.manager.import(goldenV1).success()
+        val (wakeUp, flight, sunday) = rig.store.contents.alarms
+        assertEquals(false, flight.antiOversleep.emergencyStopEnabled)
+        assertEquals(0, flight.antiOversleep.ringTimeoutMinutes)
+        assertEquals(3, flight.antiOversleep.wayOutDelayMinutes)
+        assertEquals(0, wakeUp.antiOversleep.wayOutDelayMinutes)
+        assertEquals(0, sunday.antiOversleep.wayOutDelayMinutes)
+        assertEquals(3, rig.store.contents.settings.defaults.antiOversleep.wayOutDelayMinutes)
+        assertEquals(Sample.alarms[0].copy(antiOversleep = Sample.alarms[0].antiOversleep.copy(volumeKeyAction = VolumeKeyAction.SILENCE_TEMPORARILY, returnToAlarm = false)), wakeUp)
+        assertEquals(Sample.history, rig.store.contents.history)
+    }
+
+    @Test fun `exporting a restored old backup and importing that again changes nothing`() = runTest {
+        val first = BackupRig().also { it.manager.import(goldenV1).success() }
+        val again = first.manager.export(includeHistory = true)
+        val second = BackupRig().also { it.manager.import(again).success() }
+        assertEquals(first.store.contents.alarms, second.store.contents.alarms)
+        assertEquals(first.store.contents.settings, second.store.contents.settings)
+        assertEquals(first.store.contents.history, second.store.contents.history)
+        assertEquals(again, second.manager.export(includeHistory = true))
+    }
+
+    @Test fun `a current backup keeps its per-alarm choices however the globals are set`() = runTest {
+        val chosen = Sample.alarms[0].copy(antiOversleep = AntiOversleepSettings(volumeKeyAction = VolumeKeyAction.NOTHING, returnToAlarm = true, emergencyStopEnabled = false, wayOutDelayMinutes = 10))
+        val file = Sample.file.copy(alarms = listOf(chosen), settings = Sample.settings.copy(volumeKeyAction = VolumeKeyAction.DISMISS, keepRingScreenFront = false))
+        val restored = BackupRig().also { it.manager.import(BackupCodec.encode(file)).success() }.store.contents.alarms.single()
+        assertEquals(chosen.antiOversleep, restored.antiOversleep)
+    }
+
+    @Test fun `an old alarm with no oversleep settings at all still gets the file's choices`() = runTest {
+        val old = """{"app":"WakeNudge","formatVersion":1,"settings":{"volumeKeyAction":"NOTHING","keepRingScreenFront":false},"alarms":[{"id":4,"hour":6}]}"""
+        val restored = BackupRig().also { it.manager.import(old).success() }.store.contents.alarms.single()
+        assertEquals(VolumeKeyAction.NOTHING, restored.antiOversleep.volumeKeyAction)
+        assertEquals(false, restored.antiOversleep.returnToAlarm)
     }
 }

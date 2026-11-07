@@ -46,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -73,6 +74,7 @@ import com.riyadm.wakenudge.domain.scheduling.SnoozePolicy
 import com.riyadm.wakenudge.engine.RingKind
 import com.riyadm.wakenudge.engine.RingPhase
 import com.riyadm.wakenudge.engine.RingSession
+import com.riyadm.wakenudge.engine.policy.RingProof
 import com.riyadm.wakenudge.ui.components.AnimatedClockText
 import com.riyadm.wakenudge.ui.components.rememberReduceMotion
 import com.riyadm.wakenudge.ui.theme.Blobs
@@ -88,9 +90,9 @@ private enum class RingMode { Home, DismissMissions, SnoozeMissions }
 
 /** What the ring screen needs from its host; keeps the screen a pure function of state + callbacks. */
 class RingActions(
-    val onSnooze: () -> Unit,
-    val onDismiss: () -> Unit,
-    val onEmergencyStop: () -> Unit,
+    val onSnooze: (RingProof) -> Unit,
+    val onDismiss: (RingProof) -> Unit,
+    val onEmergencyStop: (RingProof) -> Unit,
     val onAddMinute: () -> Unit,
     val onHide: () -> Unit,
     val onInteraction: () -> Unit,
@@ -328,7 +330,7 @@ private fun Controls(
                     SlideToDismiss(
                         label = stringResource(R.string.ring_slide_stop),
                         actionDescription = stringResource(R.string.ring_stop_timer),
-                        onDismiss = actions.onDismiss,
+                        onDismiss = { actions.onDismiss(RingProof.Gesture) },
                     )
                     return@Column
                 }
@@ -340,7 +342,7 @@ private fun Controls(
                         onClick = {
                             haptics.click()
                             actions.onInteraction()
-                            if (alarm.snoozeMissions.isNotEmpty()) setMode(RingMode.SnoozeMissions) else actions.onSnooze()
+                            if (alarm.snoozeMissions.isNotEmpty()) setMode(RingMode.SnoozeMissions) else actions.onSnooze(RingProof.Gesture)
                         },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp),
                     ) {
@@ -366,17 +368,17 @@ private fun Controls(
                         label = stringResource(R.string.ring_hold_to_dismiss, alarm.antiOversleep.holdToDismissSeconds),
                         holdSeconds = alarm.antiOversleep.holdToDismissSeconds,
                         actionDescription = stringResource(R.string.ring_dismiss_alarm),
-                        onComplete = actions.onDismiss,
+                        onComplete = { actions.onDismiss(RingProof.Hold) },
                     )
 
                     else -> SlideToDismiss(
                         label = stringResource(R.string.ring_slide_dismiss),
                         actionDescription = stringResource(R.string.ring_dismiss_alarm),
-                        onDismiss = actions.onDismiss,
+                        onDismiss = { actions.onDismiss(RingProof.Gesture) },
                     )
                 }
                 if (alarm.antiOversleep.emergencyStopEnabled) {
-                    EmergencyStop(settings.emergencyStopHoldSeconds, actions.onEmergencyStop, onBottom)
+                    EmergencyStop(settings.emergencyStopHoldSeconds, { actions.onEmergencyStop(RingProof.Hold) }, onBottom)
                 }
             }
 
@@ -384,17 +386,20 @@ private fun Controls(
             RingMode.DismissMissions, RingMode.SnoozeMissions -> Column(Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     val list = if (current == RingMode.SnoozeMissions) alarm.snoozeMissions else alarm.missions
-                    missionContent(
-                        list,
-                        actions.onInteraction,
-                        { if (current == RingMode.DismissMissions) actions.onMissionProgress(it) },
-                        { if (current == RingMode.SnoozeMissions) actions.onSnooze() else actions.onDismiss() },
-                        // Going back to the alarm (or the screen being rebuilt) must not cost the missions already done.
-                        if (current == RingMode.DismissMissions) session.missionsDone.coerceIn(0, list.size) else 0,
-                    )
+                    // The chain belongs to this ring: another ring taking over the screen starts its own.
+                    key(alarm.id, session.eventId) {
+                        missionContent(
+                            list,
+                            actions.onInteraction,
+                            { if (current == RingMode.DismissMissions) actions.onMissionProgress(it) },
+                            { if (current == RingMode.SnoozeMissions) actions.onSnooze(RingProof.MissionsComplete) else actions.onDismiss(RingProof.MissionsComplete) },
+                            // Going back to the alarm (or the screen being rebuilt) must not cost the missions already done.
+                            if (current == RingMode.DismissMissions) session.missionsDone.coerceIn(0, list.size) else 0,
+                        )
+                    }
                 }
                 if (alarm.antiOversleep.emergencyStopEnabled) {
-                    EmergencyStop(settings.emergencyStopHoldSeconds, actions.onEmergencyStop, onBottom, Modifier.padding(top = 8.dp), compact = true)
+                    EmergencyStop(settings.emergencyStopHoldSeconds, { actions.onEmergencyStop(RingProof.Hold) }, onBottom, Modifier.padding(top = 8.dp), compact = true)
                 }
             }
         }

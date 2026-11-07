@@ -59,6 +59,12 @@ exact-alarm permission change, restore, watchdog, tile). It is:
 - **Duplicates**: the same occurrence delivered twice (the OS can replay a broadcast) is ignored if it is already on
   screen or snoozed, so an alarm never rings twice for one occurrence.
 - **Outcomes** are written to history (`RINGING`, `DISMISSED`, `SNOOZED`, `MISSED`, …) with the follow-ups they own.
+- **Commands**: everything that can end or quiet a ring (snooze, dismiss, hold stop, way out, timeout, key silence, mission
+  mute, emergency pause) asks one pure function, `RingPolicy.decide(session, command, proof)`. Only the ring screen has
+  proof to offer (a gesture, a hold, finished missions); a notification action, a key or a stale button has none, and
+  `RingTarget` carries the event id so a button from an earlier ring of the same alarm matches nothing. `RingController`
+  counts missions itself, one step at a time, and that count is what "missions complete" is checked against and what
+  history records. Safe mode (below) is the one remaining shortcut.
 - **Ring timeout**: an ignored ring ends after `ringTimeoutMinutes`. 0 is "Never": only a dismissal, a snooze or an
   Emergency stop ends it (a backup firing just upgrades it). Timers and the test alarm carry their own fixed timeouts.
 

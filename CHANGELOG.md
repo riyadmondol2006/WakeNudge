@@ -4,6 +4,18 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 Releases are built and published automatically from `main` and numbered `MAJOR.MINOR.N`, where `N` is the commit count
 (see [docs/RELEASING.md](docs/RELEASING.md)); the notes of each GitHub release list the commits it contains.
 
+## One rule for ending a ring
+
+- **Every way to end or quiet a ring now goes through one decision.** A notification action, a volume key or a button left
+  from an earlier ring proves nothing, so none of them can dismiss or snooze an alarm that has a mission: the notification's
+  Snooze on such an alarm now opens the ring screen, and its volume key does nothing. Alarms with no mission and no hold
+  behave as before
+- A dismissal records the missions really done, counted one at a time, instead of assuming all of them
+- The database moves to version 4 and backups stay at format 1. Every new per-alarm setting defaults to what alarms do
+  today, and your volume-key and keep-in-front choices are copied onto each alarm once. A strict alarm (Emergency stop off)
+  also gets a way out starting 3 minutes into the ring; nothing uses that yet
+- Known downgrade edge: an older app restoring a backup from this one turns a "Never" ring timeout into 1 minute
+
 ## An alarm that rings until it is dealt with
 
 - **"Stop ringing after" can now be Never**: step below 1 min and an ignored alarm keeps ringing until you dismiss or

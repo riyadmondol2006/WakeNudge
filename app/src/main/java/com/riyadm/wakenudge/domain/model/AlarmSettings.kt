@@ -84,6 +84,8 @@ data class WakeCheckSettings(
     val maxChecks: Int = 1,
     /** How many times an unanswered check may re-ring the alarm before giving up. */
     val maxReRings: Int = 3,
+    /** Whether "Still awake?" has to be answered with proof of being up rather than a plain button. */
+    val requireProof: Boolean = false,
 )
 
 @Serializable
@@ -103,6 +105,33 @@ data class AntiOversleepSettings(
      * offer Continue either way, and the ring timeout still ends the alarm unless it is set to [RING_TIMEOUT_NEVER].
      */
     val emergencyStopEnabled: Boolean = true,
+    /** The alarm stream is kept at least this loud while it rings, as a percentage of the stream; 0 means no floor. */
+    val volumeFloorPercent: Int = 0,
+    /** What the volume keys do while this alarm rings. */
+    val volumeKeyAction: VolumeKeyAction = VolumeKeyAction.SNOOZE,
+    /** Whether the ring screen is brought back if the user leaves it while the alarm rings. */
+    val returnToAlarm: Boolean = true,
+    /** Whether leaving the ring screen pulls it back straight away instead of only alerting again. */
+    val forceReturn: Boolean = false,
+    /** How many times one ring may be muted from inside a mission. */
+    val muteBudget: Int = 3,
+    val muteSeconds: Int = 30,
+    /** Minutes of ringing before the way out, which ends the alarm without its mission, can be started. */
+    val wayOutDelayMinutes: Int = 0,
+    /** How many hard sums the way out asks for. */
+    val wayOutCount: Int = 10,
+    /** How many hard sums replace a mission this phone cannot do. */
+    val fallbackCount: Int = 3,
+    /** Whether only mission progress calms an escalated alarm, rather than any touch. */
+    val calmOnlyOnProgress: Boolean = false,
+    /** How long after a ring started a restart of the phone may still bring it back. */
+    val resumeWindowMinutes: Int = 10,
+    /** Whether the edit lock can be overridden by doing the alarm's own mission. */
+    val lockOverrideMission: Boolean = false,
+    val powerGuard: Boolean = false,
+    val fullBrightness: Boolean = false,
+    val forceSpeaker: Boolean = false,
+    val torchWhenIgnored: Boolean = false,
 ) {
     companion object {
         const val RING_TIMEOUT_NEVER = 0

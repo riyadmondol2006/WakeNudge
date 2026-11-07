@@ -20,6 +20,7 @@ fun RingMissionContent(
         onInteraction = onInteraction,
         onProgress = onProgress,
         firstMission = firstMission,
+        progressKeptElsewhere = true,
         onComplete = onComplete,
     )
 }

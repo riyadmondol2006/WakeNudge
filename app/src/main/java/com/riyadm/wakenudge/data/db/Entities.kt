@@ -114,16 +114,23 @@ data class EventEntity(
     val wakeCheckReRings: Int,
     val snoozeUntil: Long,
     val pendingBackups: List<Long>,
+    val fallbackUsed: Boolean,
+    val pauses: Int,
+    val resumes: Int,
+    val pullBacks: Int,
+    val mutesUsed: Int,
 )
 
 fun EventEntity.toDomain() = AlarmEvent(
     id, alarmId, label, scheduledAt, firedAt, endedAt, outcome, snoozeCount, missionsDone, missionsTotal,
     backupFired, wakeCheck, wakeCheckReRings, snoozeUntil, pendingBackups,
+    fallbackUsed, pauses, resumes, pullBacks, mutesUsed,
 )
 
 fun AlarmEvent.toEntity() = EventEntity(
     id, alarmId, label, scheduledAt, firedAt, endedAt, outcome, snoozeCount, missionsDone, missionsTotal,
     backupFired, wakeCheck, wakeCheckReRings, snoozeUntil, pendingBackups,
+    fallbackUsed, pauses, resumes, pullBacks, mutesUsed,
 )
 
 @Entity(tableName = "timers")

@@ -17,7 +17,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.riyadm.wakenudge.domain.model.AppSettings
 import com.riyadm.wakenudge.domain.model.VolumeKeyAction
 import com.riyadm.wakenudge.domain.repository.SettingsRepository
-import com.riyadm.wakenudge.domain.scheduling.SnoozePolicy
 import com.riyadm.wakenudge.engine.RingController
 import com.riyadm.wakenudge.engine.RingPhase
 import com.riyadm.wakenudge.engine.RingTarget
@@ -92,9 +91,9 @@ class RingActivity : ComponentActivity() {
                         settings = s,
                         actions = RingActions(
                             // Each button acts on the ring it was drawn for, never on one that took over a moment ago.
-                            onSnooze = { lifecycleScope.launch { controller.snooze(RingTarget.of(current)) } },
-                            onDismiss = { lifecycleScope.launch { controller.dismiss(RingTarget.of(current)) } },
-                            onEmergencyStop = { lifecycleScope.launch { controller.emergencyStop(RingTarget.of(current)) } },
+                            onSnooze = { proof -> lifecycleScope.launch { controller.snooze(RingTarget.of(current), proof) } },
+                            onDismiss = { proof -> lifecycleScope.launch { controller.dismiss(RingTarget.of(current), proof) } },
+                            onEmergencyStop = { proof -> lifecycleScope.launch { controller.emergencyStop(RingTarget.of(current), proof) } },
                             onAddMinute = { lifecycleScope.launch { controller.addMinuteToRingingTimer() } },
                             onHide = { finish() },
                             onInteraction = controller::noteInteraction,
@@ -162,22 +161,17 @@ class RingActivity : ComponentActivity() {
         if (session.phase != RingPhase.RINGING) return super.onKeyDown(keyCode, event)
         if (event.repeatCount > 0) return true
         controller.noteInteraction()
-        val alarm = session.alarm
         return when (settings.volumeKeyAction) {
             VolumeKeyAction.VOLUME -> super.onKeyDown(keyCode, event)
             VolumeKeyAction.NOTHING -> true
             VolumeKeyAction.SILENCE_TEMPORARILY -> { controller.silenceTemporarily(); true }
+            // A key proves nothing, so the controller only lets these through for an alarm with no mission or hold to bypass.
             VolumeKeyAction.SNOOZE -> {
-                // Only a plain snooze: when a mission is required the key must not bypass it.
-                if (!session.isTimer && alarm.snoozeMissions.isEmpty() && SnoozePolicy.canSnooze(alarm.snooze, session.snoozeCount)) {
-                    lifecycleScope.launch { controller.snooze(RingTarget.of(session)) }
-                }
+                lifecycleScope.launch { controller.snooze(RingTarget.of(session)) }
                 true
             }
             VolumeKeyAction.DISMISS -> {
-                if (session.isTimer || alarm.dismissesWithOneTap) {
-                    lifecycleScope.launch { controller.dismiss(RingTarget.of(session)) }
-                }
+                lifecycleScope.launch { controller.dismiss(RingTarget.of(session)) }
                 true
             }
         }

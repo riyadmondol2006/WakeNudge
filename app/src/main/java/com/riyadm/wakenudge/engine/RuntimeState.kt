@@ -78,6 +78,14 @@ class RuntimeState @Inject constructor(@DeviceProtected context: Context) {
         get() = prefs.getString(K_TEST_ALARM, null)
         set(value) = prefs.edit { if (value == null) remove(K_TEST_ALARM) else putString(K_TEST_ALARM, value) }
 
+    /**
+     * Whether the old global volume-key and keep-in-front settings have been copied onto every alarm. Kept here rather
+     * than in the settings so a backup cannot carry it to a phone where the copy has not happened.
+     */
+    var perAlarmSettingsCopied: Boolean
+        get() = prefs.getBoolean(K_PER_ALARM_COPIED, false)
+        set(value) = prefs.edit(commit = true) { putBoolean(K_PER_ALARM_COPIED, value) }
+
     /** Trigger time we last registered per alarm (alarmId -> epoch millis); used to detect alarms missed while off. */
     fun registeredTriggers(): Map<Long, Long> =
         prefs.getString(K_TRIGGERS, "").orEmpty().split(';').mapNotNull {
@@ -103,6 +111,7 @@ class RuntimeState @Inject constructor(@DeviceProtected context: Context) {
         const val K_RING_CRASHES = "ring_crash_times"
         const val K_AUDIO_PROBLEM = "last_audio_problem"
         const val K_SCHEDULING_PROBLEM = "last_scheduling_problem"
+        const val K_PER_ALARM_COPIED = "per_alarm_settings_copied"
         const val MAX_CRASHES_KEPT = 10
     }
 }

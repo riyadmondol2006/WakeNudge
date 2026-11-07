@@ -5,16 +5,19 @@ import com.riyadm.wakenudge.core.WakeJson
 import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.model.AlarmEvent
 import com.riyadm.wakenudge.domain.model.AlarmGroup
+import com.riyadm.wakenudge.domain.model.AntiOversleepSettings
 import com.riyadm.wakenudge.domain.model.AppSettings
 import com.riyadm.wakenudge.domain.model.ExceptionDate
 import com.riyadm.wakenudge.domain.model.MissionType
 import com.riyadm.wakenudge.domain.model.WorldClockCity
+import com.riyadm.wakenudge.domain.model.withGlobalsOf
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.intOrNull
 
 /** Result of reading a backup document: the decoded (not yet sanitised) file, or the reason it was refused. */
@@ -32,6 +35,9 @@ object BackupCodec {
 
     private val pretty = Json(from = WakeJson.instance) { prettyPrint = true }
     private val knownMissionTypes = MissionType.entries.mapTo(hashSetOf()) { it.name }
+
+    /** Same as the database migration: an alarm from before the way out existed gets one this far into the ring. */
+    private const val STRICT_WAY_OUT_DELAY_MINUTES = 3
 
     fun encode(file: BackupFile): String = pretty.encodeToString(BackupFile.serializer(), file)
 
@@ -61,7 +67,7 @@ object BackupCodec {
         }
         var droppedMissions = 0
         val alarms = lenientList(root, "alarms", Alarm.serializer(), R.plurals.backup_warn_alarms_skipped, warnings) { element ->
-            dropUnknownMissions(element) { droppedMissions++ }
+            withPerAlarmSettings(dropUnknownMissions(element) { droppedMissions++ }, settings)
         }
         val groups = lenientList(root, "groups", AlarmGroup.serializer(), R.plurals.backup_warn_groups_skipped, warnings)
         val clocks = lenientList(root, "worldClocks", WorldClockCity.serializer(), R.plurals.backup_warn_clocks_skipped, warnings)
@@ -76,7 +82,7 @@ object BackupCodec {
             app = BackupFormat.APP_ID,
             appVersion = (root["appVersion"] as? JsonPrimitive)?.takeIf { it.isString }?.content.orEmpty(),
             createdAt = (root["createdAt"] as? JsonPrimitive)?.content?.toLongOrNull() ?: 0L,
-            settings = settings,
+            settings = withDefaultsMapped(root["settings"], settings),
             alarms = alarms,
             groups = groups,
             worldClocks = clocks,
@@ -113,6 +119,40 @@ object BackupCodec {
         }
         if (skipped > 0) warnings += ImportWarning(skippedMessage, count = skipped)
         return decoded
+    }
+
+    /**
+     * A file from before the settings moved onto each alarm: its global volume-key and keep-in-front choices become the
+     * alarm's own, and a strict alarm gets its way out, just as the database migration and first start do. A file that
+     * already has the per-alarm values is left alone, so a backup of this version restores to exactly what was exported.
+     */
+    private fun withPerAlarmSettings(alarm: JsonElement, settings: AppSettings): JsonElement {
+        if (alarm !is JsonObject) return alarm
+        val anti = alarm["antiOversleep"]
+        if (anti != null && anti !is JsonObject) return alarm
+        return JsonObject(alarm + ("antiOversleep" to mapAntiOversleep(anti as JsonObject?, settings)))
+    }
+
+    private fun withDefaultsMapped(raw: JsonElement?, settings: AppSettings): AppSettings {
+        val rawDefaults = ((raw as? JsonObject)?.get("defaults") as? JsonObject) ?: return settings.withGlobalsCopiedToDefaults()
+        val rawAnti = rawDefaults["antiOversleep"]
+        if (rawAnti != null && rawAnti !is JsonObject) return settings.withGlobalsCopiedToDefaults()
+        val mapped = decodeOrNull(AntiOversleepSettings.serializer(), mapAntiOversleep(rawAnti as JsonObject?, settings)) ?: return settings
+        return settings.copy(defaults = settings.defaults.copy(antiOversleep = mapped))
+    }
+
+    private fun AppSettings.withGlobalsCopiedToDefaults(): AppSettings =
+        copy(defaults = defaults.copy(antiOversleep = defaults.antiOversleep.withGlobalsOf(this)))
+
+    private fun mapAntiOversleep(anti: JsonObject?, settings: AppSettings): JsonObject {
+        val source = anti ?: JsonObject(emptyMap())
+        if ("volumeKeyAction" in source) return source
+        val mapped = source.toMutableMap()
+        mapped["volumeKeyAction"] = JsonPrimitive(settings.volumeKeyAction.name)
+        mapped["returnToAlarm"] = JsonPrimitive(settings.keepRingScreenFront)
+        val strict = (source["emergencyStopEnabled"] as? JsonPrimitive)?.booleanOrNull == false
+        if (strict && "wayOutDelayMinutes" !in source) mapped["wayOutDelayMinutes"] = JsonPrimitive(STRICT_WAY_OUT_DELAY_MINUTES)
+        return JsonObject(mapped)
     }
 
     /** Missions of a type this build has never heard of (from a newer app) cannot run; drop them instead of the alarm. */

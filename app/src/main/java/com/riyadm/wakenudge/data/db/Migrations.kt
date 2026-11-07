@@ -22,5 +22,41 @@ object Migrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(V1_TO_V2, V2_TO_V3)
+    /**
+     * The per-alarm settings of the hard-alarm work, and what history records about a ring. All of them default to what
+     * alarms do today; the one exception is that a strict alarm always gets a way out, three minutes into the ring.
+     */
+    internal val V3_TO_V4_STATEMENTS: List<String> = listOf(
+        "ALTER TABLE alarms ADD COLUMN ao_volumeFloorPercent INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE alarms ADD COLUMN ao_volumeKeyAction TEXT NOT NULL DEFAULT 'SNOOZE'",
+        "ALTER TABLE alarms ADD COLUMN ao_returnToAlarm INTEGER NOT NULL DEFAULT 1",
+        "ALTER TABLE alarms ADD COLUMN ao_forceReturn INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE alarms ADD COLUMN ao_muteBudget INTEGER NOT NULL DEFAULT 3",
+        "ALTER TABLE alarms ADD COLUMN ao_muteSeconds INTEGER NOT NULL DEFAULT 30",
+        "ALTER TABLE alarms ADD COLUMN ao_wayOutDelayMinutes INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE alarms ADD COLUMN ao_wayOutCount INTEGER NOT NULL DEFAULT 10",
+        "ALTER TABLE alarms ADD COLUMN ao_fallbackCount INTEGER NOT NULL DEFAULT 3",
+        "ALTER TABLE alarms ADD COLUMN ao_calmOnlyOnProgress INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE alarms ADD COLUMN ao_resumeWindowMinutes INTEGER NOT NULL DEFAULT 10",
+        "ALTER TABLE alarms ADD COLUMN ao_lockOverrideMission INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE alarms ADD COLUMN ao_powerGuard INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE alarms ADD COLUMN ao_fullBrightness INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE alarms ADD COLUMN ao_forceSpeaker INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE alarms ADD COLUMN ao_torchWhenIgnored INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE alarms ADD COLUMN wc_requireProof INTEGER NOT NULL DEFAULT 0",
+        "UPDATE alarms SET ao_wayOutDelayMinutes = 3 WHERE ao_emergencyStopEnabled = 0",
+        "ALTER TABLE alarm_events ADD COLUMN fallbackUsed INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE alarm_events ADD COLUMN pauses INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE alarm_events ADD COLUMN resumes INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE alarm_events ADD COLUMN pullBacks INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE alarm_events ADD COLUMN mutesUsed INTEGER NOT NULL DEFAULT 0",
+    )
+
+    val V3_TO_V4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            V3_TO_V4_STATEMENTS.forEach(db::execSQL)
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(V1_TO_V2, V2_TO_V3, V3_TO_V4)
 }

@@ -23,6 +23,7 @@ import com.riyadm.wakenudge.domain.repository.WakeCheckRepository
 import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
 import com.riyadm.wakenudge.domain.usecase.ActionResult
 import com.riyadm.wakenudge.domain.usecase.AlarmActions
+import com.riyadm.wakenudge.engine.policy.RingProof
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import javax.inject.Inject
@@ -204,7 +205,7 @@ class EngineInstrumentedTest {
 
     @Test fun emergencyStopIsRecordedHonestlyAndSkipsFollowUps() = runBlocking {
         val (id, session) = startRing(alarmIn(1) { copy(missions = listOf(MissionConfig(MissionType.MATH))) })
-        ring.emergencyStop()
+        ring.emergencyStop(proof = RingProof.Hold)
         assertNull(store.current)
         assertEquals(AlarmOutcome.EMERGENCY_STOPPED, history.get(session.eventId)!!.outcome)
         assertFalse(pending.isScheduled(TriggerKind.BACKUP, id, 1))

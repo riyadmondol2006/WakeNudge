@@ -36,6 +36,16 @@ data class AlarmEvent(
     val snoozeUntil: Long = 0,
     /** Epoch millis of backup alarms that have not fired yet, kept so they can be re-armed after a reboot. */
     val pendingBackups: List<Long> = emptyList(),
+    /** Whether a backup mission stood in for one this phone could not do. */
+    val fallbackUsed: Boolean = false,
+    /** Emergency pauses during this ring. */
+    val pauses: Int = 0,
+    /** Times this ring came back after the phone restarted. */
+    val resumes: Int = 0,
+    /** Times the ring screen was pulled back to the front. */
+    val pullBacks: Int = 0,
+    /** Mutes taken from inside a mission. */
+    val mutesUsed: Int = 0,
 ) {
     /** Milliseconds between the first ring and the final dismissal (snooze time included). */
     val dismissDurationMs: Long? get() = endedAt?.let { (it - firedAt).coerceAtLeast(0) }

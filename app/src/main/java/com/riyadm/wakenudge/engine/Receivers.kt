@@ -85,12 +85,14 @@ class ActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val e = context.engine()
         val id = intent.getLongExtra(Actions.EXTRA_ID, 0)
+        val eventId = intent.getLongExtra(Actions.EXTRA_EVENT_ID, RingTarget.ANY_EVENT)
         runAsync {
             val ring = e.ring()
             when (intent.action) {
-                // Each button acts on the alarm it was shown for, checked inside the controller's lock.
-                Actions.SNOOZE -> ring.snooze(RingTarget(id))
-                Actions.DISMISS -> if (!ring.dismiss(RingTarget(id))) ring.dismissSnoozed(id)
+                // Each button acts on the ring it was shown for, checked inside the controller's lock. They prove nothing,
+                // so these only work on an alarm that may be ended with one tap.
+                Actions.SNOOZE -> ring.snooze(RingTarget(id, eventId = eventId))
+                Actions.DISMISS -> if (!ring.dismiss(RingTarget(id, eventId = eventId))) ring.dismissSnoozed(id, eventId)
                 Actions.SNOOZE_WAKE_NOW -> ring.wakeNow(id)?.let(e.launcher()::start)
                 Actions.SKIP_NEXT -> {
                     val at = intent.getLongExtra(Actions.EXTRA_AT, 0).takeIf { it > 0 }

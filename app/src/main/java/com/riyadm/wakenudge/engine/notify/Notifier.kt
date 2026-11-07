@@ -27,6 +27,7 @@ import com.riyadm.wakenudge.domain.scheduling.SnoozePolicy
 import com.riyadm.wakenudge.engine.ActionReceiver
 import com.riyadm.wakenudge.engine.RingPhase
 import com.riyadm.wakenudge.engine.RingSession
+import com.riyadm.wakenudge.engine.RingTarget
 import com.riyadm.wakenudge.ui.ring.RingActivity
 import com.riyadm.wakenudge.ui.ring.WakeCheckActivity
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -78,6 +79,7 @@ object Actions {
     const val TIMER_STOP = P + "TIMER_STOP"
     const val EXTRA_ID = "id"
     const val EXTRA_AT = "at"
+    const val EXTRA_EVENT_ID = "event_id"
 }
 
 /** Builds and posts every notification the app shows. Channels are created lazily and idempotently. */
@@ -172,9 +174,9 @@ class Notifier @Inject constructor(
 
         if (session.phase == RingPhase.RINGING && session.safeMode && !session.isTimer) {
             if (SnoozePolicy.canSnooze(alarm.snooze, session.snoozeCount)) {
-                builder.addAction(0, context.getString(R.string.action_snooze), broadcast(Actions.SNOOZE, alarm.id))
+                builder.addAction(0, context.getString(R.string.action_snooze), broadcast(Actions.SNOOZE, alarm.id, eventId = session.eventId))
             }
-            builder.addAction(0, context.getString(R.string.action_dismiss), broadcast(Actions.DISMISS, alarm.id))
+            builder.addAction(0, context.getString(R.string.action_dismiss), broadcast(Actions.DISMISS, alarm.id, eventId = session.eventId))
         } else if (session.phase == RingPhase.RINGING) {
             if (session.isTimer) {
                 builder.addAction(0, context.getString(R.string.action_add_minute), broadcast(Actions.TIMER_ADD_MINUTE, session.timerId))
@@ -182,18 +184,19 @@ class Notifier @Inject constructor(
             } else {
                 val canSnooze = SnoozePolicy.canSnooze(alarm.snooze, session.snoozeCount)
                 if (canSnooze) {
-                    val snoozeNeedsMission = alarm.snoozeMissions.isNotEmpty()
+                    // An alarm with a mission is only snoozed from its screen; the notification takes you there.
+                    val snoozeHere = alarm.missions.isEmpty() && alarm.snoozeMissions.isEmpty()
                     builder.addAction(
                         0,
                         context.getString(R.string.action_snooze),
-                        if (snoozeNeedsMission) open else broadcast(Actions.SNOOZE, alarm.id),
+                        if (snoozeHere) broadcast(Actions.SNOOZE, alarm.id, eventId = session.eventId) else open,
                     )
                 }
                 val dismissDirect = alarm.dismissesWithOneTap
                 builder.addAction(
                     0,
                     context.getString(if (dismissDirect) R.string.action_dismiss else R.string.action_solve_to_dismiss),
-                    if (dismissDirect) broadcast(Actions.DISMISS, alarm.id) else open,
+                    if (dismissDirect) broadcast(Actions.DISMISS, alarm.id, eventId = session.eventId) else open,
                 )
             }
         }
@@ -246,7 +249,7 @@ class Notifier @Inject constructor(
 
     // ---- snooze / missed / upcoming ------------------------------------------------------------------------
 
-    fun showSnoozed(alarm: Alarm, untilMillis: Long) {
+    fun showSnoozed(alarm: Alarm, untilMillis: Long, eventId: Long = RingTarget.ANY_EVENT) {
         val title = alarm.label.ifBlank { context.getString(R.string.notif_alarm_default_title) }
         val until = TimeText.format(Instant.ofEpochMilli(untilMillis).atZone(ZoneId.systemDefault()).toLocalTime(), is24Hour())
         val b = NotificationCompat.Builder(context, Channels.SNOOZED)
@@ -262,7 +265,7 @@ class Notifier @Inject constructor(
             .addAction(0, context.getString(R.string.action_wake_now), broadcast(Actions.SNOOZE_WAKE_NOW, alarm.id))
         // Like the ring notification: an alarm that needs a mission or a hold is ended on the ring screen, not here.
         if (alarm.dismissesWithOneTap) {
-            b.addAction(0, context.getString(R.string.action_dismiss), broadcast(Actions.DISMISS, alarm.id))
+            b.addAction(0, context.getString(R.string.action_dismiss), broadcast(Actions.DISMISS, alarm.id, eventId = eventId))
         }
         post(NotificationIds.snoozed(alarm.id), b.build())
     }
@@ -470,13 +473,17 @@ class Notifier @Inject constructor(
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
-    /** [at] is the ring the action was shown for, when the action is about one particular ring (skip). */
-    private fun broadcast(action: String, id: Long, at: Long = 0): PendingIntent = PendingIntent.getBroadcast(
+    /**
+     * [at] is the ring the action was shown for, when the action is about one particular ring (skip). [eventId] is the
+     * occurrence a ring's button belongs to, so a notification left from an earlier ring cannot end a later one.
+     */
+    private fun broadcast(action: String, id: Long, at: Long = 0, eventId: Long = RingTarget.ANY_EVENT): PendingIntent = PendingIntent.getBroadcast(
         context, 0,
         Intent(context, ActionReceiver::class.java).setAction(action)
             .setData(android.net.Uri.parse("wakenudge://action/$action/$id"))
             .putExtra(Actions.EXTRA_ID, id)
-            .putExtra(Actions.EXTRA_AT, at),
+            .putExtra(Actions.EXTRA_AT, at)
+            .putExtra(Actions.EXTRA_EVENT_ID, eventId),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 }

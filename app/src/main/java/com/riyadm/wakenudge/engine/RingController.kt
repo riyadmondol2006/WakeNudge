@@ -22,6 +22,11 @@ import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
 import com.riyadm.wakenudge.domain.scheduling.SnoozePolicy
 import com.riyadm.wakenudge.domain.scheduling.SurfaceRefresher
 import com.riyadm.wakenudge.engine.notify.Notifier
+import com.riyadm.wakenudge.engine.policy.DenyReason
+import com.riyadm.wakenudge.engine.policy.RingCommand
+import com.riyadm.wakenudge.engine.policy.RingDecision
+import com.riyadm.wakenudge.engine.policy.RingPolicy
+import com.riyadm.wakenudge.engine.policy.RingProof
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -53,6 +58,8 @@ object RingIds {
  * One rule runs through it: **persistence never decides whether an alarm rings or stops.** A full disk, a locked or
  * corrupt database or a broken settings file is logged and the ring carries on with safe defaults; history, follow-up
  * bookkeeping and settings are best-effort around the sound, never in front of it.
+ *
+ * What may end or quiet a ring is decided in one place, [RingPolicy]: every command below asks it before acting.
  */
 @Singleton
 class RingController @Inject constructor(
@@ -387,10 +394,28 @@ class RingController @Inject constructor(
 
     fun silenceTemporarily() {
         val now = time.nowMillis()
-        store.update { it.copy(silencedUntil = now + RingIds.SILENCE_MS, lastInteractionAt = now) }
+        store.update { s ->
+            if (decide(s, RingCommand.KeySilence, RingProof.None) is RingDecision.Allow) {
+                s.copy(silencedUntil = now + RingIds.SILENCE_MS, lastInteractionAt = now)
+            } else {
+                s
+            }
+        }
     }
 
-    fun noteMissionDone(count: Int) = store.update { it.copy(missionsDone = count) }
+    /**
+     * A mission of this ring was finished; [count] is how many are done now according to the screen. The count here only
+     * ever moves one step at a time, so what ends the ring is what really happened and not what a caller says: a repeat
+     * or a jump changes nothing.
+     */
+    fun noteMissionDone(count: Int) = store.update { s ->
+        if (count == s.missionsDone + 1 && count <= s.alarm.missions.size) {
+            s.copy(missionsDone = count)
+        } else {
+            diagnostics.warn("Ring", "mission progress $count ignored: ${s.missionsDone} of ${s.alarm.missions.size} done")
+            s
+        }
+    }
 
     /** Called about once a second by the service while a session is active. */
     suspend fun tick() {
@@ -426,13 +451,21 @@ class RingController @Inject constructor(
 
     // ---- user decisions ------------------------------------------------------------------------------------
 
-    /** [target] is the ring the snooze button was shown for; null means whatever rings (tests, internal callers). */
-    suspend fun snooze(target: RingTarget? = null): SnoozeOutcome = mutex.withLock {
+    /**
+     * [target] is the ring the snooze button was shown for; null means whatever rings (tests, internal callers). [proof]
+     * is [RingProof.None] from anything away from the ring screen, which can snooze only an alarm with no mission at all.
+     */
+    suspend fun snooze(target: RingTarget? = null, proof: RingProof = RingProof.None): SnoozeOutcome = mutex.withLock {
         val s = store.current ?: return@withLock SnoozeOutcome.NotRinging
         if (target != null && !target.matches(s)) return@withLock SnoozeOutcome.NotRinging
-        // The silent glow before an alarm has not rung yet: a stray volume key there must not arm a snooze.
-        if (s.phase != RingPhase.RINGING) return@withLock SnoozeOutcome.NotRinging
-        if (s.isTimer || !SnoozePolicy.canSnooze(s.alarm.snooze, s.snoozeCount)) return@withLock SnoozeOutcome.NotAllowed
+        when (val decision = decide(s, RingCommand.Snooze, proof)) {
+            is RingDecision.Allow -> Unit
+            is RingDecision.Deny -> {
+                // The silent glow before an alarm has not rung yet: a stray volume key there must not arm a snooze.
+                diagnostics.info("Ring", "snooze of alarm ${s.alarm.id} refused: ${decision.reason}")
+                return@withLock if (decision.reason == DenyReason.NotRinging) SnoozeOutcome.NotRinging else SnoozeOutcome.NotAllowed
+            }
+        }
         val minutes = SnoozePolicy.nextIntervalMinutes(s.alarm.snooze, s.snoozeCount)
         val now = time.nowMillis()
         val until = now + minutes * 60_000L
@@ -454,43 +487,70 @@ class RingController @Inject constructor(
         } finally {
             finishSession(s)
         }
-        notifier.showSnoozed(s.alarm, until)
+        notifier.showSnoozed(s.alarm, until, s.eventId)
         diagnostics.info("Ring", "alarm ${s.alarm.id} snoozed ${s.snoozeCount + 1}x for $minutes min")
         SnoozeOutcome.Snoozed(until, minutes)
     }
 
-    /** The user finished whatever the alarm required (missions, hold) and dismisses it for real. */
     /**
-     * Returns whether a ring was ended. [target] is the ring the button was shown for; a ring in its silent sunrise
-     * glow is never dismissed (it has not rung, and dismissing it would count it as handled, or delete a
-     * delete-after-use alarm before it ever rang).
+     * The user finished whatever the alarm required (missions, hold) and dismisses it for real. Returns whether a ring
+     * was ended. [target] is the ring the button was shown for; a ring in its silent sunrise glow is never dismissed (it
+     * has not rung, and dismissing it would count it as handled, or delete a delete-after-use alarm before it ever rang).
+     * [proof] is what the caller did to get here; see [RingPolicy].
      */
-    suspend fun dismiss(target: RingTarget? = null): Boolean = mutex.withLock {
+    suspend fun dismiss(target: RingTarget? = null, proof: RingProof = RingProof.None): Boolean = mutex.withLock {
         val s = store.current ?: return@withLock false
         if (target != null && !target.matches(s)) return@withLock false
-        if (s.phase != RingPhase.RINGING) return@withLock false
+        if (refused(s, RingCommand.Dismiss, proof)) return@withLock false
         endSession(s, AlarmOutcome.DISMISSED)
         true
     }
 
     /** The accessible escape hatch: ends the alarm without missions. Recorded honestly as an emergency stop. */
-    suspend fun emergencyStop(target: RingTarget? = null) = mutex.withLock {
-        val s = store.current ?: return@withLock
-        if (target != null && !target.matches(s)) return@withLock
+    suspend fun emergencyStop(target: RingTarget? = null, proof: RingProof = RingProof.None): Boolean = mutex.withLock {
+        val s = store.current ?: return@withLock false
+        if (target != null && !target.matches(s)) return@withLock false
+        if (refused(s, RingCommand.HoldStop, proof)) return@withLock false
         endSession(s, AlarmOutcome.EMERGENCY_STOPPED)
         diagnostics.warn("Ring", "alarm ${s.alarm.id} ended by emergency stop")
+        true
     }
 
-    /** Dismissal from a notification while snoozed (no ring session is active). */
-    suspend fun dismissSnoozed(alarmId: Long) = mutex.withLock {
+    /**
+     * Dismissal from a notification while snoozed (no ring session is active). It goes through the same policy as a ring:
+     * an alarm that needs a mission or a hold is not ended from a notification. If the alarm cannot be read this does
+     * nothing, and the snooze simply rings. [eventId] is the ring the button was shown for, when it was shown for one.
+     */
+    suspend fun dismissSnoozed(alarmId: Long, eventId: Long = RingTarget.ANY_EVENT) = mutex.withLock {
+        // This alarm is ringing, so this is a button left over from before: the ring is ended on its own terms.
+        if (store.current?.alarm?.id == alarmId) return@withLock
+        val alarm = try {
+            alarms.getAlarm(alarmId)
+        } catch (c: CancellationException) {
+            throw c
+        } catch (t: Throwable) {
+            diagnostics.error("Ring", "could not read snoozed alarm $alarmId; leaving its snooze in place", t)
+            return@withLock
+        }
+        val open = tryDb("looking up the snooze of alarm $alarmId", null) {
+            history.recent(30).firstOrNull { it.alarmId == alarmId && it.outcome == AlarmOutcome.RINGING && (eventId == RingTarget.ANY_EVENT || it.id == eventId) }
+        }
+        if (alarm != null) {
+            val shape = RingSession(
+                alarm = alarm, kind = RingKind.SNOOZE_RETURN, phase = RingPhase.RINGING, eventId = open?.id ?: -1, scheduledAt = open?.scheduledAt ?: 0,
+                startedAt = time.nowMillis(), snoozeCount = open?.snoozeCount ?: 0, missionsDone = open?.missionsDone ?: 0,
+            )
+            if (refused(shape, RingCommand.Dismiss, RingProof.None)) return@withLock
+        }
         pending.cancel(TriggerKind.SNOOZE, alarmId)
         cancelBackups(alarmId)
         notifier.cancelSnoozed(alarmId)
-        val open = history.recent(30).firstOrNull { it.alarmId == alarmId && it.outcome == AlarmOutcome.RINGING }
         // No open ring means this was a late tap on a Dismiss button of a ring that is already over: nothing more to do.
         if (open != null) {
-            history.update(open.copy(outcome = AlarmOutcome.DISMISSED, endedAt = time.nowMillis(), snoozeUntil = 0, pendingBackups = emptyList()))
-            alarms.getAlarm(alarmId)?.let { afterDismissal(it, open.id) }
+            tryDb("recording the dismissal of snoozed alarm $alarmId", Unit) {
+                history.update(open.copy(outcome = AlarmOutcome.DISMISSED, endedAt = time.nowMillis(), snoozeUntil = 0, pendingBackups = emptyList()))
+                if (alarm != null) afterDismissal(alarm, open.id)
+            }
         }
         surfaces.refreshAll()
     }
@@ -543,7 +603,7 @@ class RingController @Inject constructor(
      */
     private suspend fun onRingTimeout(seen: RingSession) = mutex.withLock {
         val s = store.current ?: return@withLock
-        if (s.phase != RingPhase.RINGING || !RingTarget.of(seen).matches(s) || s.eventId != seen.eventId) return@withLock
+        if (!RingTarget.of(seen).matches(s) || refused(s, RingCommand.Timeout, RingProof.None)) return@withLock
         val now = time.nowMillis()
         val timeout = timeoutOf(s) ?: return@withLock
         if (now - s.lastInteractionAt < timeout) return@withLock
@@ -609,7 +669,7 @@ class RingController @Inject constructor(
                         snoozeUntil = 0,
                         pendingBackups = emptyList(),
                         snoozeCount = s.snoozeCount,
-                        missionsDone = if (outcome == AlarmOutcome.DISMISSED) s.alarm.missions.size else s.missionsDone,
+                        missionsDone = s.missionsDone,
                         missionsTotal = s.alarm.missions.size,
                         wakeCheck = if (outcome == AlarmOutcome.DISMISSED && s.alarm.wakeCheck.enabled) WakeCheckStatus.PENDING else e.wakeCheck,
                     ),
@@ -673,6 +733,14 @@ class RingController @Inject constructor(
     }
 
     // ---- helpers -------------------------------------------------------------------------------------------
+
+    private fun decide(s: RingSession, command: RingCommand, proof: RingProof): RingDecision = RingPolicy.decide(s, command, proof)
+
+    private fun refused(s: RingSession, command: RingCommand, proof: RingProof): Boolean {
+        val decision = decide(s, command, proof) as? RingDecision.Deny ?: return false
+        diagnostics.info("Ring", "$command of alarm ${s.alarm.id} refused: ${decision.reason}")
+        return true
+    }
 
     private suspend fun afterFire(alarm: Alarm, scheduledAt: Long) {
         if (alarm.isRepeating) {

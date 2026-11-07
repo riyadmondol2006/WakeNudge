@@ -84,6 +84,75 @@ class DatabaseMigrationTest {
         db.close()
     }
 
+    private fun SupportSQLiteDatabase.insertEvent(id: Int, alarmId: Int, label: String) {
+        execSQL(
+            "INSERT INTO `alarm_events` (`id`, `alarmId`, `label`, `scheduledAt`, `firedAt`, `endedAt`, `outcome`, `snoozeCount`, `missionsDone`, " +
+                "`missionsTotal`, `backupFired`, `wakeCheck`, `wakeCheckReRings`, `snoozeUntil`, `pendingBackups`) " +
+                "VALUES ($id, $alarmId, '$label', 1000, 1000, 2000, 'DISMISSED', 2, 1, 1, 1, 'PASSED', 0, 0, '')",
+        )
+    }
+
+    @Test fun version3To4KeepsEverythingDefaultsMatchTodayAndAStrictAlarmGetsItsWayOut() {
+        helper.createDatabase(TEST_DB, 3).apply {
+            insertAlarm(mapOf("id" to 1, "label" to "Plain", "hour" to 7, "minute" to 30, "ao_emergencyStopEnabled" to 1, "ao_ringTimeoutMinutes" to 10))
+            insertAlarm(mapOf("id" to 2, "label" to "Strict", "hour" to 6, "minute" to 0, "ao_emergencyStopEnabled" to 0, "ao_ringTimeoutMinutes" to 0))
+            insertEvent(id = 9, alarmId = 1, label = "Plain")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 4, true, *Migrations.ALL)
+
+        db.query(
+            "SELECT label, hour, minute, ao_emergencyStopEnabled, ao_ringTimeoutMinutes, ao_volumeFloorPercent, ao_volumeKeyAction, ao_returnToAlarm, " +
+                "ao_forceReturn, ao_muteBudget, ao_muteSeconds, ao_wayOutDelayMinutes, ao_wayOutCount, ao_fallbackCount, ao_calmOnlyOnProgress, " +
+                "ao_resumeWindowMinutes, ao_lockOverrideMission, ao_powerGuard, ao_fullBrightness, ao_forceSpeaker, ao_torchWhenIgnored, wc_requireProof " +
+                "FROM alarms ORDER BY id",
+        ).use { c ->
+            assertEquals("every alarm is kept", 2, c.count)
+            c.moveToFirst()
+            assertEquals("Plain", c.getString(0))
+            assertEquals(7, c.getInt(1)); assertEquals(30, c.getInt(2)); assertEquals(1, c.getInt(3)); assertEquals(10, c.getInt(4))
+            assertEquals(0, c.getInt(5))
+            assertEquals("SNOOZE", c.getString(6))
+            assertEquals(1, c.getInt(7))
+            assertEquals(0, c.getInt(8))
+            assertEquals(3, c.getInt(9)); assertEquals(30, c.getInt(10))
+            assertEquals("an alarm with the Emergency stop on has no delay", 0, c.getInt(11))
+            assertEquals(10, c.getInt(12)); assertEquals(3, c.getInt(13)); assertEquals(0, c.getInt(14)); assertEquals(10, c.getInt(15))
+            for (flag in 16..21) assertEquals("column $flag", 0, c.getInt(flag))
+            c.moveToNext()
+            assertEquals("Strict", c.getString(0))
+            assertEquals(0, c.getInt(3))
+            assertEquals("the ring timeout stays Never", 0, c.getInt(4))
+            assertEquals("a strict alarm gets its way out after 3 minutes", 3, c.getInt(11))
+        }
+        db.query("SELECT label, outcome, snoozeCount, wakeCheck, fallbackUsed, pauses, resumes, pullBacks, mutesUsed FROM alarm_events").use { c ->
+            assertEquals("history is kept", 1, c.count)
+            c.moveToFirst()
+            assertEquals("Plain", c.getString(0))
+            assertEquals("DISMISSED", c.getString(1))
+            assertEquals(2, c.getInt(2))
+            assertEquals("PASSED", c.getString(3))
+            for (counter in 4..8) assertEquals("column $counter", 0, c.getInt(counter))
+        }
+        db.close()
+    }
+
+    @Test fun anInstallFromVersion1ReachesVersion4() {
+        helper.createDatabase(TEST_DB, 1).apply {
+            insertAlarm(mapOf("id" to 3, "label" to "First install", "hour" to 5, "minute" to 15))
+            close()
+        }
+        val db = helper.runMigrationsAndValidate(TEST_DB, 4, true, *Migrations.ALL)
+        db.query("SELECT label, ao_emergencyStopEnabled, ao_wayOutDelayMinutes FROM alarms").use { c ->
+            c.moveToFirst()
+            assertEquals("First install", c.getString(0))
+            assertEquals(1, c.getInt(1))
+            assertEquals(0, c.getInt(2))
+        }
+        db.close()
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

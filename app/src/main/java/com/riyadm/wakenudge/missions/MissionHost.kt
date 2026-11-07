@@ -101,14 +101,30 @@ fun MissionHost(
     onProgress: (completed: Int) -> Unit = {},
     /** Missions already done in this ring (the user went back, or the screen was rebuilt): the chain resumes there. */
     firstMission: Int = 0,
+    /**
+     * Whether [firstMission] comes from something that outlives this screen, as it does on the ring screen. Progress is
+     * then not saved here as well: a screen restored after the process died must not believe more was done than the
+     * engine counted, or the chain would finish and the engine would refuse to end the ring.
+     */
+    progressKeptElsewhere: Boolean = false,
     onComplete: () -> Unit,
 ) {
     val total = missions.size
     val latestOnProgress by rememberUpdatedState(onProgress)
     val latestOnComplete by rememberUpdatedState(onComplete)
     val reduceMotion = rememberReduceMotion()
-    var completed by rememberSaveable { mutableIntStateOf(firstMission.coerceIn(0, total)) }
-    var completionReported by rememberSaveable { mutableStateOf(false) }
+    val completedState = if (progressKeptElsewhere) {
+        remember { mutableIntStateOf(firstMission.coerceIn(0, total)) }
+    } else {
+        rememberSaveable { mutableIntStateOf(firstMission.coerceIn(0, total)) }
+    }
+    var completed by completedState
+    val completionState = if (progressKeptElsewhere) {
+        remember { mutableStateOf(false) }
+    } else {
+        rememberSaveable { mutableStateOf(false) }
+    }
+    var completionReported by completionState
 
     LaunchedEffect(completed, total) {
         if (completed >= total && !completionReported) {

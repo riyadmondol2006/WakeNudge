@@ -2,11 +2,18 @@ package com.riyadm.wakenudge.abuse
 
 import com.riyadm.wakenudge.core.TimeText
 import com.riyadm.wakenudge.data.backup.BackupRig
+import com.riyadm.wakenudge.data.backup.CountingSurfaces
 import com.riyadm.wakenudge.data.backup.ImportResult
+import com.riyadm.wakenudge.data.backup.RecordingScheduler
 import com.riyadm.wakenudge.data.backup.Sample
+import com.riyadm.wakenudge.data.backup.SilentLog
 import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.model.AlarmEvent
 import com.riyadm.wakenudge.domain.model.AlarmOutcome
+import com.riyadm.wakenudge.domain.model.AntiOversleepSettings
+import com.riyadm.wakenudge.domain.model.MissionConfig
+import com.riyadm.wakenudge.domain.model.MissionType
+import com.riyadm.wakenudge.domain.model.SnoozeSettings
 import com.riyadm.wakenudge.domain.model.VacationMode
 import com.riyadm.wakenudge.domain.model.VibrationPattern
 import com.riyadm.wakenudge.domain.model.VibrationSettings
@@ -15,8 +22,28 @@ import com.riyadm.wakenudge.domain.model.WakeCheckStatus
 import com.riyadm.wakenudge.domain.scheduling.NextTriggerCalculator
 import com.riyadm.wakenudge.domain.scheduling.SchedulingContext
 import com.riyadm.wakenudge.domain.stats.WakeStatsCalculator
+import com.riyadm.wakenudge.engine.MemoryAlarms
+import com.riyadm.wakenudge.engine.MemoryHistory
+import com.riyadm.wakenudge.engine.MemorySettings
+import com.riyadm.wakenudge.engine.MemoryTimers
+import com.riyadm.wakenudge.engine.PendingAlarms
+import com.riyadm.wakenudge.engine.RingController
+import com.riyadm.wakenudge.engine.RingKind
+import com.riyadm.wakenudge.engine.RingPhase
+import com.riyadm.wakenudge.engine.RingSession
+import com.riyadm.wakenudge.engine.RingSessionStore
+import com.riyadm.wakenudge.engine.RingTarget
+import com.riyadm.wakenudge.engine.TestClock
 import com.riyadm.wakenudge.engine.audio.VibrationPatterns
 import com.riyadm.wakenudge.engine.audio.VolumePlanner
+import com.riyadm.wakenudge.engine.notify.Notifier
+import com.riyadm.wakenudge.engine.policy.RingCommand
+import com.riyadm.wakenudge.engine.policy.RingDecision
+import com.riyadm.wakenudge.engine.policy.RingPolicy
+import com.riyadm.wakenudge.engine.policy.RingProof
+import com.riyadm.wakenudge.engine.realRuntime
+import io.mockk.every
+import io.mockk.mockk
 import java.time.Duration
 import java.time.LocalDate
 import java.time.ZoneId
@@ -257,5 +284,85 @@ class AbuseFuzzTest {
             }
         }
         assertTrue("fuzzer produced both outcomes (rejected=$rejected accepted=$accepted)", rejected > 0 && accepted > 0)
+    }
+
+    // ---- commands against a ring ---------------------------------------------------------------------------------
+
+    /** A hard alarm under a stream of random commands: taps from stale buttons, keys, forged claims, a moving clock. */
+    @Test fun aRingWithUnfinishedMissionsAndNoHoldStopEndsOnlyWhenItsMissionsAreDone() = runTest {
+        val r = Random(417)
+        val pending = mockk<PendingAlarms>(relaxed = true).also {
+            every { it.setAlarmClock(any(), any(), any(), any(), any(), any()) } returns true
+        }
+        val notifier = mockk<Notifier>(relaxed = true)
+        repeat(400) sequence@{ run ->
+            val clock = TestClock()
+            val alarms = MemoryAlarms()
+            val history = MemoryHistory()
+            val store = RingSessionStore()
+            val controller = RingController(
+                store, alarms, history, MemoryTimers(), MemorySettings(), RecordingScheduler(), mockk(relaxed = true), pending, realRuntime(), clock, notifier,
+                CountingSurfaces(), SilentLog(),
+            )
+            val missions = List(r.nextInt(1, 4)) { MissionConfig(MissionType.MATH) }
+            val alarm = alarms.add(
+                Alarm(
+                    label = "hard", missions = missions, repeatDaysMask = Alarm.EVERY_DAY_MASK,
+                    snooze = SnoozeSettings(enabled = false),
+                    antiOversleep = AntiOversleepSettings(emergencyStopEnabled = false, ringTimeoutMinutes = 0, holdToDismissSeconds = r.nextInt(0, 6), backupEnabled = r.nextBoolean()),
+                ),
+            )
+            val session = controller.begin(controller.onAlarmFired(alarm.id, clock.now)!!)!!
+            val target = RingTarget.of(session)
+            val stale = RingTarget(alarm.id, eventId = session.eventId + 1)
+            repeat(40) { step ->
+                val before = store.current!!
+                val proof = RingProof.entries[r.nextInt(RingProof.entries.size)]
+                val to = listOf(null, target, stale, RingTarget(alarm.id), RingTarget(alarm.id + 1))[r.nextInt(5)]
+                var claimedComplete = false
+                when (r.nextInt(7)) {
+                    0 -> { controller.dismiss(to, proof); claimedComplete = proof == RingProof.MissionsComplete }
+                    1 -> controller.snooze(to, proof)
+                    2 -> controller.emergencyStop(to, proof)
+                    3 -> controller.silenceTemporarily()
+                    4 -> { clock.now += r.nextLong(0, 7_200_000); controller.tick() }
+                    5 -> controller.noteMissionDone(r.nextInt(0, missions.size + 2))
+                    else -> controller.dismissSnoozed(alarm.id, if (r.nextBoolean()) session.eventId else RingTarget.ANY_EVENT)
+                }
+                val after = store.current
+                if (after == null) {
+                    assertTrue("run $run step $step: ended with ${before.missionsDone} of ${missions.size} done", claimedComplete && before.missionsDone == missions.size)
+                    assertEquals(AlarmOutcome.DISMISSED, history.get(session.eventId)!!.outcome)
+                    assertEquals(missions.size, history.get(session.eventId)!!.missionsDone)
+                    return@sequence
+                }
+                assertTrue("run $run step $step: progress went back", after.missionsDone >= before.missionsDone)
+                assertTrue("run $run step $step: progress past the end", after.missionsDone <= missions.size)
+                assertEquals("run $run step $step: event closed under a live ring", AlarmOutcome.RINGING, history.get(session.eventId)!!.outcome)
+            }
+        }
+    }
+
+    /** The same promise as a property of the policy, including the commands that have no controller entry point yet. */
+    @Test fun thePolicyNeverEndsAnUnfinishedStrictRingExceptByTheWayOut() {
+        val r = Random(812)
+        repeat(50_000) {
+            val missions = List(r.nextInt(1, 4)) { MissionConfig(MissionType.MATH) }
+            val session = RingSession(
+                alarm = Alarm(
+                    id = 1, missions = missions,
+                    snooze = SnoozeSettings(enabled = false),
+                    antiOversleep = AntiOversleepSettings(emergencyStopEnabled = false, ringTimeoutMinutes = 0, holdToDismissSeconds = r.nextInt(0, 30), muteBudget = r.nextInt(0, 6)),
+                ),
+                kind = RingKind.entries.filter { it != RingKind.TIMER }.random(r), phase = RingPhase.RINGING, eventId = r.nextLong(-1, 50), scheduledAt = 1, startedAt = 1,
+                snoozeCount = r.nextInt(0, 5), missionsDone = r.nextInt(0, missions.size), mutesUsed = r.nextInt(0, 6),
+            )
+            val command = RingCommand.entries[r.nextInt(RingCommand.entries.size)]
+            val proof = RingProof.entries[r.nextInt(RingProof.entries.size)]
+            val allowed = RingPolicy.decide(session, command, proof) is RingDecision.Allow
+            val ending = command in setOf(RingCommand.Snooze, RingCommand.Dismiss, RingCommand.HoldStop, RingCommand.Timeout, RingCommand.WayOutDone)
+            if (allowed && ending) assertEquals("$command with $proof on $session", RingCommand.WayOutDone, command)
+            if (command == RingCommand.WayOutDone) assertEquals(proof == RingProof.WayOutComplete, allowed)
+        }
     }
 }

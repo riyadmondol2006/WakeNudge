@@ -271,6 +271,14 @@ object BackupSanitizer {
             editLockMinutes = int(a.editLockMinutes, 0..120),
             // 0 is the "Never" choice, not a value to clamp; anything else out of range becomes a real timeout.
             ringTimeoutMinutes = if (a.ringTimeoutMinutes == AntiOversleepSettings.RING_TIMEOUT_NEVER) a.ringTimeoutMinutes else int(a.ringTimeoutMinutes, 1..60),
+            volumeFloorPercent = int(a.volumeFloorPercent, 0..100),
+            muteBudget = int(a.muteBudget, 0..5),
+            muteSeconds = int(a.muteSeconds, 5..60),
+            wayOutDelayMinutes = int(a.wayOutDelayMinutes, 0..30),
+            // Never below 3: an alarm with the Emergency stop off must always have a way out that can be finished.
+            wayOutCount = int(a.wayOutCount, 3..30),
+            fallbackCount = int(a.fallbackCount, 1..20),
+            resumeWindowMinutes = int(a.resumeWindowMinutes, 0..1_440),
         )
 
         private fun missions(label: String, owner: Alarm, source: List<MissionConfig>): List<MissionConfig> {

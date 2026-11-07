@@ -31,14 +31,19 @@ enum class RingPhase {
 
 /**
  * Which ring a button was shown for. A tap that arrives after another ring took over (an alarm firing over a ringing
- * timer, a queued alarm starting after a dismissal, a lagging watch) must not end that other ring: it would skip its
- * missions, cancel its backups and, for a delete-after-use alarm, delete it.
+ * timer, a queued alarm starting after a dismissal, a lagging watch, a notification left from yesterday's ring of the
+ * same alarm) must not end that other ring: it would skip its missions, cancel its backups and, for a delete-after-use
+ * alarm, delete it.
  */
-data class RingTarget(val alarmId: Long, val timerId: Long = 0) {
-    fun matches(session: RingSession): Boolean = session.alarm.id == alarmId && session.timerId == timerId
+data class RingTarget(val alarmId: Long, val timerId: Long = 0, val eventId: Long = ANY_EVENT) {
+    fun matches(session: RingSession): Boolean =
+        session.alarm.id == alarmId && session.timerId == timerId && (eventId == ANY_EVENT || eventId == session.eventId)
 
     companion object {
-        fun of(session: RingSession) = RingTarget(session.alarm.id, session.timerId)
+        /** For a caller that was not shown one particular ring (tests, internal callers). */
+        const val ANY_EVENT = Long.MIN_VALUE
+
+        fun of(session: RingSession) = RingTarget(session.alarm.id, session.timerId, session.eventId)
     }
 }
 
@@ -61,6 +66,7 @@ data class RingSession(
     val timerId: Long = 0,
     /** The ring screen crashed repeatedly: the notification carries the controls instead of launching the screen. */
     val safeMode: Boolean = false,
+    val mutesUsed: Int = 0,
 ) {
     val isTimer: Boolean get() = kind == RingKind.TIMER
     val isTest: Boolean get() = kind == RingKind.TEST
