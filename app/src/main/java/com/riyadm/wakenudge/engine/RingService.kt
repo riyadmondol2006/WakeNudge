@@ -1,10 +1,17 @@
 package com.riyadm.wakenudge.engine
 
+import android.app.KeyguardManager
 import android.app.Service
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
+import android.provider.Settings
+import androidx.core.content.ContextCompat
 import androidx.core.app.ServiceCompat
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.core.TimeSource
@@ -16,6 +23,9 @@ import com.riyadm.wakenudge.engine.audio.AlarmVibrator
 import com.riyadm.wakenudge.engine.audio.VoiceAnnouncer
 import com.riyadm.wakenudge.engine.notify.Notifier
 import com.riyadm.wakenudge.engine.notify.NotificationIds
+import com.riyadm.wakenudge.engine.policy.ResurfaceAction
+import com.riyadm.wakenudge.engine.policy.ResurfaceInput
+import com.riyadm.wakenudge.engine.policy.ResurfacePolicy
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -73,7 +83,8 @@ class RingService : Service() {
     private var ticker: Job? = null
     private var voiceJob: Job? = null
     private var voice: VoiceAnnouncer? = null
-    private var lastResurface = 0L
+    private val resurface = ResurfacePolicy()
+    private var screenReceiver: BroadcastReceiver? = null
     private var stoppedOnPurpose = false
     private var ringingStarted = false
     private var lastIntensified = false
@@ -190,6 +201,7 @@ class RingService : Service() {
     private fun observe() {
         if (observer?.isActive == true) return
         calls.start { store.current?.takeIf { ringingStarted }?.let { applyQuiet(it, time.elapsedMillis()) } }
+        watchScreen()
         observer = scope.launch {
             var previous: RingSession? = null
             store.session.collect { s ->
@@ -324,20 +336,74 @@ class RingService : Service() {
         return parts.joinToString(" ").ifBlank { getString(R.string.tts_announce_default) }
     }
 
-    /** If the user wandered off while the alarm rings, put the ring screen back in front. */
+    /**
+     * If the user left the ring screen while the alarm rings, bring it back, as [ResurfacePolicy] decides: started again
+     * when the alarm asks for that and "Display over other apps" allows it, otherwise a heads-up; the screen lit again after
+     * it was switched off. It does not matter how the user left (Home, Recents, a swiped card, split screen, another app),
+     * or whether the screen was ever shown (a ring back from a kill or a restart).
+     */
     private fun resurfaceIfAbandoned() {
         val s = store.current ?: return
-        if (s.phase != RingPhase.RINGING || store.isUiVisible.value) return
-        // Someone is calling, or making a call through the Emergency pause: nothing may cover the phone app.
-        if (s.pausedAt(time.elapsedMillis()) || runCatching { calls.callActive() }.getOrDefault(false)) return
-        val now = time.nowMillis()
-        if (now - lastResurface < RESURFACE_EVERY_MS || now - s.startedAt < RESURFACE_EVERY_MS) return
-        scope.launch {
-            if (settings.current().keepRingScreenFront) {
-                lastResurface = now
+        val now = time.elapsedMillis()
+        val ao = s.alarm.antiOversleep
+        val locked = runCatching { getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true }.getOrDefault(false)
+        val overlays = canDrawOverlays()
+        val input = ResurfaceInput(
+            now = now,
+            ringing = s.phase == RingPhase.RINGING,
+            returnToAlarm = ao.returnToAlarm,
+            forceReturn = ao.forceReturn && !s.isTimer,
+            uiInFront = store.isUiInFront,
+            screenOn = runCatching { getSystemService(PowerManager::class.java)?.isInteractive != false }.getOrDefault(true),
+            keyguardLocked = locked,
+            canDrawOverlays = overlays,
+            emergencyPaused = s.pausedAt(now),
+            callActive = runCatching { calls.callActive() }.getOrDefault(false),
+            systemDialogExpected = now < store.systemDialogExpectedUntil,
+        )
+        when (resurface.decide(input)) {
+            ResurfaceAction.NONE -> Unit
+            ResurfaceAction.PULL_BACK -> if (!pullBack(s)) notifier.postRing(s, alertAgain = true, fullScreen = false)
+            ResurfaceAction.ALERT -> notifier.postRing(s, alertAgain = true, fullScreen = false)
+            ResurfaceAction.WAKE -> {
+                diagnostics.info("Service", "the screen is off while the alarm rings; lighting it again")
+                locks.wakeScreen()
                 notifier.postRing(s, alertAgain = true)
+                if (overlays && !locked && ao.forceReturn && !s.isTimer) pullBack(s)
             }
         }
+    }
+
+    /** Starts the ring screen from the background, which Android allows with "Display over other apps". */
+    private fun pullBack(s: RingSession): Boolean {
+        val started = runCatching { startActivity(notifier.ringScreenIntent(s.safeMode)) }
+            .onFailure { diagnostics.warn("Service", "the ring screen could not be brought back: ${it.message}") }
+            .isSuccess
+        if (started) {
+            controller.notePullBack()
+            diagnostics.info("Service", "brought the ring screen back (${resurface.pullBackStreak} in a row)")
+        }
+        return started
+    }
+
+    private fun canDrawOverlays(): Boolean = runCatching { Settings.canDrawOverlays(this) }.getOrDefault(false)
+
+    /** Follows the power button: a screen switched off mid-ring is lit again, and fast repeated presses (SOS) are left alone. */
+    private fun watchScreen() {
+        if (screenReceiver != null) return
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action == Intent.ACTION_SCREEN_OFF) resurface.onScreenOff(time.elapsedMillis())
+            }
+        }
+        if (runCatching { ContextCompat.registerReceiver(this, receiver, IntentFilter(Intent.ACTION_SCREEN_OFF), ContextCompat.RECEIVER_NOT_EXPORTED) }.isSuccess) {
+            screenReceiver = receiver
+        }
+    }
+
+    private fun unwatchScreen() {
+        screenReceiver?.let { runCatching { unregisterReceiver(it) } }
+        screenReceiver = null
     }
 
     /** Returns whether the service really became a foreground service, under the best type the system allows it. */
@@ -386,6 +452,7 @@ class RingService : Service() {
         stoppedOnPurpose = true
         stopSounds()
         calls.stop()
+        unwatchScreen()
         observer?.cancel()
         ticker?.cancel()
         observer = null
@@ -401,6 +468,7 @@ class RingService : Service() {
         foregroundType = 0
         scope.cancel()
         runCatching { calls.stop() }
+        runCatching { unwatchScreen() }
         audio.stop()
         vibrator.stop()
         voice?.shutdown()
@@ -447,6 +515,5 @@ class RingService : Service() {
             private set
 
         private const val VOICE_FIRST_DELAY_MS = 2_500L
-        private const val RESURFACE_EVERY_MS = 20_000L
     }
 }

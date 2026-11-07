@@ -83,9 +83,41 @@ UI observe.
   change listener on Android 12+), with no phone permission: a phone call, or one ringing in, keeps the ring quiet for as
   long as it lasts; a call in an app at most 10 minutes per ring (`CallPause`). Every pause is counted in the history.
 
+### Coming back to the ring screen
+
+`RingService` looks once a second (and on `SCREEN_OFF`) and asks `ResurfacePolicy`, which is pure and tested on a fake
+clock. "In front" is the ring screen resumed and not in multi-window (`RingSessionStore.isUiInFront`, set by `RingActivity`
+and `SafeRingActivity`); `RingActivity` is also `resizeableActivity="false"`, so on a phone it cannot share the screen.
+
+- Left while unlocked (Home, Recents, a swiped card, Clear all, split screen, another app, or a ring that came back from a
+  kill or a restart and never had a screen): an alarm with `forceReturn` is started again by the service 1 s later, then
+  with a backoff of 1, 1, 5 and 10 s that resets after a minute on the ring screen. Android allows a background start only
+  with "Display over other apps" (`SYSTEM_ALERT_WINDOW`); without it, or without `forceReturn`, the notification alerts
+  again every 20 s as a heads-up, and Alarm Health says the screen cannot come back. Each pull-back is counted.
+- Locked: only that heads-up, never a full-screen launch, so the lock screen's Emergency call is never covered.
+- Screen switched off: lit again after 3 s, with the full-screen notification. Three screen-offs within 6 s look like an
+  emergency SOS and stop everything for 60 s.
+- Never during a call or one ringing in, an Emergency pause, or for 30 s after a mission opened a permission dialog or a
+  settings screen (`LocalExpectSystemDialog`, `RingSessionStore.expectSystemDialog`).
+- Opening the app during a ring (`MainActivity.onResume`) shows the ring screen.
+
+### Ring screen
+
+The one thing to do comes first and biggest (the mission, the slide or the hold), snooze below it and smaller, then the way
+out and Emergency. With `fullBrightness` the window is at full brightness while it rings (the system setting is never
+touched). An alarm whose way out opens late gets `FLAG_SECURE`. With `calmOnlyOnProgress` a touch or key does not calm an
+escalated alarm (`noteInteraction`); only mission input does (`noteProgress`). Each alarm's `volumeKeyAction` decides what
+the keys do. The mute in a mission spends the alarm's `muteBudget` of `muteSeconds` mutes (a key set to silence spends the
+same), ends early after 20 s without mission progress, is saved with the ring and never comes back after a restart. A
+dismissal from the screen shows "You're up" for a moment, saying whether a still-awake check follows.
+
 ### Audio
 
-`AlarmAudioEngine` plays with `USAGE_ALARM`, saves the alarm-stream volume on start and restores it on stop.
+`AlarmAudioEngine` plays with `USAGE_ALARM`, saves the alarm-stream volume on start and restores it on stop. While it
+rings, the heartbeat holds the alarm's floor (`volumeFloorPercent`, or the whole stream with `useMaxSystemVolume`): turned
+down by the keys, the shade slider or Settings, the stream is back within a second; it is only ever raised, and on a
+headset the hearing cap wins (`VolumePlanner.floorIndex`). An alarm with `forceSpeaker` (or the phone-speaker route) is
+checked against where the sound really goes (`MediaPlayer.routedDevice`), not only where it was asked to go.
 `VolumePlanner` computes the ramp (up to 10 minutes), the Extra Loud boost (`LoudnessEnhancer`) and the 40-second
 intensify. On headphones a hearing-safety cap applies.
 

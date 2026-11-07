@@ -399,4 +399,13 @@ class HealthEvaluatorTest {
         assertEquals(Severity.INFO, evaluate(HealthSnapshot(batterySaver = true)).severity("battery_saver"))
         assertTrue(evaluate(HealthSnapshot()).none { it.id == "battery_saver" })
     }
+
+    @Test fun `the overlay permission is only mentioned when an alarm wants its screen back, and is a warning without it`() {
+        assertTrue(evaluate(HealthSnapshot()).none { it.id == "overlay" })
+        assertTrue(evaluate(HealthSnapshot(canDrawOverlays = false)).none { it.id == "overlay" })
+        assertEquals(Severity.OK, evaluate(HealthSnapshot(alarmsReturning = 2)).severity("overlay"))
+        val off = evaluate(HealthSnapshot(alarmsReturning = 2, canDrawOverlays = false))
+        assertEquals(Severity.WARNING, off.severity("overlay"))
+        assertEquals(HealthFixKind.OVERLAY, off.fixKind("overlay"))
+    }
 }

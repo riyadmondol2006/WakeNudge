@@ -303,16 +303,19 @@ class RingTrapTest {
         }
     }
 
-    @Test fun `Emergency pauses, however many, never stand in the way of an end`() = runBlocking {
+    @Test fun `Emergency pauses and mutes, however many, never stand in the way of an end`() = runBlocking {
         for ((level, anti) in shapes) for (missions in missionLists) {
             val a = alarm(anti, missions)
             controller.begin(controller.onAlarmFired(a.id, clock.now)!!)
             repeat(6) {
                 assertTrue(level, controller.pauseForEmergency(RingTarget.of(store.current!!), RingProof.Gesture))
+                // Mutes and key silences too: whatever the budget, none of them is an end, and none stands in the way of one.
+                controller.muteForMission(RingTarget.of(store.current!!), RingProof.Gesture)
+                controller.silenceTemporarily()
                 clock.now += 60_000
                 controller.tick()
             }
-            assertTrue("$level, ${missions.map { it.type }} after six pauses", finish())
+            assertTrue("$level, ${missions.map { it.type }} after six pauses and every mute", finish())
             assertNull(store.current)
             alarms.rows.remove(a.id)
             clock.now += 1_000

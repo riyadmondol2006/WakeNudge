@@ -25,6 +25,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
     <!-- Needed by the loudness-enhancer audio effect used by Extra Loud mode. -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!--
+        "Display over other apps", asked for by the user in Alarm health and never on its own. It draws nothing over other
+        apps: it is what Android requires before a background service may start an activity, here the ring screen coming
+        back after the user left it while the alarm rings. Without it the alarm only alerts again.
+    -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <!-- Pulled in by WorkManager (via Glance widgets), which WakeNudge only uses without network constraints. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
@@ -99,7 +105,10 @@
             </intent-filter>
         </activity>
 
-        <!-- The alarm screen: over the lock screen, wakes the display. -->
+        <!--
+            The alarm screen: over the lock screen, wakes the display. Not resizeable, so on a phone it cannot share the
+            screen with another app whose pane could reach Settings while the alarm rings. Large screens may ignore this.
+        -->
         <activity
             android:name=".ui.ring.RingActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection"
@@ -107,6 +116,7 @@
             android:excludeFromRecents="true"
             android:exported="false"
             android:launchMode="singleTask"
+            android:resizeableActivity="false"
             android:showOnLockScreen="true"
             android:showWhenLocked="true"
             android:taskAffinity=""

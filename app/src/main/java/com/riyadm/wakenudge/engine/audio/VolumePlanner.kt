@@ -83,6 +83,25 @@ object VolumePlanner {
         )
     }
 
+    /**
+     * The lowest alarm-stream index the alarm allows while it rings, or null when it has no floor: [floorPercent] of the
+     * stream, or all of it with [VolumeSettings.useMaxSystemVolume]. On a headset with hearing protection the cap wins, so
+     * the floor never pushes sound into someone's ears past it.
+     */
+    fun floorIndex(
+        volume: VolumeSettings,
+        floorPercent: Int,
+        streamMax: Int,
+        headsetRoute: Boolean,
+        hearingCapEnabled: Boolean,
+        capPercent: Int,
+    ): Int? {
+        var percent = if (volume.useMaxSystemVolume) 100 else floorPercent.coerceIn(0, 100)
+        if (percent <= 0 || streamMax <= 0) return null
+        if (headsetRoute && hearingCapEnabled) percent = minOf(percent, capPercent.coerceIn(10, 100))
+        return percentToIndex(percent, streamMax)
+    }
+
     fun percentToIndex(percent: Int, streamMax: Int): Int =
         ceil(streamMax * percent.coerceIn(0, 100) / 100.0).roundToInt().coerceIn(1, streamMax.coerceAtLeast(1))
 

@@ -313,6 +313,12 @@ internal class MissionFallback(val steps: (FallbackReason) -> Int, val start: (F
 
 internal val LocalMissionFallback = staticCompositionLocalOf<MissionFallback?> { null }
 
+/**
+ * Called just before a mission opens a permission dialog or a settings screen, so the ring screen is not pulled back over
+ * it for a short while. Provided by the ring screen; does nothing elsewhere.
+ */
+val LocalExpectSystemDialog = staticCompositionLocalOf<() -> Unit> { {} }
+
 /** The phone cannot do this mission: during a real ring the backup mission takes over at once. */
 @Composable
 internal fun ReportFallback(reason: FallbackReason) {
@@ -369,6 +375,7 @@ internal fun PermissionGate(
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
+    val expectDialog = LocalExpectSystemDialog.current
     val resumeCount = rememberResumeCount()
     var granted by remember { mutableStateOf(isPermissionGranted(context, permission)) }
     var permanentlyDenied by rememberSaveable { mutableStateOf(false) }
@@ -392,9 +399,9 @@ internal fun PermissionGate(
                 body = if (permanentlyDenied) stringResource(R.string.mission_permission_denied_forever, rationale) else rationale,
             ) {
                 if (permanentlyDenied) {
-                    MissionButton(stringResource(R.string.mission_open_app_settings), { openAppSettings(context) }, Modifier.fillMaxWidth(), icon = Icons.Filled.Settings)
+                    MissionButton(stringResource(R.string.mission_open_app_settings), { expectDialog(); openAppSettings(context) }, Modifier.fillMaxWidth(), icon = Icons.Filled.Settings)
                 } else {
-                    MissionButton(stringResource(R.string.mission_allow_access), { launcher.launch(permission) }, Modifier.fillMaxWidth())
+                    MissionButton(stringResource(R.string.mission_allow_access), { expectDialog(); launcher.launch(permission) }, Modifier.fillMaxWidth())
                 }
                 extraActions()
                 // Without the permission this mission cannot happen, whatever the reason (refused, revoked, or a dialog

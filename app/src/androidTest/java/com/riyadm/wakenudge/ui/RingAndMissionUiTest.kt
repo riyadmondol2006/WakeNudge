@@ -45,11 +45,12 @@ class RingAndMissionUiTest {
 
     private class Counters {
         val snooze = AtomicInteger(); val dismiss = AtomicInteger(); val emergency = AtomicInteger(); val progress = AtomicInteger(-1)
-        val call = AtomicInteger(); val wayOut = AtomicInteger()
+        val call = AtomicInteger(); val wayOut = AtomicInteger(); val mute = AtomicInteger()
         fun actions() = RingActions(
             onSnooze = { snooze.incrementAndGet() }, onDismiss = { dismiss.incrementAndGet() },
             onEmergencyStop = { emergency.incrementAndGet() }, onAddMinute = {}, onHide = {}, onInteraction = {},
             onMissionProgress = { progress.set(it) }, onEmergencyCall = { call.incrementAndGet() }, onWayOut = { wayOut.incrementAndGet() },
+            onMute = { mute.incrementAndGet() },
         )
     }
 
@@ -152,6 +153,34 @@ class RingAndMissionUiTest {
         compose.onNodeWithText("Continue").assertDoesNotExist()
         compose.onNodeWithContentDescription("Submit answer").assertIsDisplayed()
         assertEquals(0, completed)
+    }
+
+    /** Half asleep, the one thing to do comes first and biggest; snooze is below it. */
+    @Test fun theMissionButtonComesBeforeSnoozeAndIsBigger() {
+        val c = Counters()
+        show(session(Alarm(missions = math, snooze = SnoozeSettings(minutes = 5))), c)
+        val primary = compose.onNodeWithText("Solve to dismiss").fetchSemanticsNode().boundsInRoot
+        val snooze = compose.onNodeWithText("Snooze · 5 min").fetchSemanticsNode().boundsInRoot
+        assertTrue("primary above snooze", primary.top < snooze.top)
+        assertTrue("primary taller", primary.height >= snooze.height)
+    }
+
+    @Test fun aMissionOffersItsMuteBudgetAndSaysWhenItIsSpent() {
+        val c = Counters()
+        show(session(Alarm(missions = math, antiOversleep = AntiOversleepSettings(muteBudget = 2, muteSeconds = 20))), c)
+        compose.onNodeWithText("Solve to dismiss").performClick()
+        compose.onNodeWithText("Mute 20 s · 2 left").performClick()
+        assertEquals(1, c.mute.get())
+    }
+
+    @Test fun aSpentMuteBudgetIsSaidPlainly() {
+        val c = Counters()
+        show(RingSession(
+            alarm = Alarm(missions = math, antiOversleep = AntiOversleepSettings(muteBudget = 1)), kind = RingKind.PRIMARY, phase = RingPhase.RINGING,
+            eventId = 1, scheduledAt = 0, startedAt = 0, mutesUsed = 1,
+        ), c)
+        compose.onNodeWithText("Solve to dismiss").performClick()
+        compose.onNodeWithText("No mutes left: the sound stays on until you finish").assertIsDisplayed()
     }
 
     @Test fun snoozeButtonDisappearsAfterTheLimit() {

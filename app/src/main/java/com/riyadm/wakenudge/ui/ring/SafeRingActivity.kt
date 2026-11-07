@@ -83,6 +83,16 @@ class SafeRingActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        store.setUiResumed(true, isInMultiWindowMode)
+    }
+
+    override fun onPause() {
+        store.setUiResumed(false, isInMultiWindowMode)
+        super.onPause()
+    }
+
     private fun dp(value: Int) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics).toInt()
 
     private fun text(sizeSp: Float, bold: Boolean = false) = TextView(this).apply {

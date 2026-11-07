@@ -631,24 +631,48 @@ class RingController @Inject constructor(
         }
     }
 
-    /** Called for every touch/key/mission step on the ring screen; calms an escalated alarm down. */
+    /**
+     * A touch, a key or a button on the ring screen. It calms an escalated alarm, unless the alarm says only mission progress
+     * may ([AntiOversleepSettings.calmOnlyOnProgress]): someone half asleep can touch a screen without being up.
+     */
     fun noteInteraction() {
         val now = time.elapsedMillis()
-        store.update { s ->
-            if (now - s.lastInteractionAt < 1_000 && !s.intensified) return@update s
-            s.copy(lastInteractionAt = now, intensified = s.kind == RingKind.BACKUP || s.resumes > 0)
-        }
+        store.update { s -> if (s.alarm.antiOversleep.calmOnlyOnProgress && !s.isTimer) s else calmed(s, now) }
     }
 
-    fun silenceTemporarily() {
+    /** Something happened in a mission (an answer, a tap on its board, a scan, a step): it calms the alarm and keeps a mute going. */
+    fun noteProgress() {
         val now = time.elapsedMillis()
+        store.update { s -> calmed(s, now).let { if (now - it.lastProgressAt < 1_000) it else it.copy(lastProgressAt = now) } }
+    }
+
+    private fun calmed(s: RingSession, now: Long): RingSession {
+        if (now - s.lastInteractionAt < 1_000 && !s.intensified) return s
+        return s.copy(lastInteractionAt = now, intensified = s.kind == RingKind.BACKUP || s.resumes > 0)
+    }
+
+    /** A volume key set to silence the alarm for a moment. It spends the same budget as the mute in a mission. */
+    fun silenceTemporarily() {
+        mute(null, RingCommand.KeySilence, RingProof.None)
+    }
+
+    /** The mute button of a mission: the alarm's budget of mutes, each [RingPolicy.muteMs] long, saved with the ring. */
+    fun muteForMission(target: RingTarget? = null, proof: RingProof = RingProof.None): Boolean = mute(target, RingCommand.MissionMute, proof)
+
+    private fun mute(target: RingTarget?, command: RingCommand, proof: RingProof): Boolean {
+        val now = time.elapsedMillis()
+        var muted = false
         store.update { s ->
-            if (decide(s, RingCommand.KeySilence, RingProof.None) is RingDecision.Allow) {
-                s.copy(silencedUntil = now + RingIds.SILENCE_MS, lastInteractionAt = now)
-            } else {
-                s
-            }
+            val alreadyQuiet = s.silencedUntil > now
+            if (alreadyQuiet || (target != null && !target.matches(s)) || decide(s, command, proof) !is RingDecision.Allow) return@update s
+            muted = true
+            s.copy(mutesUsed = s.mutesUsed + 1, silencedUntil = now + RingPolicy.muteMs(s), muteStartedAt = now)
         }
+        store.current?.takeIf { muted }?.let {
+            diagnostics.info("Ring", "alarm ${it.alarm.id} muted (${it.mutesUsed} of ${it.alarm.antiOversleep.muteBudget})")
+            rememberRing(it)
+        }
+        return muted
     }
 
     /**
@@ -673,7 +697,12 @@ class RingController @Inject constructor(
     suspend fun tick() {
         val s = store.current ?: return
         val now = time.elapsedMillis()
-        if (s.silencedUntil in 1..now) store.update { it.copy(silencedUntil = 0) }
+        if (s.silencedUntil in 1..now) store.update { it.copy(silencedUntil = 0, muteStartedAt = 0) }
+        // A mute is for doing the mission in peace: without progress it ends early, and touching the screen does not count.
+        if (s.silencedUntil > now && s.muteStartedAt > 0 && now - maxOf(s.muteStartedAt, s.lastProgressAt) >= RingPolicy.MUTE_IDLE_MS) {
+            store.update { it.copy(silencedUntil = 0, muteStartedAt = 0) }
+            diagnostics.info("Ring", "alarm ${s.alarm.id}: mute ended early, no mission progress")
+        }
         // The pause is over: the alarm comes back as it was, and an ignored ring counts from now, not from before the call.
         if (s.pausedUntil in 1..now) store.update { it.copy(pausedUntil = 0, pauseSilences = false, lastInteractionAt = now) }
 
@@ -800,6 +829,12 @@ class RingController @Inject constructor(
             }
         }
         if (advanced) store.current?.let(::rememberRing)
+    }
+
+    /** The ring screen was brought back after the user left it. Counted, and saved with the ring. */
+    fun notePullBack() {
+        store.update { it.copy(pullBacks = it.pullBacks + 1) }
+        store.current?.let(::rememberRing)
     }
 
     /** A backup mission stood in for one this phone could not do. Recorded in the history. */

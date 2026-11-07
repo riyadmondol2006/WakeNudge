@@ -85,6 +85,10 @@ data class RingSession(
     val pauseSilences: Boolean = false,
     /** Sums done on the safe ring screen, counted by the controller. */
     val safeSumsDone: Int = 0,
+    /** The last sign of mission progress (an answer, a tap on the board, a scan), on the elapsed clock; 0 when none yet. */
+    val lastProgressAt: Long = 0,
+    /** When the running mute began, on the elapsed clock; 0 when none. A mute ends early without mission progress. */
+    val muteStartedAt: Long = 0,
 ) {
     /** Whether an Emergency pause is running at [elapsedNow]. */
     fun pausedAt(elapsedNow: Long): Boolean = pausedUntil > elapsedNow
@@ -123,11 +127,34 @@ class RingSessionStore @Inject constructor() {
         state.update { it?.let(transform) }
     }
 
-    /** Whether the ring screen is on top; the service re-surfaces it when the user wanders away. */
+    /** Whether the ring screen is started (visible, possibly behind a dialog or beside another app). */
     private val uiVisible = MutableStateFlow(false)
     val isUiVisible: StateFlow<Boolean> = uiVisible.asStateFlow()
     fun setUiVisible(visible: Boolean) {
         uiVisible.value = visible
+    }
+
+    /**
+     * Whether the ring screen is really in front: resumed, and not sharing the window with another app (in split screen
+     * the other pane can reach Settings while the ring screen stays resumed). What the pull-back looks at.
+     */
+    @Volatile var isUiResumed: Boolean = false
+        private set
+    @Volatile var isUiInMultiWindow: Boolean = false
+        private set
+    val isUiInFront: Boolean get() = isUiResumed && !isUiInMultiWindow
+
+    fun setUiResumed(resumed: Boolean, inMultiWindow: Boolean) {
+        isUiResumed = resumed
+        isUiInMultiWindow = inMultiWindow
+    }
+
+    /** Until when (elapsed clock) a mission's permission dialog or settings trip keeps the ring screen from being pulled back. */
+    @Volatile var systemDialogExpectedUntil: Long = 0
+        private set
+
+    fun expectSystemDialog(untilElapsed: Long) {
+        systemDialogExpectedUntil = maxOf(systemDialogExpectedUntil, untilElapsed)
     }
 }
 

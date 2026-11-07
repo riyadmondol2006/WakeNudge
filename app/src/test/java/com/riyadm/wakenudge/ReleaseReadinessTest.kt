@@ -118,7 +118,10 @@ class ReleaseReadinessTest {
             "android.permission.REQUEST_INSTALL_PACKAGES", "android.permission.ACCESS_FINE_LOCATION",
             "android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_BACKGROUND_LOCATION",
             "android.permission.READ_CONTACTS", "android.permission.RECORD_AUDIO", "android.permission.READ_EXTERNAL_STORAGE",
-            "android.permission.MANAGE_EXTERNAL_STORAGE", "android.permission.READ_PHONE_STATE", "android.permission.SYSTEM_ALERT_WINDOW",
+            "android.permission.MANAGE_EXTERNAL_STORAGE", "android.permission.READ_PHONE_STATE",
+            // SYSTEM_ALERT_WINDOW is allowed on purpose: Android lets a background service start an activity only with
+            // it, which is how the ring screen comes back after the user leaves it while the alarm rings. Nothing is drawn
+            // over other apps, and the user grants it from Alarm health. See docs/PERMISSIONS.md.
         )
         assertEquals("unexpected permissions", emptySet<String>(), permissions.toSet().intersect(banned))
         // INTERNET is for the optional update check alone.
@@ -158,8 +161,13 @@ class ReleaseReadinessTest {
     @Test fun `no screen orientation or resizability restrictions, which large screens ignore`() {
         val text = manifestFile.readText()
         assertFalse(text.contains("screenOrientation"))
-        assertFalse(text.contains("resizeableActivity=\"false\""))
         assertFalse(text.contains("maxAspectRatio"))
+        // One exception: the ring screen is not resizeable, so on a phone it cannot share the screen with another app whose
+        // pane could reach Settings while the alarm rings. Large screens may ignore it; that is a stated limit.
+        val restricted = application.children("activity").filter { it.getAttribute("android:resizeableActivity") == "false" }
+            .map { it.getAttribute("android:name") }
+        assertEquals(listOf(".ui.ring.RingActivity"), restricted)
+        assertEquals("only that one", 1, Regex("resizeableActivity=\"false\"").findAll(text).count())
     }
 
     @Test fun `every component states android exported and only the reviewed ones are exported`() {

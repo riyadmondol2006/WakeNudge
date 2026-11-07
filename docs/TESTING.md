@@ -4,10 +4,10 @@ An alarm clock is judged on the one morning it fails, so testing is split by wha
 
 | Layer | Where it runs | What it proves |
 |---|---|---|
-| **JVM unit tests** (815) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
+| **JVM unit tests** (841) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
 | **Fuzz tests** (14, part of the JVM tests) | Your computer | 20,000 seeded random alarm/clock/zone combinations never crash the scheduler or yield a time in the past; corrupted and hostile backup files are rejected or sanitised, never half-applied; random commands from stale buttons, keys and forged claims never end a ring whose missions are unfinished |
 | **Instrumented engine tests** (about 130, with the migration tests) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
-| **Instrumented UI tests** (about 65, 25 of them for the update popup and the About screen) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions getting a backup mission (never Continue), Emergency and the way out by click action at font scale 2.0 |
+| **Instrumented UI tests** (about 70, 25 of them for the update popup and the About screen) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions getting a backup mission (never Continue), Emergency and the way out by click action at font scale 2.0 |
 
 Run the JVM tests with `./gradlew :app:testDebugUnitTest`. For the instrumented tests see the warning in the README:
 **target exactly one device**.
@@ -92,6 +92,12 @@ began life as a question; the ones that found real bugs are marked ✱ and were 
   then the sound stays) and its expiry. `CallPauseTest`, `SensorAndCameraWatchTest` (silent sensors, a black camera with
   the torch tried, a dark room that is not a dead camera). `NoContinueTest` fails if a Continue string or `MissionWayOut`
   comes back.
+- `ResurfacePolicyTest`: the pull-back table second by second (1, 1, 1, 5, 10 s backoff and its reset after a minute, a
+  ring that never had a screen, only a heads-up without the permission or while locked, nothing over a call, a pause or a
+  permission dialog, the screen lit 3 s after it goes off, an SOS of three presses holding everything off for a minute).
+  `VolumeFloorTest`: the floor against the hearing cap (the cap wins). `MuteAndCalmTest`: the mute budget spent one at a
+  time and saved through a restart without the mute coming back, a mute that ends after 20 s without progress however much
+  the screen is touched, a key silence spending the same budget, and touches that no longer calm an alarm.
 - The app force-killed mid-ring (chaos test): the backup alarm still rings.
 - Rapid snooze/dismiss mashing, double-delivered triggers, concurrent settings writes, missions that cannot be completed
   on this phone, permission revoked mid-flow, huge and hostile labels, 200 % font, RTL, time-zone jumps, DST gaps.
@@ -161,6 +167,8 @@ These could not be done safely or at all in the development setup. They are the 
 | Human **shaking, squats and steps** | Counters are unit-tested with synthetic sensor traces; real motion was not performed |
 | The **backup mission** on a real phone: camera permission revoked before a locked ring, NFC off, the lens covered for a minute, a dead sensor | `FallbackChainTest`, `SensorAndCameraWatchTest` and `RingTrapTest` cover the rules; `RingAndMissionUiTest` and `RobustUiTest` (no Continue node, a keypad appears) are compiled, not yet run on a device. The permission dialog over the lock screen was not observed |
 | **Emergency** on a real phone: the phone app or the lock-screen Emergency call button, a real incoming call during a ring, the safe ring screen after two crashes | The pause, its count and the call budget are JVM-tested (`WayOutAndEmergencyTest`, `CallPauseTest`); opening the dialer, the bouncer and `AudioManager` mode changes were not observed, nor `SafeRingActivity` on the lock screen |
+| **Coming back to the ring screen** on a real phone: Home, Recents, a swiped card, Clear all, split screen, opening the app, a ring back from a kill or a restart, both navigation modes, the screen switched off, a 5-press SOS, the camera double-press, Circle to Search under `FLAG_SECURE` | `ResurfacePolicyTest` covers the rules on the JVM; `RingServiceInstrumentedTest` (Home, Recents and a swipe in Recents with the permission granted by `appops`, and the screen staying away without it) is compiled, not yet run on a device. Whether Android allows the start during Overview, and whether a re-alert disturbs the lock-screen Emergency dialer, were not observed |
+| The **volume lock** and **forced speaker** on a real phone: keys, the shade slider and Settings turning the alarm down, headphones with the hearing cap | `VolumeFloorTest` covers the floor and the cap; the heartbeat that holds it and the routed-device check were not observed with real audio |
 | **Focus Tap** half asleep, and **mission rotation** over real mornings | `FocusGameTest`, `MissionRotationTest` (a month, across daylight-saving changes) and `RotationRingTest` cover the rules; `FocusTapUiTest` (touch, screen reader, RTL, font scale 2.0) is compiled but not yet run on a device. Whether it takes under a minute first thing in the morning, or can be done on reflex, was not tried |
 | **NFC** tag read over the lock screen | The mission logic is tested; no tag was scanned |
 | **QR/barcode** decode with a printed code; **photo match** against a detailed real scene | Decoder/matcher tested on generated images only |

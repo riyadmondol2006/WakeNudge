@@ -8,6 +8,8 @@ import com.riyadm.wakenudge.domain.model.AlarmGroup
 import com.riyadm.wakenudge.domain.model.AppSettings
 import com.riyadm.wakenudge.domain.model.ExceptionDate
 import com.riyadm.wakenudge.domain.model.VacationMode
+import com.riyadm.wakenudge.domain.model.withGlobalsOf
+import com.riyadm.wakenudge.domain.repository.AlarmRepository
 import com.riyadm.wakenudge.domain.repository.ExceptionRepository
 import com.riyadm.wakenudge.domain.repository.GroupRepository
 import com.riyadm.wakenudge.domain.repository.SettingsRepository
@@ -33,6 +35,7 @@ import kotlinx.coroutines.withContext
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repo: SettingsRepository,
+    private val alarms: AlarmRepository,
     private val scheduler: AlarmScheduler,
     val soundPreviewer: SoundPreviewer,
     val vibrator: AlarmVibrator,
@@ -50,6 +53,19 @@ class SettingsViewModel @Inject constructor(
     }.stateIn<Alarm?>(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun update(block: (AppSettings) -> AppSettings) = viewModelScope.launch { repo.update(block) }
+
+    /**
+     * The volume keys and keeping the alarm screen in front are per alarm now; until the alarm editor has them, this page
+     * sets them for every alarm and for new ones, so the choice made here is the one that rings.
+     */
+    fun updateRingingForAllAlarms(block: (AppSettings) -> AppSettings) = persist {
+        repo.update { s -> block(s).let { n -> n.copy(defaults = n.defaults.copy(antiOversleep = n.defaults.antiOversleep.withGlobalsOf(n))) } }
+        val now = repo.current()
+        for (alarm in alarms.getAlarms()) {
+            val copied = alarm.antiOversleep.withGlobalsOf(now)
+            if (copied != alarm.antiOversleep) alarms.save(alarm.copy(antiOversleep = copied))
+        }
+    }
 
     fun updateDefaults(transform: (Alarm) -> Alarm) = viewModelScope.launch {
         repo.update { s ->

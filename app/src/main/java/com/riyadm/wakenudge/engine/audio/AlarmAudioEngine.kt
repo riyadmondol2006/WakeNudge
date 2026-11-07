@@ -241,7 +241,7 @@ class AlarmAudioEngine @Inject constructor(
     private suspend fun playWithFallback(candidates: List<ResolvedSound>, gen: Int, reason: String?, fallbackFrom: Int): PlayResult {
         val cfg = config ?: return PlayResult.ABORTED
         for ((index, candidate) in candidates.withIndex()) {
-            val player = loadPlayer(candidate, cfg.settings)
+            val player = loadPlayer(candidate, cfg)
             if (gen != generation) {
                 player?.let { runCatching { it.release() } }
                 return PlayResult.ABORTED
@@ -279,8 +279,8 @@ class AlarmAudioEngine @Inject constructor(
      * Opens a sound off the main thread, giving up after [PREPARE_TIMEOUT_MS]: a song on a cloud drive or a stalled
      * storage card can block for a very long time, and an alarm must start within seconds.
      */
-    private suspend fun loadPlayer(sound: ResolvedSound, settings: AppSettings): MediaPlayer? {
-        val loading = ioScope.async { prepare(sound, settings) }
+    private suspend fun loadPlayer(sound: ResolvedSound, cfg: Config): MediaPlayer? {
+        val loading = ioScope.async { prepare(sound, cfg) }
         val player = withTimeoutOrNull(PREPARE_TIMEOUT_MS) { loading.await() }
         if (player == null) {
             if (!loading.isCompleted) diagnostics.warn("Audio", "Opening ${sound.bundledId ?: sound.uri} took longer than ${PREPARE_TIMEOUT_MS / 1000}s; moving on")
@@ -290,7 +290,7 @@ class AlarmAudioEngine @Inject constructor(
         return player
     }
 
-    private fun prepare(sound: ResolvedSound, settings: AppSettings): MediaPlayer? {
+    private fun prepare(sound: ResolvedSound, cfg: Config): MediaPlayer? {
         val player = MediaPlayer()
         return try {
             prepareHook?.invoke(sound)
@@ -304,7 +304,7 @@ class AlarmAudioEngine @Inject constructor(
             player.setDataSource(context, uri)
             player.isLooping = sound.loop
             player.prepare()
-            routePlayer(player, settings, headsetConnectedNow)
+            routePlayer(player, cfg, headsetConnectedNow)
             player.setVolume(0f, 0f)
             player
         } catch (t: Throwable) {
@@ -318,9 +318,9 @@ class AlarmAudioEngine @Inject constructor(
      * Pins the player to the phone speaker when the user asked for that, and decides whether a headset is "really
      * the route": only then does the hearing-safety cap apply. A headset that merely exists is not enough.
      */
-    private fun routePlayer(player: MediaPlayer, settings: AppSettings, headsetConnected: Boolean) {
+    private fun routePlayer(player: MediaPlayer, cfg: Config, headsetConnected: Boolean) {
         headsetRouted = headsetConnected
-        if (settings.audioRoute == AudioRoute.PHONE_SPEAKER && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        if (wantsSpeaker(cfg) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             val speaker = safely("speaker lookup", null) { route.builtInSpeaker() }
             if (speaker != null && runCatching { player.setPreferredDevice(speaker) }.getOrDefault(false)) headsetRouted = false
         }
@@ -467,6 +467,8 @@ class AlarmAudioEngine @Inject constructor(
                     }
                     ensureAudible("heartbeat")
                     if (intensified && layer == null && layerFailures < MAX_LAYER_FAILURES) startLayer()
+                    holdFloor()
+                    confirmSpeaker()
                     applyPlayerVolume()
                 }
             }
@@ -528,8 +530,8 @@ class AlarmAudioEngine @Inject constructor(
         val before = headsetRouted
         headsetConnectedNow = headsetConnected
         headsetRouted = headsetConnected
-        main?.let { routePlayer(it, cfg.settings, headsetConnected) }
-        layer?.let { routePlayer(it, cfg.settings, headsetConnected) }
+        main?.let { routePlayer(it, cfg, headsetConnected) }
+        layer?.let { routePlayer(it, cfg, headsetConnected) }
         diagnostics.info("Audio", "Audio route changed ($reason): headset is the route=$headsetRouted (was $before)")
         safely("volume plan", Unit) { applyVolumePlan() }
         applyPlayerVolume()
@@ -583,6 +585,43 @@ class AlarmAudioEngine @Inject constructor(
         }
     }
 
+    /**
+     * The volume lock: turned down by the keys, the shade slider or Settings, the alarm stream goes back up to the alarm's
+     * floor within a second. Only ever up: a stream someone turned higher stays where it is. The hearing cap still wins.
+     */
+    internal fun holdFloor() {
+        val cfg = config ?: return
+        val streamMax = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+        val floor = VolumePlanner.floorIndex(
+            cfg.alarm.volume, cfg.alarm.antiOversleep.volumeFloorPercent, streamMax, headsetRouted, cfg.settings.hearingSafetyCap, cfg.settings.headphoneCapPercent,
+        ) ?: return
+        val current = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+        if (current >= floor) return
+        // The level the user had before the ring is what is put back at the end, not the one they turned it down to.
+        if (runtime.savedAlarmVolume < 0) runtime.savedAlarmVolume = current
+        originalIndexByRoute.getOrPut(headsetRouted) { runtime.savedAlarmVolume }
+        runCatching { audioManager.setStreamVolume(AudioManager.STREAM_ALARM, floor, 0) }
+            .onSuccess { diagnostics.info("Audio", "alarm volume turned down to $current; back to $floor of $streamMax") }
+            .onFailure { diagnostics.warn("Audio", "could not hold the alarm volume: ${it.message}") }
+    }
+
+    /**
+     * An alarm that must play on the phone's own speaker is checked against where the sound really goes, not only where it
+     * was asked to go: a preferred device is a request that a headset or a car can override.
+     */
+    private fun confirmSpeaker() {
+        val cfg = config ?: return
+        if (!wantsSpeaker(cfg) || Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+        val player = main ?: return
+        val routed = runCatching { player.routedDevice?.type }.getOrNull() ?: return
+        if (routed == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER || routed == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE) return
+        diagnostics.warn("Audio", "the alarm should play on the phone speaker but goes to device type $routed; asking again")
+        routePlayer(player, cfg, headsetConnectedNow)
+        layer?.let { routePlayer(it, cfg, headsetConnectedNow) }
+    }
+
+    private fun wantsSpeaker(cfg: Config): Boolean = cfg.settings.audioRoute == AudioRoute.PHONE_SPEAKER || cfg.alarm.antiOversleep.forceSpeaker
+
     private fun applyPlayerVolume() {
         val cfg = config ?: return
         val v = cfg.alarm.volume
@@ -628,7 +667,7 @@ class AlarmAudioEngine @Inject constructor(
                 true
             }
             mp.prepare()
-            routePlayer(mp, cfg.settings, headsetConnectedNow)
+            routePlayer(mp, cfg, headsetConnectedNow)
             layer = mp
             applyPlayerVolume()
             mp.start()

@@ -137,14 +137,14 @@ fun RingingSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, vie
                     ChipChoiceRow(
                         title = stringResource(R.string.settings_volume_keys), subtitle = stringResource(R.string.settings_volume_keys_hint),
                         options = VolumeKeyAction.entries.toList(), selected = s.volumeKeyAction,
-                        onSelect = { a -> viewModel.update { it.copy(volumeKeyAction = a) } },
+                        onSelect = { a -> viewModel.updateRingingForAllAlarms { it.copy(volumeKeyAction = a) } },
                         optionLabel = { stringResource(volumeKeyLabel(it)) }, shape = shape,
                     )
                 }
                 item { shape ->
                     SwitchRow(
                         title = stringResource(R.string.settings_keep_front), subtitle = stringResource(R.string.settings_keep_front_hint),
-                        checked = s.keepRingScreenFront, onCheckedChange = { on -> viewModel.update { it.copy(keepRingScreenFront = on) } }, shape = shape,
+                        checked = s.keepRingScreenFront, onCheckedChange = { on -> viewModel.updateRingingForAllAlarms { it.copy(keepRingScreenFront = on) } }, shape = shape,
                     )
                 }
             }

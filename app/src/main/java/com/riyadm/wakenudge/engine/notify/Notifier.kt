@@ -150,7 +150,8 @@ class Notifier @Inject constructor(
 
     // ---- ringing alarm -------------------------------------------------------------------------------------
 
-    fun ring(session: RingSession, alertAgain: Boolean = false): Notification {
+    /** [fullScreen] false posts it as a plain heads-up: a re-alert that must not launch the ring screen over anything. */
+    fun ring(session: RingSession, alertAgain: Boolean = false, fullScreen: Boolean = true): Notification {
         val alarm = session.alarm
         val title = when {
             session.isTimer -> alarm.label.ifBlank { context.getString(R.string.timer_default_name) }
@@ -177,7 +178,7 @@ class Notifier @Inject constructor(
             .setShowWhen(true)
             .setWhen(session.scheduledAt.takeIf { it > 0 } ?: System.currentTimeMillis())
             .setContentIntent(open)
-            .setFullScreenIntent(open, true)
+        if (fullScreen) builder.setFullScreenIntent(open, true)
 
         if (session.phase == RingPhase.RINGING && session.safeMode && !session.isTimer) {
             // Only an alarm that ends with one tap anyway is snoozed or dismissed here; any other opens the plain screen.
@@ -216,8 +217,8 @@ class Notifier @Inject constructor(
         return builder.build()
     }
 
-    fun postRing(session: RingSession, alertAgain: Boolean = false) {
-        post(NotificationIds.RING, ring(session, alertAgain))
+    fun postRing(session: RingSession, alertAgain: Boolean = false, fullScreen: Boolean = true) {
+        post(NotificationIds.RING, ring(session, alertAgain, fullScreen))
     }
 
     /** Last-resort alarm when the foreground service could not be started: the system itself plays the sound. */

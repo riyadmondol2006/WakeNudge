@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.filled.Snooze
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -112,6 +113,10 @@ class RingActions(
     val onEmergencyCall: () -> Unit = {},
     /** A backup mission stood in for one this phone could not do. */
     val onFallbackUsed: () -> Unit = {},
+    /** Input inside a mission (an answer, a tap on its board, a scan): unlike a plain touch, this is progress. */
+    val onMissionInput: () -> Unit = onInteraction,
+    /** The mission's mute button, which spends the alarm's mute budget. */
+    val onMute: () -> Unit = {},
 )
 
 @Composable
@@ -369,6 +374,28 @@ private fun Controls(
                     )
                     return@Column
                 }
+                todaysMission(session)?.let { Text(it, style = MaterialTheme.typography.titleMedium, color = onBottom, textAlign = TextAlign.Center) }
+                // For someone half asleep: the one thing to do comes first and biggest, under the thumb; snooze below, smaller.
+                when {
+                    session.hasMissions -> Button(
+                        onClick = { haptics.click(); actions.onInteraction(); setMode(RingMode.DismissMissions) },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 88.dp),
+                    ) { Text(stringResource(R.string.ring_solve_to_dismiss), style = MaterialTheme.typography.titleLarge) }
+
+                    alarm.antiOversleep.holdToDismissSeconds > 0 -> HoldButton(
+                        label = stringResource(R.string.ring_hold_to_dismiss, alarm.antiOversleep.holdToDismissSeconds),
+                        holdSeconds = alarm.antiOversleep.holdToDismissSeconds,
+                        actionDescription = stringResource(R.string.ring_dismiss_alarm),
+                        onComplete = { actions.onDismiss(RingProof.Hold) },
+                        height = 88.dp,
+                    )
+
+                    else -> SlideToDismiss(
+                        label = stringResource(R.string.ring_slide_dismiss),
+                        actionDescription = stringResource(R.string.ring_dismiss_alarm),
+                        onDismiss = { actions.onDismiss(RingProof.Gesture) },
+                    )
+                }
                 if (session.canSnooze) {
                     val minutes = SnoozePolicy.nextIntervalMinutes(alarm.snooze, session.snoozeCount)
                     val left = SnoozePolicy.remaining(alarm.snooze, session.snoozeCount)
@@ -378,39 +405,19 @@ private fun Controls(
                             actions.onInteraction()
                             if (alarm.snoozeMissions.isNotEmpty()) setMode(RingMode.SnoozeMissions) else actions.onSnooze(RingProof.Gesture)
                         },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp),
+                        modifier = Modifier.fillMaxWidth(0.8f).heightIn(min = 56.dp),
                     ) {
                         Icon(Icons.Filled.Snooze, null, Modifier.padding(end = 12.dp))
                         Column(horizontalAlignment = Alignment.Start) {
                             Text(
                                 stringResource(if (alarm.snoozeMissions.isNotEmpty()) R.string.ring_solve_to_snooze else R.string.ring_snooze_minutes, minutes),
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.titleSmall,
                             )
                             if (left != null) Text(pluralStringResource(R.plurals.ring_snoozes_left, left, left), style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 } else if (alarm.snooze.enabled) {
                     Text(stringResource(R.string.ring_no_more_snoozes), style = MaterialTheme.typography.bodyMedium, color = onBottom)
-                }
-                todaysMission(session)?.let { Text(it, style = MaterialTheme.typography.titleMedium, color = onBottom, textAlign = TextAlign.Center) }
-                when {
-                    session.hasMissions -> Button(
-                        onClick = { haptics.click(); actions.onInteraction(); setMode(RingMode.DismissMissions) },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp),
-                    ) { Text(stringResource(R.string.ring_solve_to_dismiss), style = MaterialTheme.typography.titleMedium) }
-
-                    alarm.antiOversleep.holdToDismissSeconds > 0 -> HoldButton(
-                        label = stringResource(R.string.ring_hold_to_dismiss, alarm.antiOversleep.holdToDismissSeconds),
-                        holdSeconds = alarm.antiOversleep.holdToDismissSeconds,
-                        actionDescription = stringResource(R.string.ring_dismiss_alarm),
-                        onComplete = { actions.onDismiss(RingProof.Hold) },
-                    )
-
-                    else -> SlideToDismiss(
-                        label = stringResource(R.string.ring_slide_dismiss),
-                        actionDescription = stringResource(R.string.ring_dismiss_alarm),
-                        onDismiss = { actions.onDismiss(RingProof.Gesture) },
-                    )
                 }
                 WayOutControl(session, now, actions, { setMode(RingMode.WayOut) }, onBottom)
                 if (!session.isTimer) EmergencyButton(session.pauses, actions.onEmergencyCall, onBottom)
@@ -427,7 +434,7 @@ private fun Controls(
                         CompositionLocalProvider(LocalMissionBackup provides backup) {
                             missionContent(
                                 list,
-                                actions.onInteraction,
+                                actions.onMissionInput,
                                 { if (current == RingMode.DismissMissions) actions.onMissionProgress(it) },
                                 { if (current == RingMode.SnoozeMissions) actions.onSnooze(RingProof.MissionsComplete) else actions.onDismiss(RingProof.MissionsComplete) },
                                 // Going back to the alarm (or the screen being rebuilt) must not cost the missions already done.
@@ -436,6 +443,7 @@ private fun Controls(
                         }
                     }
                 }
+                MissionMute(session, actions.onMute, onBottom)
                 MissionFooter(session, now, actions, { setMode(RingMode.WayOut) }, onBottom)
             }
 
@@ -446,7 +454,7 @@ private fun Controls(
                     key(alarm.id, session.eventId, "way-out") {
                         missionContent(
                             steps,
-                            actions.onInteraction,
+                            actions.onMissionInput,
                             actions.onWayOutStep,
                             { actions.onWayOut(RingProof.WayOutComplete) },
                             session.wayOutProgress.coerceIn(0, steps.size),
@@ -456,6 +464,39 @@ private fun Controls(
                 EmergencyButton(session.pauses, actions.onEmergencyCall, onBottom, Modifier.padding(top = 8.dp).align(Alignment.CenterHorizontally))
             }
         }
+    }
+}
+
+/**
+ * Mute while doing the mission: the alarm's budget of short mutes, shown with what is left. It ends early without mission
+ * progress, and once the budget is spent the sound stays on until the mission is done.
+ */
+@Composable
+private fun MissionMute(session: RingSession, onMute: () -> Unit, hintColor: Color) {
+    val budget = session.alarm.antiOversleep.muteBudget
+    if (budget <= 0 || !session.hasMissions) return
+    val left = (budget - session.mutesUsed).coerceAtLeast(0)
+    val elapsed by produceState(android.os.SystemClock.elapsedRealtime()) {
+        while (true) {
+            delay(500)
+            value = android.os.SystemClock.elapsedRealtime()
+        }
+    }
+    val mutedFor = session.silencedUntil - elapsed
+    val seconds = (RingPolicy.muteMs(session) / 1000).toInt()
+    val haptics = LocalWakeHaptics.current
+    val label = when {
+        mutedFor > 0 -> stringResource(R.string.ring_muted_for, Formatters.countdown(mutedFor))
+        left > 0 -> pluralStringResource(R.plurals.ring_mute_left, left, seconds, left)
+        else -> stringResource(R.string.ring_no_mutes_left)
+    }
+    TextButton(
+        onClick = { haptics.click(); onMute() },
+        enabled = mutedFor <= 0 && left > 0,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+    ) {
+        Icon(Icons.AutoMirrored.Filled.VolumeOff, contentDescription = null, tint = hintColor, modifier = Modifier.padding(end = 8.dp))
+        Text(label, color = hintColor)
     }
 }
 

@@ -25,6 +25,7 @@ enum class HealthFixKind {
     SOUND,
     TTS_SETTINGS,
     NFC_SETTINGS,
+    OVERLAY,
 }
 
 /** A one-tap remedy. Use [launch] to start it safely; [intent] is exposed for callers that want their own handling. */
@@ -81,6 +82,9 @@ object HealthIntents {
         HealthFixKind.SOUND -> Intent(Settings.ACTION_SOUND_SETTINGS)
         HealthFixKind.TTS_SETTINGS -> Intent("com.android.settings.TTS_SETTINGS")
         HealthFixKind.NFC_SETTINGS -> Intent(Settings.ACTION_NFC_SETTINGS)
+        HealthFixKind.OVERLAY -> Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+            data = "package:$packageName".toUri()
+        }
     }
 
     /** Screens to try, in order, when the first choice does not exist on this device's Settings app. */
@@ -88,7 +92,7 @@ object HealthIntents {
         HealthFixKind.DND_SETTINGS -> listOf(Intent(Settings.ACTION_SOUND_SETTINGS))
         HealthFixKind.TTS_SETTINGS, HealthFixKind.NFC_SETTINGS -> listOf(Intent(Settings.ACTION_SETTINGS))
         HealthFixKind.RING_CHANNEL -> listOf(forKind(HealthFixKind.APP_NOTIFICATIONS, packageName))
-        HealthFixKind.EXACT_ALARMS, HealthFixKind.FULL_SCREEN_INTENT, HealthFixKind.BATTERY_OPTIMIZATION ->
+        HealthFixKind.EXACT_ALARMS, HealthFixKind.FULL_SCREEN_INTENT, HealthFixKind.BATTERY_OPTIMIZATION, HealthFixKind.OVERLAY ->
             listOf(forKind(HealthFixKind.APP_DETAILS, packageName))
         else -> emptyList()
     }

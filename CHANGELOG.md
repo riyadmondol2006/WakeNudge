@@ -4,6 +4,35 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 Releases are built and published automatically from `main` and numbered `MAJOR.MINOR.N`, where `N` is the commit count
 (see [docs/RELEASING.md](docs/RELEASING.md)); the notes of each GitHub release list the commits it contains.
 
+## The alarm comes back, the volume stays up, and the ring screen is easier half asleep
+
+The engine and the ring screen now do all of this. Some of it depends on per-alarm settings that the alarm editor gets
+with the new levels; until then an existing alarm behaves as before except where said.
+
+- **Leaving the alarm screen while it rings brings it back** for an alarm set to come back at once: Home, Recents, swiping
+  the card away, Clear all, split screen, or a ring that came back after the app was killed or the phone restarted. It
+  returns about a second later, then backs off a little if you keep leaving. Android allows this only with "Display over
+  other apps", which Alarm Health now shows with a shortcut when an alarm needs it; nothing is drawn over other apps. Without
+  it, and for every other alarm, the notification reappears as before. It never covers a call, a call ringing in, an
+  Emergency pause, the lock screen's Emergency call or a permission dialog a mission opened
+- **Opening the app while an alarm rings shows the alarm**, not the alarm list
+- **Switching the screen off** while an alarm rings lights it again after 3 seconds. Pressing the power button quickly
+  several times (SOS) is left alone for a minute
+- **The ring screen can no longer share the screen with another app** on a phone (large screens may ignore this)
+- **The volume can no longer be turned down** below an alarm's floor, by the keys, the shade slider or Settings, for an
+  alarm with a floor or set to the maximum system volume, and for a ring back from a restart; on headphones the hearing
+  cap still wins
+- **What the volume keys do is kept per alarm.** The setting under "While an alarm rings" now sets it for every alarm.
+  Silencing with a key spends the alarm's mutes
+- **Mute during a mission**: every alarm with a mission gets a few short mutes per ring (3 of 30 seconds unless the alarm
+  says fewer), shown with what is left. A mute ends early after 20 seconds without progress in the mission, touching the
+  screen does not keep it going, and a restart neither brings it back nor gives the mutes back
+- **The ring screen**: the mission button comes first and biggest, snooze below it and smaller. An alarm can ask for full
+  brightness while it rings (your brightness setting is not changed) and for touches not to calm it down, only progress
+  in the mission. Screenshots are blocked on alarms whose way out opens late. "You're up" shows for a moment after you
+  dismiss, saying whether a still-awake check follows
+- An alarm that must play on the phone speaker is checked against where the sound really goes
+
 ## No more Continue: a backup mission, a way out that takes effort, and Emergency on every ring
 
 - **A mission the phone cannot do is no longer passed with Continue.** It is replaced by a backup mission of short tasks

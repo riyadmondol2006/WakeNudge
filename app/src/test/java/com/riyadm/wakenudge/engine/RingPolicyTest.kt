@@ -97,8 +97,9 @@ class RingPolicyTest {
         "a hold way out removed" to (session(Alarm(id = 1, missions = math, antiOversleep = AntiOversleepSettings(wayOutRemoved = true))) to mapOf(
             Snooze to setOf(Gesture), Timeout to all, KeySilence to all, MissionMute to setOf(Gesture), EmergencyPause to setOf(Gesture),
         )),
+        // A key that silences spends the same budget as the mute button.
         "mutes used up" to (session(Alarm(id = 1, missions = math, antiOversleep = AntiOversleepSettings(muteBudget = 2)), mutesUsed = 2) to mapOf(
-            Snooze to setOf(Gesture), HoldStop to setOf(Hold), Timeout to all, KeySilence to all, EmergencyPause to setOf(Gesture),
+            Snooze to setOf(Gesture), HoldStop to setOf(Hold), Timeout to all, EmergencyPause to setOf(Gesture),
         )),
         // The plain safe screen: its own buttons are the gesture, and its sums (counted here) end a mission alarm.
         "safe mode with missions" to (session(Alarm(id = 1, missions = math), safeMode = true, safeSumsDone = 2) to mapOf(

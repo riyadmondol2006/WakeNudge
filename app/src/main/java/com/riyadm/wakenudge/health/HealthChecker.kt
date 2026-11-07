@@ -93,6 +93,7 @@ class HealthChecker @Inject constructor(
             ringChannelImportance = safe(null) { notifications.getNotificationChannel(Channels.RING)?.importance },
             fallbackChannelImportance = safe(null) { notifications.getNotificationChannel(Channels.RING_FALLBACK)?.importance },
             fullScreenIntentAllowed = safe(true) { fullScreenIntentAllowed(notifications) },
+            canDrawOverlays = safe(true) { android.provider.Settings.canDrawOverlays(context) },
             canScheduleExactAlarms = safe(true) { pending.canScheduleExact() },
             ignoringBatteryOptimizations = safe(true) {
                 context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)
@@ -130,6 +131,7 @@ class HealthChecker @Inject constructor(
             vibrationAlarms = enabled.count { it.vibration.enabled },
             hasVibrator = safe(true) { context.getSystemService(Vibrator::class.java).hasVibrator() },
             alarmsUsingSystemVolume = enabled.count { it.volume.level == 0 && !it.volume.useMaxSystemVolume },
+            alarmsReturning = enabled.count { it.antiOversleep.returnToAlarm && it.antiOversleep.forceReturn },
             batterySaver = safe(false) { context.getSystemService(PowerManager::class.java).isPowerSaveMode },
             schedulingProblem = runtime.lastSchedulingProblem,
             audioProblem = runtime.lastAudioProblem,

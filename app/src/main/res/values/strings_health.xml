@@ -159,4 +159,8 @@
     <string name="health_report_off">off</string>
     <string name="health_report_section_log">Recent engine events (newest first, %1$d)</string>
     <string name="health_report_log_empty">No events recorded.</string>
+    <string name="health_title_overlay">Bring the alarm back</string>
+    <string name="health_detail_overlay_ok">Allowed. If you leave the alarm screen while it rings, it comes back.</string>
+    <string name="health_detail_overlay_off">The alarm screen can\'t come back if you leave it while it rings: the alarm keeps ringing and only its notification reappears. Allow \"Display over other apps\" for WakeNudge. Nothing is drawn over other apps; Android just requires it before an alarm can bring its own screen back.</string>
+    <string name="health_fix_overlay">Allow display over other apps</string>
 </resources>

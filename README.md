@@ -155,6 +155,10 @@ An alarm clock is judged on the one morning it fails, so this is where most of t
 - Re-arms everything after reboots, app updates, time-zone changes and daylight-saving changes, and on the next start after a force-stop (which makes Android forget every alarm without telling the app). Snoozes, backup rings and the still-awake check are persisted, not just held in memory.
 - One corrupt alarm cannot stop the others; the app stays under the OS limit of 500 alarms; a 6-hour watchdog re-validates the schedule.
 - A fallback chain (your sound, then the default tone, then a generated beep) means a deleted song still produces sound.
+- An alarm set to come back at once returns to its screen within a second or two when you leave it while it rings (Home,
+  Recents, swiping the card, split screen), once you allow "Display over other apps" in Alarm Health (nothing is drawn
+  over other apps); otherwise its notification reappears. It never covers a call, the lock screen's Emergency call or a
+  permission dialog. An alarm with a volume floor cannot be turned down below it while it rings.
 - Hundreds of unit, fuzz and instrumented tests, including "how will real people break it?" suites. Details in [docs/TESTING.md](docs/TESTING.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 **Honest limits.** WakeNudge cannot override the operating system. A phone that is switched off will not ring, and

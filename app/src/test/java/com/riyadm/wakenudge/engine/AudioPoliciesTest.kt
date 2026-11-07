@@ -223,3 +223,37 @@ class VibrationPatternsTest {
         assertTrue(long.timings.size <= VibrationPatterns.MAX_CUSTOM_STEPS + 1)
     }
 }
+
+/** The volume lock: the stream is held at the alarm's floor, and on headphones the hearing cap always wins. */
+class VolumeFloorTest {
+    private fun floor(v: VolumeSettings = VolumeSettings(), percent: Int, headset: Boolean = false, cap: Boolean = true, capPercent: Int = 60, max: Int = 7) =
+        VolumePlanner.floorIndex(v, percent, max, headset, cap, capPercent)
+
+    @Test fun `no floor means nothing is held`() {
+        assertNull(floor(percent = 0))
+        assertNull(floor(percent = -5))
+        assertNull(floor(percent = 50, max = 0))
+    }
+
+    @Test fun `Normal holds half the stream, Hard all of it`() {
+        assertEquals(4, floor(percent = 50))
+        assertEquals(7, floor(percent = 100))
+        assertEquals("max system volume is a floor of all of it", 7, floor(VolumeSettings(useMaxSystemVolume = true), percent = 0))
+        assertEquals(7, floor(percent = 300))
+    }
+
+    @Test fun `on headphones the hearing cap wins over the floor`() {
+        assertEquals(VolumePlanner.percentToIndex(60, 7), floor(percent = 100, headset = true))
+        assertEquals(VolumePlanner.percentToIndex(60, 7), floor(VolumeSettings(useMaxSystemVolume = true), percent = 0, headset = true))
+        assertEquals("a floor under the cap is kept", 3, floor(percent = 40, headset = true))
+        assertEquals("without hearing protection the floor holds", 7, floor(percent = 100, headset = true, cap = false))
+        assertEquals("the speaker is not capped", 7, floor(percent = 100, headset = false))
+    }
+
+    @Test fun `a floor and the plan never disagree about the cap`() {
+        for (capPercent in 10..100 step 10) for (percent in 0..100 step 10) {
+            val held = VolumePlanner.floorIndex(VolumeSettings(), percent, 15, true, true, capPercent) ?: continue
+            assertTrue(held <= VolumePlanner.percentToIndex(capPercent, 15))
+        }
+    }
+}

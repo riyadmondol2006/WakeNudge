@@ -7,6 +7,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.riyadm.wakenudge.core.TimeSource
+import com.riyadm.wakenudge.engine.RingPhase
+import com.riyadm.wakenudge.engine.RingSessionStore
+import com.riyadm.wakenudge.engine.notify.Notifier
 import com.riyadm.wakenudge.health.HealthFix
 import com.riyadm.wakenudge.health.HealthFixKind
 import com.riyadm.wakenudge.health.HealthIntents
@@ -14,10 +18,14 @@ import com.riyadm.wakenudge.health.launch
 import com.riyadm.wakenudge.ui.MainViewModel
 import com.riyadm.wakenudge.ui.WakeNudgeRoot
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
+    @Inject lateinit var ringStore: RingSessionStore
+    @Inject lateinit var notifier: Notifier
+    @Inject lateinit var time: TimeSource
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Hold the splash until settings are loaded so the first frame already has the right theme.
@@ -34,6 +42,17 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         viewModel.onForeground()
+    }
+
+    /**
+     * Opening the app while an alarm rings shows the alarm, not the alarm list, also for a ring that came back after the app
+     * was killed or the phone restarted, which has no ring screen of its own yet. Not during an Emergency pause: the user
+     * stepped out on purpose.
+     */
+    override fun onResume() {
+        super.onResume()
+        val ringing = ringStore.current?.takeIf { it.phase == RingPhase.RINGING && !it.pausedAt(time.elapsedMillis()) } ?: return
+        runCatching { startActivity(notifier.ringScreenIntent(ringing.safeMode)) }
     }
 
     override fun onNewIntent(intent: Intent) {

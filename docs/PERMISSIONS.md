@@ -28,6 +28,7 @@ manifest (`app/src/main/AndroidManifest.xml`) too.
 | Permission | Why | How it is requested |
 |---|---|---|
 | `USE_FULL_SCREEN_INTENT` | Show the ring screen over the lock screen. On Android 14+ the system grants it to alarm-clock apps | Shown in onboarding and the Alarm health screen with a shortcut to the system setting if it is ever turned off |
+| `SYSTEM_ALERT_WINDOW` ("Display over other apps") | Bring the ring screen back when you leave it while an alarm rings (Home, Recents, another app). Android lets a background service start an activity only with this permission. **Nothing is drawn over other apps**: it only starts WakeNudge's own ring screen, never over the lock screen's Emergency call, a call or a permission dialog | Never asked on its own. Alarm health shows it, with a shortcut to the system setting, when an alarm is set to come back. Without it the alarm keeps ringing and its notification reappears |
 
 ## Runtime permissions (asked only when needed)
 
@@ -52,7 +53,7 @@ hardware it lacks. During an alarm, a mission whose hardware is missing is repla
 ## Not used
 
 No location, contacts, microphone, storage/media, phone, SMS, accounts, Bluetooth, `QUERY_ALL_PACKAGES`,
-`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, `SYSTEM_ALERT_WINDOW`, `AD_ID` (no advertising ID), or
+`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, `AD_ID` (no advertising ID), or
 `REQUEST_INSTALL_PACKAGES`. Custom alarm sounds are picked with Android's document picker, which grants access to the
 single file you choose. The only `<queries>` entry is the text-to-speech service (`android.intent.action.TTS_SERVICE`),
 needed on Android 11+ to find the speech engine for spoken announcements.
@@ -70,11 +71,11 @@ list changes, so a new exported component forces a conscious review.
 | Three widget receivers | App-widget updates | `APPWIDGET_UPDATE` is a protected broadcast, so only the system can send it |
 | `NextAlarmTileService` | Quick Settings tile | Protected by `android.permission.BIND_QUICK_SETTINGS_TILE`, which only the system holds |
 
-Everything else of the app's own (`RingActivity`, `WakeCheckActivity`, `RingService`, `AlarmReceiver`,
+Everything else of the app's own (`RingActivity`, `SafeRingActivity`, `WakeCheckActivity`, `RingService`, `AlarmReceiver`,
 `ActionReceiver`) is not exported. All `PendingIntent`s are created with `FLAG_IMMUTABLE`. The app defines no content
 provider and no custom permission of its own (AndroidX adds one signature-level permission for non-exported dynamic
-receivers). Its single runtime receiver, which follows the NFC adapter switching on and off during the NFC mission, is
-registered with `RECEIVER_NOT_EXPORTED`.
+receivers). Its two runtime receivers, one following the NFC adapter switching on and off during the NFC mission and one
+following the screen going off while an alarm rings, are registered with `RECEIVER_NOT_EXPORTED`.
 
 Libraries add four more exported components, each protected by a permission that only the system can hold, which is the
 documented pattern: Glance's `GlanceRemoteViewsService` (`BIND_REMOTEVIEWS`), WorkManager's `SystemJobService`

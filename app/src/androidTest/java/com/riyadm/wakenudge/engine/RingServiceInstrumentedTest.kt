@@ -9,6 +9,7 @@ import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.UiDevice
 import com.riyadm.wakenudge.RecordingStarter
 import com.riyadm.wakenudge.core.TimeSource
 import com.riyadm.wakenudge.core.WakeJson
@@ -182,6 +183,80 @@ class RingServiceInstrumentedTest {
         assertTrue("the service must ask to be restarted with its intent:\n$dump", dump.contains("startCommandResult=3"))
         assertTrue("the delivered ring request must be kept for redelivery:\n$dump", dump.contains("Delivered Starts") && dump.contains("RING_BEGIN"))
         ring.dismiss()
+    }
+
+    // ---- coming back to the ring screen ---------------------------------------------------------------------------
+
+    private val device: UiDevice by lazy { UiDevice.getInstance(instrumentation) }
+
+    private fun allowOverlays(allow: Boolean) = shell("appops set ${context.packageName} SYSTEM_ALERT_WINDOW ${if (allow) "allow" else "deny"}")
+
+    private fun startReturningRing() {
+        // Unlocked, which these tests need: on a locked phone the ring screen is only ever alerted, never pulled back.
+        shell("input keyevent KEYCODE_WAKEUP")
+        shell("wm dismiss-keyguard")
+        runtime.testAlarmJson = WakeJson.instance.encodeToString(
+            Alarm.serializer(), quietAlarm().copy(antiOversleep = AntiOversleepSettings(returnToAlarm = true, forceReturn = true)),
+        )
+        startService(RingRequest(RingIds.TEST_ALARM_ID, -1, time.nowMillis(), RingKind.TEST))
+        await("the service to start sounding") { store.current != null && audio.isAudible }
+        await("the ring screen in front", 5_000) { store.isUiInFront }
+    }
+
+    /** Leaves the ring screen with [leave], then returns how long it took to be in front again. */
+    private fun timeToComeBack(leave: () -> Unit): Long {
+        leave()
+        await("the ring screen to leave the front", 3_000) { !store.isUiInFront }
+        val left = SystemClock.elapsedRealtime()
+        await("the ring screen back in front", 6_000) { store.isUiInFront }
+        return SystemClock.elapsedRealtime() - left
+    }
+
+    @Test fun withDisplayOverOtherAppsHomeAndRecentsBringTheRingScreenBackWithinTwoSeconds() = runBlocking {
+        val nav = shell("settings get secure navigation_mode").trim()
+        allowOverlays(true)
+        try {
+            startReturningRing()
+            for ((how, leave) in listOf<Pair<String, () -> Unit>>(
+                "Home" to { device.pressHome() },
+                "Recents" to { device.pressRecentApps() },
+                "Recents, then a swipe up on the card in the middle" to {
+                    device.pressRecentApps()
+                    Thread.sleep(600)
+                    device.swipe(device.displayWidth / 2, device.displayHeight / 2, device.displayWidth / 2, device.displayHeight / 10, 12)
+                },
+            )) {
+                val took = timeToComeBack(leave)
+                assertTrue("$how (navigation mode $nav): back after $took ms", took <= 2_000)
+                assertTrue("$how: the sound never stopped", audio.isAudible)
+                // Stay a little, as someone would, so the next try is not counted against the backoff.
+                Thread.sleep(1_500)
+            }
+        } finally {
+            allowOverlays(false)
+            shell("appops set ${context.packageName} SYSTEM_ALERT_WINDOW default")
+            ring.dismiss()
+        }
+    }
+
+    @Test fun withoutDisplayOverOtherAppsTheAlarmKeepsRingingButItsScreenStaysAway() = runBlocking {
+        allowOverlays(false)
+        try {
+            runtime.testAlarmJson = WakeJson.instance.encodeToString(
+                Alarm.serializer(), quietAlarm().copy(antiOversleep = AntiOversleepSettings(returnToAlarm = true, forceReturn = true)),
+            )
+            shell("input keyevent KEYCODE_WAKEUP")
+            shell("wm dismiss-keyguard")
+            startService(RingRequest(RingIds.TEST_ALARM_ID, -1, time.nowMillis(), RingKind.TEST))
+            await("the service to start sounding") { store.current != null && audio.isAudible }
+            device.pressHome()
+            Thread.sleep(4_000)
+            assertFalse("Android does not let it start the screen from the background", store.isUiInFront)
+            assertTrue(audio.isAudible)
+        } finally {
+            shell("appops set ${context.packageName} SYSTEM_ALERT_WINDOW default")
+            ring.dismiss()
+        }
     }
 
     // ---- the service dying while ringing -----------------------------------------------------------------------

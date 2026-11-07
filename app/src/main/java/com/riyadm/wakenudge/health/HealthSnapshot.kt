@@ -22,6 +22,8 @@ data class HealthSnapshot(
     /** The channel whose own sound is the alarm when the ring service could not start at all. */
     val fallbackChannelImportance: Int? = NotificationManager.IMPORTANCE_HIGH,
     val fullScreenIntentAllowed: Boolean = true,
+    /** "Display over other apps", which bringing the ring screen back from the background needs. */
+    val canDrawOverlays: Boolean = true,
 
     // Scheduling permissions and power management
     val canScheduleExactAlarms: Boolean = true,
@@ -79,6 +81,8 @@ data class HealthSnapshot(
     val hasVibrator: Boolean = true,
     /** Enabled alarms that leave the volume to the system (level 0). */
     val alarmsUsingSystemVolume: Int = 0,
+    /** Enabled alarms that bring their screen back at once when it is left (`forceReturn`). */
+    val alarmsReturning: Int = 0,
 
     // Things the engine noticed going wrong while it ran
     val batterySaver: Boolean = false,

@@ -65,6 +65,7 @@ import com.riyadm.wakenudge.missions.ui.findActivity
 import com.riyadm.wakenudge.missions.ui.rememberErrorFeedback
 import com.riyadm.wakenudge.missions.FallbackReason
 import com.riyadm.wakenudge.missions.ui.BackupMissionButton
+import com.riyadm.wakenudge.missions.ui.LocalExpectSystemDialog
 import com.riyadm.wakenudge.missions.ui.ReportFallback
 import com.riyadm.wakenudge.missions.ui.rememberResumeCount
 import com.riyadm.wakenudge.ui.theme.LocalWakeHaptics
@@ -152,6 +153,7 @@ private fun openNfcSettings(context: Context) {
 @Composable
 private fun NfcOffNotice() {
     val context = LocalContext.current
+    val expectDialog = LocalExpectSystemDialog.current
     MissionNotice(
         icon = Icons.Filled.Nfc,
         title = stringResource(R.string.mission_nfc_off_title),
@@ -159,7 +161,7 @@ private fun NfcOffNotice() {
     ) {
         MissionButton(
             stringResource(R.string.mission_nfc_open_settings),
-            { openNfcSettings(context) },
+            { expectDialog(); openNfcSettings(context) },
             Modifier.fillMaxWidth(), icon = Icons.Filled.Settings,
         )
         BackupMissionButton(FallbackReason.NFC_OFF)
@@ -177,6 +179,7 @@ private fun LockScreenNote(modifier: Modifier = Modifier) {
     val activity = remember(context) { context.findActivity() }
     val keyguard = remember(context) { context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager }
     val resumeCount = rememberResumeCount()
+    val expectDialog = LocalExpectSystemDialog.current
     var refresh by remember { mutableIntStateOf(0) }
     val locked = remember(resumeCount, refresh) { keyguard?.isKeyguardLocked == true }
     if (!locked) return
@@ -194,6 +197,7 @@ private fun LockScreenNote(modifier: Modifier = Modifier) {
             MissionButton(
                 stringResource(R.string.mission_nfc_unlock),
                 {
+                    expectDialog()
                     keyguard.requestDismissKeyguard(
                         activity,
                         object : KeyguardManager.KeyguardDismissCallback() {

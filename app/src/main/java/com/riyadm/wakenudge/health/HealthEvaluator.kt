@@ -52,6 +52,7 @@ class HealthEvaluator(private val res: HealthResources) {
         add(notifications(s))
         add(ringChannel(s))
         add(fullScreen(s))
+        overlay(s)?.let(::add)
         add(exactAlarms(s))
         add(battery(s))
         standby(s)?.let(::add)
@@ -156,6 +157,20 @@ class HealthEvaluator(private val res: HealthResources) {
                 fix = HealthFixKind.FULL_SCREEN_INTENT to R.string.health_fix_full_screen,
             )
             else -> item("full_screen", Severity.OK, title, R.string.health_detail_allowed)
+        }
+    }
+
+    /**
+     * "Display over other apps": without it Android does not let the ring screen be started from the background, so an
+     * alarm set to bring its screen back can only alert again when someone leaves it. Only shown when an alarm wants it.
+     */
+    private fun overlay(s: HealthSnapshot): HealthItem? {
+        if (s.alarmsReturning <= 0) return null
+        val title = R.string.health_title_overlay
+        return if (s.canDrawOverlays) {
+            item("overlay", Severity.OK, title, R.string.health_detail_overlay_ok)
+        } else {
+            item("overlay", Severity.WARNING, title, R.string.health_detail_overlay_off, fix = HealthFixKind.OVERLAY to R.string.health_fix_overlay)
         }
     }
 

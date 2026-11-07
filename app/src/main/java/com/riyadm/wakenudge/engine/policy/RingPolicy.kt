@@ -67,7 +67,7 @@ object RingPolicy {
             RingCommand.HoldStop -> holdStop(session, proof)
             RingCommand.WayOutDone -> wayOutDone(session, proof)
             RingCommand.Timeout -> timeout(session)
-            RingCommand.KeySilence -> RingDecision.Allow
+            RingCommand.KeySilence -> requires(session.mutesUsed < session.alarm.antiOversleep.muteBudget, DenyReason.NoMutesLeft)
             RingCommand.MissionMute -> mute(session, proof)
             RingCommand.EmergencyPause -> if (proof == RingProof.Gesture) RingDecision.Allow else deny(DenyReason.NeedsGesture)
         }
@@ -96,6 +96,12 @@ object RingPolicy {
 
     /** When the way-out chain can be started, on the wall clock (counted from when the ring first started); null without one. */
     fun wayOutOpensAt(s: RingSession): Long? = (wayOut(s) as? WayOut.Chain)?.let { s.startedAt + it.delayMinutes * 60_000L }
+
+    /** How long one mute lasts, within what a restored file may hold. */
+    fun muteMs(s: RingSession): Long = s.alarm.antiOversleep.muteSeconds.coerceIn(5, 60) * 1_000L
+
+    /** A mute ends early after this long without mission progress; touching the screen does not extend it. */
+    const val MUTE_IDLE_MS = 20_000L
 
     /** How many plain sums the safe ring screen asks for, when the alarm does not end with one tap. */
     fun safeSums(s: RingSession): Int = if (s.alarm.dismissesWithOneTap) 0 else s.alarm.antiOversleep.fallbackCount.coerceIn(1, MAX_SAFE_SUMS)
