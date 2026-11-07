@@ -2,6 +2,7 @@ package com.riyadm.wakenudge.engine
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.riyadm.wakenudge.core.TimeSource
+import com.riyadm.wakenudge.data.db.WakeNudgeDatabase
 import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.model.AlarmEvent
 import com.riyadm.wakenudge.domain.model.AlarmOutcome
@@ -21,6 +22,7 @@ import com.riyadm.wakenudge.domain.repository.AlarmRepository
 import com.riyadm.wakenudge.domain.repository.HistoryRepository
 import com.riyadm.wakenudge.domain.repository.WakeCheckRepository
 import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
+import com.riyadm.wakenudge.domain.scheduling.EditLockPolicy
 import com.riyadm.wakenudge.domain.usecase.ActionResult
 import com.riyadm.wakenudge.domain.usecase.AlarmActions
 import com.riyadm.wakenudge.engine.policy.RingProof
@@ -60,6 +62,7 @@ class EngineInstrumentedTest {
     @Inject lateinit var pending: PendingAlarms
     @Inject lateinit var time: TimeSource
     @Inject lateinit var runtime: RuntimeState
+    @Inject lateinit var database: WakeNudgeDatabase
 
     @Before fun setUp() = hilt.inject()
 
@@ -125,6 +128,11 @@ class EngineInstrumentedTest {
     @Test fun editProtectionRefusesLateChangesUntilOverridden() = runBlocking {
         val id = alarms.save(alarmIn(5) { copy(antiOversleep = AntiOversleepSettings(editLockMinutes = 15)) })
         scheduler.schedule(id)
+        // A just-saved alarm stays editable for a short grace (EditLockPolicy.GRACE_MS); this one was saved long ago.
+        database.openHelper.writableDatabase.execSQL(
+            "UPDATE alarms SET updatedAt = ? WHERE id = ?",
+            arrayOf<Any>(time.nowMillis() - EditLockPolicy.GRACE_MS - 60_000L, id),
+        )
         assertTrue(actions.setEnabled(id, false) is ActionResult.Locked)
         assertTrue(actions.delete(id) is ActionResult.Locked)
         assertTrue("still registered", pending.isScheduled(TriggerKind.ALARM, id))
