@@ -23,6 +23,8 @@ import com.riyadm.wakenudge.missions.focus.FocusCue
 import com.riyadm.wakenudge.missions.focus.FocusGame
 import com.riyadm.wakenudge.missions.focus.FocusMission
 import com.riyadm.wakenudge.ui.theme.WakeNudgeTheme
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
 import kotlin.random.Random
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -30,9 +32,13 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /** Focus Tap as a person sees it: by touch, by screen reader, right to left and at double font size. */
+@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class FocusTapUiTest {
-    @get:Rule val compose = createComposeRule()
+    // The app's receivers need a component: a system broadcast during the run (a clock or time-zone change) would
+    // otherwise crash the whole process, and the run would end with no result at all.
+    @get:Rule(order = 0) val hilt = HiltAndroidRule(this)
+    @get:Rule(order = 1) val compose = createComposeRule()
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val config = MissionConfig(MissionType.FOCUS_TAP, Difficulty.EASY, count = 1)

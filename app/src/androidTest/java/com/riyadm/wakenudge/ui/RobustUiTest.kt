@@ -31,6 +31,8 @@ import com.riyadm.wakenudge.ui.ring.RingActions
 import com.riyadm.wakenudge.ui.ring.RingMissionContent
 import com.riyadm.wakenudge.ui.ring.RingScreen
 import com.riyadm.wakenudge.ui.theme.WakeNudgeTheme
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
 import java.time.ZonedDateTime
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
@@ -39,9 +41,13 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /** The screen as real people see it: biggest accessibility fonts, tiny phones, right-to-left languages, silly labels. */
+@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class RobustUiTest {
-    @get:Rule val compose = createComposeRule()
+    // The app's receivers need a component: a system broadcast during the run (a clock or time-zone change) would
+    // otherwise crash the whole process, and the run would end with no result at all.
+    @get:Rule(order = 0) val hilt = HiltAndroidRule(this)
+    @get:Rule(order = 1) val compose = createComposeRule()
 
     private fun session(alarm: Alarm = Alarm(label = "Gym")) =
         RingSession(alarm = alarm, kind = RingKind.PRIMARY, phase = RingPhase.RINGING, eventId = 1, scheduledAt = 0, startedAt = 0)

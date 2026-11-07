@@ -16,6 +16,8 @@ import com.riyadm.wakenudge.ui.theme.WakeNudgeTheme
 import com.riyadm.wakenudge.ui.update.UpdateAvailableDialog
 import com.riyadm.wakenudge.update.AppVersion
 import com.riyadm.wakenudge.update.ReleaseInfo
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -23,9 +25,13 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /** The popup on its own: what it says, what its buttons do, and that it survives big fonts and right-to-left. */
+@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class UpdateDialogUiTest {
-    @get:Rule val compose = createComposeRule()
+    // The app's receivers need a component: a system broadcast during the run (a clock or time-zone change) would
+    // otherwise crash the whole process, and the run would end with no result at all.
+    @get:Rule(order = 0) val hilt = HiltAndroidRule(this)
+    @get:Rule(order = 1) val compose = createComposeRule()
 
     private val release = ReleaseInfo(
         version = AppVersion(1, 0, 43),

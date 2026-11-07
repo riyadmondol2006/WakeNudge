@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.riyadm.wakenudge.ui.components.SwitchRow
 import com.riyadm.wakenudge.ui.theme.WakeNudgeTheme
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -33,9 +35,13 @@ import org.junit.runner.RunWith
  * A settings row with a switch is one big toggle: tapping the text works, and so does tapping the switch itself. The
  * switch used to be a disabled control of its own that swallowed the tap, so only the text responded.
  */
+@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class SwitchRowUiTest {
-    @get:Rule val compose = createComposeRule()
+    // The app's receivers need a component: a system broadcast during the run (a clock or time-zone change) would
+    // otherwise crash the whole process, and the run would end with no result at all.
+    @get:Rule(order = 0) val hilt = HiltAndroidRule(this)
+    @get:Rule(order = 1) val compose = createComposeRule()
 
     private val title = "Keep ringing until I finish the mission"
     private val changes = mutableListOf<Boolean>()

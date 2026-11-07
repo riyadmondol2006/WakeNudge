@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.riyadm.wakenudge.ui.components.AlarmTimePicker
 import com.riyadm.wakenudge.ui.theme.WakeNudgeTheme
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -26,9 +28,13 @@ import org.junit.runner.RunWith
  * The alarm time wheels. A time typed into the "Type a time" dialog moves the wheels by themselves; the rows they pass
  * on the way used to be reported as choices, so a typed 06:45 over 07:00 was saved as 06:58 or so.
  */
+@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class TimePickerUiTest {
-    @get:Rule val compose = createComposeRule()
+    // The app's receivers need a component: a system broadcast during the run (a clock or time-zone change) would
+    // otherwise crash the whole process, and the run would end with no result at all.
+    @get:Rule(order = 0) val hilt = HiltAndroidRule(this)
+    @get:Rule(order = 1) val compose = createComposeRule()
 
     private val reported = mutableListOf<Pair<Int, Int>>()
     private var hour by mutableIntStateOf(7)

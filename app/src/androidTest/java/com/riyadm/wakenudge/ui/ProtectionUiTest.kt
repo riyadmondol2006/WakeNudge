@@ -31,6 +31,8 @@ import com.riyadm.wakenudge.ui.protection.ProtectionUiState
 import com.riyadm.wakenudge.ui.protection.RehearsalChoice
 import com.riyadm.wakenudge.ui.protection.protectionContent
 import com.riyadm.wakenudge.ui.theme.WakeNudgeTheme
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -41,9 +43,13 @@ import org.junit.runner.RunWith
  * shows what the state says, the restricted-settings steps follow the overlay attempt, and the device admin row with its
  * Turn off is there in every state.
  */
+@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class ProtectionUiTest {
-    @get:Rule val compose = createComposeRule()
+    // The app's receivers need a component: a system broadcast during the run (a clock or time-zone change) would
+    // otherwise crash the whole process, and the run would end with no result at all.
+    @get:Rule(order = 0) val hilt = HiltAndroidRule(this)
+    @get:Rule(order = 1) val compose = createComposeRule()
 
     private val res = InstrumentationRegistry.getInstrumentation().targetContext.resources
     private val calls = mutableListOf<String>()

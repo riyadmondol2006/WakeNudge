@@ -6,15 +6,21 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.riyadm.wakenudge.data.db.Migrations
 import com.riyadm.wakenudge.data.db.WakeNudgeDatabase
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /** An update must never cost anyone their alarms: every schema step is migrated and checked against the exported schema. */
+@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class DatabaseMigrationTest {
-    @get:Rule
+    // The app's receivers need a component: a system broadcast during the run (a clock or time-zone change) would
+    // otherwise crash the whole process, and the run would end with no result at all.
+    @get:Rule(order = 0) val hilt = HiltAndroidRule(this)
+    @get:Rule(order = 1)
     val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), WakeNudgeDatabase::class.java)
 
     /** Inserts one row filling every NOT NULL column with a neutral value, then sets [overrides]. */

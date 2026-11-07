@@ -32,6 +32,8 @@ import com.riyadm.wakenudge.ui.ring.RingActions
 import com.riyadm.wakenudge.ui.ring.RingMissionContent
 import com.riyadm.wakenudge.ui.ring.RingScreen
 import com.riyadm.wakenudge.ui.theme.WakeNudgeTheme
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -39,9 +41,13 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class RingAndMissionUiTest {
-    @get:Rule val compose = createComposeRule()
+    // The app's receivers need a component: a system broadcast during the run (a clock or time-zone change) would
+    // otherwise crash the whole process, and the run would end with no result at all.
+    @get:Rule(order = 0) val hilt = HiltAndroidRule(this)
+    @get:Rule(order = 1) val compose = createComposeRule()
 
     private class Counters {
         val snooze = AtomicInteger(); val dismiss = AtomicInteger(); val emergency = AtomicInteger(); val progress = AtomicInteger(-1)

@@ -53,6 +53,8 @@ import com.riyadm.wakenudge.ui.edit.CategoryCard
 import com.riyadm.wakenudge.ui.edit.SoundPickerSheet
 import com.riyadm.wakenudge.ui.edit.categorySummary
 import com.riyadm.wakenudge.ui.theme.WakeNudgeTheme
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -65,9 +67,13 @@ import org.junit.runner.RunWith
  * Choosing a sound plays it at once; "How hard?" sets and names each level; More options groups into cards that summarise
  * themselves, and every option fits a 360 dp phone at the largest font.
  */
+@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class CategoriesAndPickerUiTest {
-    @get:Rule val compose = createComposeRule()
+    // The app's receivers need a component: a system broadcast during the run (a clock or time-zone change) would
+    // otherwise crash the whole process, and the run would end with no result at all.
+    @get:Rule(order = 0) val hilt = HiltAndroidRule(this)
+    @get:Rule(order = 1) val compose = createComposeRule()
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val previewer = SoundPreviewer(ApplicationProvider.getApplicationContext())
