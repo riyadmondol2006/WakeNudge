@@ -4,10 +4,10 @@ An alarm clock is judged on the one morning it fails, so testing is split by wha
 
 | Layer | Where it runs | What it proves |
 |---|---|---|
-| **JVM unit tests** (939, from the result XML) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
+| **JVM unit tests** (940, from the result XML) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
 | **Fuzz tests** (14, part of the JVM tests) | Your computer | 20,000 seeded random alarm/clock/zone combinations never crash the scheduler or yield a time in the past; corrupted and hostile backup files are rejected or sanitised, never half-applied; random commands from stale buttons, keys and forged claims never end a ring whose missions are unfinished |
-| **Instrumented engine tests** (about 130, with the migration tests) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
-| **Instrumented UI tests** (about 80, 25 of them for the update popup and the About screen) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions getting a backup mission (never Continue), Emergency and the way out by click action at font scale 2.0 |
+| **Instrumented engine tests** (139, with the migration, update-state and widget tests) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
+| **Instrumented UI tests** (89, 22 of them for the update popup and the About screen) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions getting a backup mission (never Continue), Emergency and the way out by click action at font scale 2.0 |
 
 Run the JVM tests with `./gradlew :app:testDebugUnitTest`. For the instrumented tests see the warning in the README:
 **target exactly one device**.
@@ -203,6 +203,12 @@ blocked, and the ring above is what happens instead.
 - Widgets and the Quick Settings tile are **registered** with Android (three `AppWidgetProvider`s and the tile service
   resolve). Their layouts are covered by JVM tests of the data they show.
 
+- **The final build, after levels, the morning record and the docs: every instrumented class (23), one at a time, on a
+  Pixel 6 (Android 17, gesture navigation), 228 tests, all passing**, with the alarm volume 6 before and after each class.
+  Fixed on the way, all in tests: two editor tests whose finders matched more than one node (the time wheels also scroll;
+  other cards also say "Off"), eleven classes without a Hilt rule, which a stray broadcast crashed with no result line
+  (reproduced by sending one to `SystemEventsReceiver` mid-run), and `RingServiceInstrumentedTest` now reads the user's
+  volume once, waits for each ring service to end, and asserts that the app itself put the volume back.
 - **After the coming-back fixes, on a Pixel 6 (Android 17, gesture navigation): every instrumented class, one at a time,
   209 tests, all passing**, with the alarm volume checked before and after each class (unchanged every time). All 209 also
   passed in a single instrumentation run, one test fix before the final build. Fixed on the way: Recents left the ring screen resumed behind the Overview
