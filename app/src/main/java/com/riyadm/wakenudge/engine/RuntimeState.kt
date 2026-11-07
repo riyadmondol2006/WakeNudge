@@ -114,6 +114,16 @@ class RuntimeState @Inject constructor(@DeviceProtected private val context: Con
         get() = prefs.getLong(K_LAST_EXIT_SEEN, 0)
         set(value) = prefs.edit { putLong(K_LAST_EXIT_SEEN, value) }
 
+    /** The ring time the evening check last looked at; a trigger firing again for the same one does nothing. See [TonightCheck]. */
+    var tonightCheckedFor: Long
+        get() = prefs.getLong(K_TONIGHT_CHECKED, 0)
+        set(value) = prefs.edit { putLong(K_TONIGHT_CHECKED, value) }
+
+    /** JSON of what the ledger has found. Use [RingLedger]. */
+    var ringLedgerJson: String?
+        get() = prefs.getString(K_RING_LEDGER, null)
+        set(value) = prefs.edit { if (value == null) remove(K_RING_LEDGER) else putString(K_RING_LEDGER, value) }
+
     /** JSON of an alarm's saved copy. Use [AlarmSnapshots]. */
     fun alarmSnapshotJson(alarmId: Long): String? = snapshotPrefs.getString(SNAPSHOT_PREFIX + alarmId, null)
 
@@ -155,6 +165,8 @@ class RuntimeState @Inject constructor(@DeviceProtected private val context: Con
         const val K_DURABLE_RING = "durable_ring"
         const val K_DURABLE_QUEUE = "durable_queue"
         const val K_LAST_EXIT_SEEN = "last_exit_seen_at"
+        const val K_TONIGHT_CHECKED = "tonight_checked_for"
+        const val K_RING_LEDGER = "ring_ledger"
         const val SNAPSHOT_PREFIX = "alarm_snapshot_"
         const val MAX_CRASHES_KEPT = 10
     }

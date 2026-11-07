@@ -24,6 +24,12 @@ import com.riyadm.wakenudge.di.AppScope
 import com.riyadm.wakenudge.domain.model.TimeFormat
 import com.riyadm.wakenudge.domain.repository.SettingsRepository
 import com.riyadm.wakenudge.engine.ActionReceiver
+import com.riyadm.wakenudge.engine.LedgerEntry
+import com.riyadm.wakenudge.engine.TonightProblem
+import com.riyadm.wakenudge.engine.TonightProblemKind
+import com.riyadm.wakenudge.engine.describe
+import com.riyadm.wakenudge.health.HealthFixKind
+import com.riyadm.wakenudge.missions.MissionInfo
 import com.riyadm.wakenudge.engine.RingPhase
 import com.riyadm.wakenudge.engine.RingSession
 import com.riyadm.wakenudge.engine.RingTarget
@@ -56,6 +62,7 @@ object NotificationIds {
     const val BEDTIME = 1002
     const val SCHEDULING_PROBLEM = 1003
     const val LOW_BATTERY = 1004
+    const val TONIGHT_PROBLEM = 1005
     fun snoozed(alarmId: Long) = 20_000 + (alarmId and 0xFFFF).toInt()
     fun upcoming(alarmId: Long) = 30_000 + (alarmId and 0xFFFF).toInt()
     fun wakeCheck(alarmId: Long) = 40_000 + (alarmId and 0xFFFF).toInt()
@@ -396,6 +403,70 @@ class Notifier @Inject constructor(
         post(NotificationIds.LOW_BATTERY, b.build())
     }
 
+    /**
+     * The evening check found something that could stop the alarm at [atMillis]. Names the most serious problem, with the
+     * button that fixes it; the rest are in Alarm Health. Gone by itself once the alarm time has passed.
+     */
+    fun showTonightProblem(alarm: Alarm, atMillis: Long, problem: TonightProblem, more: Int) {
+        val whenText = TimeText.format(Instant.ofEpochMilli(atMillis).atZone(ZoneId.systemDefault()).toLocalTime(), is24Hour())
+        val title = alarm.label.ifBlank { whenText }
+        val line = tonightLine(problem)
+        val text = if (more > 0) context.getString(R.string.notif_tonight_with_more, line, context.resources.getQuantityString(R.plurals.notif_tonight_more, more, more)) else line
+        val button = problem.fix?.let { healthFixIntent(it) } ?: mainIntent(alarm.id)
+        val b = NotificationCompat.Builder(context, Channels.PROBLEMS)
+            .setSmallIcon(R.drawable.ic_stat_alarm)
+            .setContentTitle(context.getString(R.string.notif_tonight_title, title))
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(mainIntent(0, MainActivity.ACTION_SHOW_HEALTH))
+            .addAction(0, context.getString(if (problem.fix != null) R.string.notif_tonight_fix else R.string.notif_tonight_open_alarm), button)
+        val left = atMillis - System.currentTimeMillis()
+        if (left > 0) b.setTimeoutAfter(left)
+        post(NotificationIds.TONIGHT_PROBLEM, b.build())
+    }
+
+    fun cancelTonightProblem() = manager.cancel(NotificationIds.TONIGHT_PROBLEM)
+
+    private fun tonightLine(problem: TonightProblem): String {
+        val mission = problem.mission?.let { context.getString(MissionInfo.titleRes(it)) }.orEmpty()
+        return when (problem.kind) {
+            TonightProblemKind.SILENCED_BY_DND -> context.getString(R.string.notif_tonight_dnd)
+            TonightProblemKind.EXACT_ALARMS_OFF -> context.getString(R.string.notif_tonight_exact)
+            TonightProblemKind.MISSION_NEEDS_PERMISSION -> context.getString(R.string.notif_tonight_permission, mission)
+            TonightProblemKind.MISSION_NEEDS_NFC -> context.getString(R.string.notif_tonight_nfc, mission)
+            TonightProblemKind.MISSION_NOT_SET_UP -> context.getString(R.string.notif_tonight_not_set_up, mission)
+            TonightProblemKind.MISSION_NO_HARDWARE -> context.getString(R.string.notif_tonight_no_hardware, mission)
+            TonightProblemKind.NOTIFICATIONS_OFF -> context.getString(R.string.notif_tonight_notifications)
+            TonightProblemKind.FULL_SCREEN_OFF -> context.getString(R.string.notif_tonight_full_screen)
+            TonightProblemKind.BACKGROUND_RESTRICTED -> context.getString(R.string.notif_tonight_background)
+            TonightProblemKind.LOW_BATTERY -> context.getString(R.string.notif_tonight_low_battery)
+            // Put right before anyone is told; if that failed, the scheduling notice says so.
+            TonightProblemKind.TRIGGER_MISSING -> context.getString(R.string.notif_tonight_exact)
+        }
+    }
+
+    /**
+     * Says why an alarm rang late or did not ring. Takes the place of its plain "missed" notice, so one alarm gets one
+     * notification, and opens Alarm Health, where the ledger has the rest.
+     */
+    fun showRingExplained(entry: LedgerEntry) {
+        val whenText = TimeText.format(Instant.ofEpochMilli(entry.scheduledAt).atZone(ZoneId.systemDefault()).toLocalTime(), is24Hour())
+        val text = entry.describe(context.resources)
+        val b = NotificationCompat.Builder(context, Channels.MISSED)
+            .setSmallIcon(R.drawable.ic_stat_alarm)
+            .setContentTitle(context.getString(if (entry.rang) R.string.notif_ledger_late_title else R.string.notif_ledger_missed_title, entry.label.ifBlank { whenText }))
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setCategory(NotificationCompat.CATEGORY_ERROR)
+            .setAutoCancel(true)
+            .setContentIntent(mainIntent(0, MainActivity.ACTION_SHOW_HEALTH))
+        post(NotificationIds.missed(entry.alarmId), b.build())
+    }
+
     /** Some alarms could not be armed (the OS refused or ran out of room); Alarm Health has the details. */
     fun showSchedulingProblem(unarmed: Int) {
         val b = NotificationCompat.Builder(context, Channels.PROBLEMS)
@@ -467,6 +538,14 @@ class Notifier @Inject constructor(
     private fun mainIntent(alarmId: Long, action: String = MainActivity.ACTION_SHOW_ALARMS): PendingIntent = PendingIntent.getActivity(
         context, 2,
         Intent(context, MainActivity::class.java).setAction(action).putExtra(Actions.EXTRA_ID, alarmId)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
+
+    /** Through the app rather than straight to Settings, so a phone without that exact screen gets the closest one it has. */
+    private fun healthFixIntent(fix: HealthFixKind): PendingIntent = PendingIntent.getActivity(
+        context, 4,
+        Intent(context, MainActivity::class.java).setAction(MainActivity.ACTION_HEALTH_FIX).putExtra(MainActivity.EXTRA_HEALTH_FIX, fix.name)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )

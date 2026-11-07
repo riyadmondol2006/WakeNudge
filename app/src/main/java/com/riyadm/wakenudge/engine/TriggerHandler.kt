@@ -23,7 +23,7 @@ class TriggerHandler @Inject constructor(
     private val runtime: RuntimeState,
     private val time: TimeSource,
     private val diagnostics: DiagnosticsLog,
-    private val battery: BatteryGauge,
+    private val tonight: TonightCheck,
 ) {
     suspend fun handle(intent: Intent) {
         val kind = Triggers.kindOf(intent.action) ?: return
@@ -43,7 +43,7 @@ class TriggerHandler @Inject constructor(
             TriggerKind.WAKE_CHECK_DEADLINE -> ringing(RingKind.WAKE_CHECK_RERING, id, at, eventId) { ring.onWakeCheckDeadline(id) }
             TriggerKind.TIMER -> ring.onTimerFired(id)?.let(launcher::start)
             TriggerKind.BEDTIME -> onBedtime()
-            TriggerKind.BATTERY_CHECK -> onBatteryCheck()
+            TriggerKind.BATTERY_CHECK -> if (index == TonightCheckPolicy.REARM_INDEX) tonight.rearmBeforeAlarm() else tonight.run()
             TriggerKind.RING_RETRY -> ring.onRetry(id, eventId, at, RingRetry.kindOf(index), RingRetry.attemptOf(index))?.let(launcher::start)
             TriggerKind.RING_SENTINEL -> ring.onSentinelFired()?.let(launcher::start)
             TriggerKind.WATCHDOG -> {
@@ -72,17 +72,6 @@ class TriggerHandler @Inject constructor(
         request?.let(launcher::start)
     }
 
-    /** Some hours before the next alarm: warn once if the battery may not last until it rings. */
-    private suspend fun onBatteryCheck() {
-        if (!settings.current().lowBatteryWarning) return
-        val next = scheduler.nextAlarm() ?: return
-        val reading = battery.read()
-        if (LowBatteryPolicy.shouldWarn(reading, next.at.toInstant().toEpochMilli(), time.nowMillis()) && reading != null) {
-            diagnostics.warn("Battery", "${reading.percent}% and not charging before the alarm at ${next.at.toLocalTime()}")
-            notifier.showLowBattery(reading.percent, next.at.toLocalTime(), next.at.toInstant().toEpochMilli())
-        }
-    }
-
     private suspend fun onBedtime() {
         val bedtime = settings.current().bedtime
         if (bedtime.enabled) {
@@ -90,5 +79,7 @@ class TriggerHandler @Inject constructor(
             notifier.showBedtime(LocalTime.of(bedtime.hour, bedtime.minute), wake)
         }
         scheduler.refreshBedtime()
+        // Whoever gets this reminder is about to sleep, which is the moment to hear that tonight's alarm has a problem.
+        if (bedtime.enabled) tonight.run(askedByBedtime = true)
     }
 }

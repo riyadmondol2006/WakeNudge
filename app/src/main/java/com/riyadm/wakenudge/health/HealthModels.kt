@@ -24,6 +24,7 @@ enum class HealthFixKind {
     DATE_TIME,
     SOUND,
     TTS_SETTINGS,
+    NFC_SETTINGS,
 }
 
 /** A one-tap remedy. Use [launch] to start it safely; [intent] is exposed for callers that want their own handling. */
@@ -79,12 +80,13 @@ object HealthIntents {
         HealthFixKind.DATE_TIME -> Intent(Settings.ACTION_DATE_SETTINGS)
         HealthFixKind.SOUND -> Intent(Settings.ACTION_SOUND_SETTINGS)
         HealthFixKind.TTS_SETTINGS -> Intent("com.android.settings.TTS_SETTINGS")
+        HealthFixKind.NFC_SETTINGS -> Intent(Settings.ACTION_NFC_SETTINGS)
     }
 
     /** Screens to try, in order, when the first choice does not exist on this device's Settings app. */
     fun fallbacksFor(kind: HealthFixKind, packageName: String): List<Intent> = when (kind) {
         HealthFixKind.DND_SETTINGS -> listOf(Intent(Settings.ACTION_SOUND_SETTINGS))
-        HealthFixKind.TTS_SETTINGS -> listOf(Intent(Settings.ACTION_SETTINGS))
+        HealthFixKind.TTS_SETTINGS, HealthFixKind.NFC_SETTINGS -> listOf(Intent(Settings.ACTION_SETTINGS))
         HealthFixKind.RING_CHANNEL -> listOf(forKind(HealthFixKind.APP_NOTIFICATIONS, packageName))
         HealthFixKind.EXACT_ALARMS, HealthFixKind.FULL_SCREEN_INTENT, HealthFixKind.BATTERY_OPTIMIZATION ->
             listOf(forKind(HealthFixKind.APP_DETAILS, packageName))

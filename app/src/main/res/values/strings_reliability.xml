@@ -25,4 +25,46 @@
     <string name="health_detail_ring_crash">The alarm stopped unexpectedly while it was ringing on %1$s (the alarm screen or the sound service stopped working). WakeNudge started it again right away, but please send a support report from this screen.</string>
     <string name="health_title_battery_saver">Battery Saver</string>
     <string name="health_detail_battery_saver">Battery Saver is on. Alarms still ring, but timers, heads-up notices and the bedtime reminder can arrive late.</string>
+
+    <!-- The check before tonight's alarm -->
+    <string name="notif_tonight_title">%1$s: your alarm might not work</string>
+    <string name="notif_tonight_with_more">%1$s %2$s</string>
+    <plurals name="notif_tonight_more">
+        <item quantity="one">%d more problem in Alarm Health.</item>
+        <item quantity="other">%d more problems in Alarm Health.</item>
+    </plurals>
+    <string name="notif_tonight_fix">Fix it</string>
+    <string name="notif_tonight_open_alarm">Open alarms</string>
+    <string name="notif_tonight_dnd">Do Not Disturb would silence it.</string>
+    <string name="notif_tonight_exact">Alarms &amp; reminders is off for this app, so it may ring late.</string>
+    <string name="notif_tonight_permission">The %1$s mission needs camera access, and that is off.</string>
+    <string name="notif_tonight_nfc">The %1$s mission needs NFC, and that is off.</string>
+    <string name="notif_tonight_not_set_up">The %1$s mission has not been set up.</string>
+    <string name="notif_tonight_no_hardware">The %1$s mission cannot run on this phone.</string>
+    <string name="notif_tonight_notifications">Notifications are off, so the alarm screen may not appear.</string>
+    <string name="notif_tonight_full_screen">The alarm screen is not allowed to open by itself.</string>
+    <string name="notif_tonight_background">Android is restricting this app in the background.</string>
+    <string name="notif_tonight_low_battery">The battery is low and not charging.</string>
+
+    <!-- What happened to a recent alarm -->
+    <string name="ledger_section">Recent alarms that went wrong</string>
+    <string name="notif_ledger_missed_title">%1$s: your alarm did not ring</string>
+    <string name="notif_ledger_late_title">%1$s: your alarm rang late</string>
+    <string name="ledger_force_stopped">The app was force stopped, so Android cancelled the alarm. It could not ring until the app was opened again.</string>
+    <string name="ledger_force_stopped_late">The app was force stopped, so Android cancelled the alarm. It rang when the app was opened again.</string>
+    <string name="ledger_phone_off">The phone was off or restarting when the alarm was due.</string>
+    <string name="ledger_phone_off_late">The phone was off or restarting when the alarm was due. It rang when the phone came back.</string>
+    <string name="ledger_killed">Android closed the app shortly before the alarm was due.</string>
+    <plurals name="ledger_late">
+        <item quantity="one">Android delivered it %d minute late.</item>
+        <item quantity="other">Android delivered it %d minutes late.</item>
+    </plurals>
+    <string name="ledger_unexplained">It did not ring, and nothing on the phone says why.</string>
+    <plurals name="ledger_restarted">
+        <item quantity="one">The phone restarted %d time during this alarm.</item>
+        <item quantity="other">The phone restarted %d times during this alarm.</item>
+    </plurals>
+    <string name="ledger_stopped">The app was stopped while it rang.</string>
+    <string name="ledger_killed_during">Android closed the app while it rang.</string>
+    <string name="ledger_sound">The chosen sound did not play, so a backup sound was used: %1$s</string>
 </resources>

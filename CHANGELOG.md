@@ -4,6 +4,19 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 Releases are built and published automatically from `main` and numbered `MAJOR.MINOR.N`, where `N` is the commit count
 (see [docs/RELEASING.md](docs/RELEASING.md)); the notes of each GitHub release list the commits it contains.
 
+## Hear about it the night before, not the morning after
+
+- **About 8 hours before an alarm (and with the bedtime reminder) WakeNudge checks that it will really work**: its trigger,
+  notifications, the full-screen alarm, exact alarms, background restriction, Do Not Disturb, the battery, and every
+  mission the alarm has (camera access, NFC on, a code or photo set, the sensor). If all is well you see nothing. If not,
+  one notification names the problem and has a button that fixes it
+- A lost alarm trigger is put back silently, then once more half an hour before the alarm. That is all the wake-ups a
+  night costs
+- **When an alarm rang late or not at all, the next start says why** where it can tell: the app was force stopped, the phone
+  was off, Android closed the app or delivered it late, the phone restarted or the app was stopped while it rang, or a
+  backup sound was used. Alarm Health lists the last week of these
+- The low-battery switch on the Sleep screen is now "Warn me the night before if an alarm might fail" and covers all of this
+
 ## Restarting the phone no longer pays
 
 - **How many restarts a ring survives is now per alarm** (3 by default, no more than 20). Past that, or past its window, it

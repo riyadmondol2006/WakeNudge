@@ -15,6 +15,12 @@ import javax.inject.Singleton
 data class ProcessExit(val atMillis: Long, val reason: Int, val description: String?)
 
 object ExitReasons {
+    /** Force stop, or Stop in Active apps. */
+    fun isUserStop(exit: ProcessExit): Boolean = exit.reason == ApplicationExitInfo.REASON_USER_REQUESTED
+
+    fun isSystemKill(exit: ProcessExit): Boolean =
+        exit.reason == ApplicationExitInfo.REASON_LOW_MEMORY || exit.description?.contains("MemoryLimiter", ignoreCase = true) == true
+
     /**
      * What is worth writing down about exits since [seenUpTo], given the ring that was on ([ringStartedAt], null if none):
      * the user stopping the app, or the system killing it for memory, while an alarm rang.
@@ -23,7 +29,7 @@ object ExitReasons {
         if (ringStartedAt == null) return emptyList()
         return exits.filter { it.atMillis > seenUpTo && it.atMillis >= ringStartedAt }.sortedBy { it.atMillis }.mapNotNull { exit ->
             when {
-                exit.reason == ApplicationExitInfo.REASON_USER_REQUESTED -> "stopped by the user during a ring (${exit.description.orEmpty()})"
+                isUserStop(exit) -> "stopped by the user during a ring (${exit.description.orEmpty()})"
                 exit.reason == ApplicationExitInfo.REASON_LOW_MEMORY -> "killed for low memory during a ring"
                 exit.description?.contains("MemoryLimiter", ignoreCase = true) == true -> "killed by the memory limiter during a ring (${exit.description})"
                 else -> null
@@ -45,13 +51,19 @@ class ExitPostMortem @Inject constructor(
     fun report() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
         runCatching {
-            val manager = context.getSystemService(ActivityManager::class.java) ?: return
-            val exits = manager.getHistoricalProcessExitReasons(context.packageName, 0, MAX_EXITS)
-                .map { ProcessExit(it.timestamp, it.reason, it.description) }
+            val exits = exits()
             val ring = DurableRingStore(runtime, diagnostics).ring()
             ExitReasons.noteworthy(exits, runtime.lastExitSeenAt, ring?.startedAtWall).forEach { diagnostics.warn("Exit", "${ring?.alarmId}: $it") }
             exits.maxOfOrNull { it.atMillis }?.let { runtime.lastExitSeenAt = it }
         }.onFailure { diagnostics.warn("Exit", "could not read how the last process ended: ${it.message}") }
+    }
+
+    /** How this app's recent processes ended, newest first. Empty before Android 11, which does not say. */
+    fun exits(): List<ProcessExit> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return emptyList()
+        val manager = context.getSystemService(ActivityManager::class.java) ?: return emptyList()
+        return manager.getHistoricalProcessExitReasons(context.packageName, 0, MAX_EXITS)
+            .map { ProcessExit(it.timestamp, it.reason, it.description) }
     }
 
     private companion object {

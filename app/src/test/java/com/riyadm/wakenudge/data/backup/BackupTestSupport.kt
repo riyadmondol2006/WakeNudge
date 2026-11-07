@@ -68,6 +68,8 @@ class RecordingScheduler : AlarmScheduler {
 
     override suspend fun schedule(alarmId: Long, afterMillis: Long) = Unit
     override suspend fun cancel(alarmId: Long) = Unit
+    val rearmed = mutableListOf<Pair<Long, Long>>()
+    override suspend fun rearm(alarmId: Long, atMillis: Long): Boolean = rearmed.add(alarmId to atMillis)
     override suspend fun cancelFollowUps(alarmId: Long) = Unit
     override suspend fun nextAlarm(): NextAlarm? = null
     override suspend fun nextTriggerOf(alarmId: Long): Long? = null

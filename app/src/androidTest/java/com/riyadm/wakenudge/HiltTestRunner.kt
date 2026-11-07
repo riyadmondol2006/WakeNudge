@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.AndroidJUnitRunner
 import com.riyadm.wakenudge.engine.PendingAlarms
+import com.riyadm.wakenudge.engine.TonightCheckPolicy
 import com.riyadm.wakenudge.engine.TriggerKind
 import dagger.hilt.android.testing.HiltTestApplication
 import org.junit.runner.Description
@@ -32,5 +33,6 @@ class GlobalTriggerCleanup : RunListener() {
     override fun testFinished(description: Description) {
         val pending = PendingAlarms(InstrumentationRegistry.getInstrumentation().targetContext)
         for (kind in listOf(TriggerKind.BATTERY_CHECK, TriggerKind.WATCHDOG, TriggerKind.BEDTIME)) runCatching { pending.cancel(kind, 0) }
+        runCatching { pending.cancel(TriggerKind.BATTERY_CHECK, 0, TonightCheckPolicy.REARM_INDEX) }
     }
 }

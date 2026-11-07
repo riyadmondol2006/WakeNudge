@@ -197,6 +197,8 @@ class AlarmSchedulerImpl @Inject constructor(
             armedCopies.forget(alarmId)
         } else {
             armedCopies.update(alarm)
+            // Something about this alarm may have changed, so whatever was found about it earlier no longer counts.
+            runtime.tonightCheckedFor = 0
             val now = time.now()
             val from = if (afterMillis > now.toInstant().toEpochMilli()) {
                 java.time.Instant.ofEpochMilli(afterMillis).atZone(now.zone)
@@ -223,6 +225,15 @@ class AlarmSchedulerImpl @Inject constructor(
             if (!pending.isScheduled(TriggerKind.WATCHDOG, 0)) scheduleWatchdog(time.nowMillis())
         }
         surfaces.refreshAll()
+    }
+
+    override suspend fun rearm(alarmId: Long, atMillis: Long): Boolean = lock.withLock {
+        val armed = pending.setAlarmClock(TriggerKind.ALARM, alarmId, atMillis)
+        if (armed) {
+            val map = runtime.registeredTriggers()
+            if (map[alarmId] != atMillis) runtime.setRegisteredTriggers(map + (alarmId to atMillis))
+        }
+        armed
     }
 
     override suspend fun cancel(alarmId: Long) = lock.withLock {
@@ -414,13 +425,17 @@ class AlarmSchedulerImpl @Inject constructor(
     }
 
     /**
-     * One look at the battery before the soonest armed alarm worth checking for; a warning, so an inexact wake-up is
-     * precise enough. An alarm about to ring (or a stale entry) is skipped rather than leaving the next one unchecked.
+     * One look before the soonest armed alarm worth checking for, and one silent re-arm shortly before it; that is all the
+     * wake-ups a night costs, because an alarm already looked at is not looked at again however often this runs. A warning,
+     * so an inexact wake-up is precise enough. An alarm about to ring (or a stale entry) is skipped rather than leaving the
+     * next one unchecked.
      */
     private fun scheduleBatteryCheck(armedAt: Collection<Long>, nowMs: Long) {
         pending.cancel(TriggerKind.BATTERY_CHECK, 0)
-        val next = armedAt.filter { it - nowMs >= LowBatteryPolicy.MIN_AHEAD_MS }.minOrNull()
-        LowBatteryPolicy.checkAt(next, nowMs)?.let { pending.setInexact(TriggerKind.BATTERY_CHECK, 0, it) }
+        pending.cancel(TriggerKind.BATTERY_CHECK, 0, TonightCheckPolicy.REARM_INDEX)
+        val next = armedAt.filter { it - nowMs >= LowBatteryPolicy.MIN_AHEAD_MS }.minOrNull() ?: return
+        if (runtime.tonightCheckedFor != next) LowBatteryPolicy.checkAt(next, nowMs)?.let { pending.setInexact(TriggerKind.BATTERY_CHECK, 0, it) }
+        TonightCheckPolicy.rearmAt(next, nowMs)?.let { pending.setInexact(TriggerKind.BATTERY_CHECK, 0, it, TonightCheckPolicy.REARM_INDEX) }
     }
 
     private fun scheduleWatchdog(nowMs: Long) {

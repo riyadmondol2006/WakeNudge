@@ -26,7 +26,7 @@ class TriggerHandlerResilienceTest {
     private val clock = TestClock()
     private val handler = TriggerHandler(
         ring, mockk(relaxed = true), RingStarter { started += it }, mockk<AlarmScheduler>(relaxed = true), mockk<Notifier>(relaxed = true),
-        MemorySettings(), realRuntime(), clock, SilentLog(), BatteryGauge { null },
+        MemorySettings(), realRuntime(), clock, SilentLog(), mockk<TonightCheck>(relaxed = true),
     )
 
     private fun intent(kind: TriggerKind, id: Long, at: Long = clock.now, eventId: Long = -1, index: Int = 0): Intent = mockk {

@@ -16,6 +16,12 @@ interface AlarmScheduler {
      */
     suspend fun schedule(alarmId: Long, afterMillis: Long = 0)
 
+    /**
+     * Registers the alarm's main trigger again for [atMillis], the time it is already due, and changes nothing else: not the
+     * alarm, not its other triggers. Returns false if the OS refused.
+     */
+    suspend fun rearm(alarmId: Long, atMillis: Long): Boolean
+
     /** Removes every pending trigger belonging to the alarm, including snooze, backups and still-awake checks. */
     suspend fun cancel(alarmId: Long)
 

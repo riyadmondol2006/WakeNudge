@@ -29,6 +29,8 @@ never overwrite each other by accident, and any of them can be found and cancell
 - `RING_RETRY` rings an alarm again that was cut off (see "When things go wrong"). Its index carries the ring kind and the
   attempt number (`RingRetry`), so a retry of a retry cannot loop for ever.
 - `RING_SENTINEL` is pushed 30 seconds ahead while a ring that keeps coming back is on (see "A ring outlives its process").
+- `BATTERY_CHECK` is the evening check before the next alarm (index 0) and a silent re-arm 30 minutes before it (index 1);
+  see "Tonight check and ring ledger".
 
 ## Scheduling
 
@@ -208,6 +210,28 @@ route, scheduler state) into a `HealthSnapshot`; `HealthEvaluator` is a pure fun
 errors/warnings with fixes. The test alarm goes through the real trigger path. Besides the system state it reports what
 the engine itself noticed in the last three days: alarms armed the second-best way or not at all, a sound that needed a
 fallback (including the emergency beeper), a ring that was cut short by a crash, and Battery Saver.
+
+### Tonight check and ring ledger
+
+About 8 hours before the next alarm (or straight away if it is sooner, and again with the bedtime reminder) `TonightCheck`
+asks whether it will really work: its trigger is registered, notifications and the ring channel, full-screen permission,
+exact alarms, background restriction, Do Not Disturb, the battery, and every mission the alarm has, not just the one a
+rotation would pick (permission, NFC on, code set, sensor; `MissionProbe`). `TonightCheckPolicy` is the pure part. All fine:
+nothing is shown. Otherwise one notification names the worst problem with a button for its fix (opened through
+`MainActivity`, so `HealthFix.launch` can fall back to a nearby Settings screen) and says how many more there are. A
+missing trigger is put back silently with `AlarmScheduler.rearm`, which registers the main trigger again for the time it
+is already set for and changes nothing else; a second, silent re-arm runs 30 minutes before the alarm. The check writes
+no alarm, does nothing at all while a ring is on, and remembers which alarm time it looked at
+(`RuntimeState.tonightCheckedFor`), so reschedules and restarts add no wake-ups. Without notifications the notice cannot
+be posted; Alarm Health shows that problem instead. The "Warn me the night before" switch on the Sleep screen turns the
+notices off (not the re-arm).
+
+`RingLedger` compares, at each process start and when Alarm Health opens, when recent alarms were due with when they
+rang, and explains what it can from the history, how the app's last processes ended (`ExitPostMortem.exits`) and when
+the phone last started: force stopped, phone off, closed by Android, delivered more than a minute late, restarted or
+stopped while it rang, a backup sound used. A cause is settled when first seen (the boot time changes later) and kept
+for a week in `RuntimeState`, not in a backup. An alarm that did not ring on time in the last day gets one notification
+in place of its plain "missed" notice; Alarm Health lists the rest.
 
 ## Offline guarantee
 

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.ui.platform.LocalResources
 import android.content.ClipData
 import android.content.Intent
+import android.text.format.DateUtils
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -61,6 +62,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.riyadm.wakenudge.R
+import com.riyadm.wakenudge.engine.LedgerEntry
+import com.riyadm.wakenudge.engine.describe
 import com.riyadm.wakenudge.health.HealthItem
 import com.riyadm.wakenudge.health.Severity
 import com.riyadm.wakenudge.health.launch
@@ -79,6 +82,7 @@ fun HealthScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: H
     val events by viewModel.events.collectAsStateWithLifecycle()
     val testArmedAt by viewModel.testArmedAt.collectAsStateWithLifecycle()
     val timeFormat by viewModel.timeFormat.collectAsStateWithLifecycle()
+    val ledger by viewModel.ledgerEntries.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val resources = LocalResources.current
     val clipboard = LocalClipboard.current
@@ -108,6 +112,10 @@ fun HealthScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: H
             val items = report?.bySeverity.orEmpty()
             if (items.isNotEmpty()) item { SectionTitle(stringResource(R.string.health_checks)) }
             items(items, key = { it.id }) { item -> HealthRow(item) { item.fix?.launch(context) } }
+            if (ledger.isNotEmpty()) {
+                item { SectionTitle(stringResource(R.string.ledger_section)) }
+                items(ledger, key = { it.key }) { entry -> LedgerRow(entry) }
+            }
             item {
                 SectionTitle(stringResource(R.string.health_diagnostics))
                 Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
@@ -233,6 +241,22 @@ private fun HealthRow(item: HealthItem, onFix: () -> Unit) {
                     TextButton(onClick = onFix, modifier = Modifier.padding(top = 4.dp)) { Text(stringResource(fix.label)) }
                 }
             }
+        }
+    }
+}
+
+/** A recent alarm that did not go as it should, in plain words. */
+@Composable
+private fun LedgerRow(entry: LedgerEntry) {
+    val scheme = MaterialTheme.colorScheme
+    val context = LocalContext.current
+    val moment = remember(entry.scheduledAt) {
+        DateUtils.formatDateTime(context, entry.scheduledAt, DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_ABBREV_MONTH)
+    }
+    Surface(shape = RoundedCornerShape(24.dp), color = scheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(listOf(entry.label, moment).filter { it.isNotBlank() }.joinToString(" · "), style = MaterialTheme.typography.titleSmall)
+            Text(entry.describe(LocalResources.current), style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
         }
     }
 }

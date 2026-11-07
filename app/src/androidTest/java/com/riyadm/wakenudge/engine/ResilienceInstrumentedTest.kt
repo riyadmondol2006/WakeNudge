@@ -93,6 +93,7 @@ private object BrokenSettings : SettingsRepository {
 class ResilienceInstrumentedTest {
     @get:Rule val hilt = HiltAndroidRule(this)
 
+    @Inject lateinit var tonight: TonightCheck
     @Inject lateinit var alarms: AlarmRepository
     @Inject lateinit var history: HistoryRepository
     @Inject lateinit var timers: TimerRepository
@@ -214,7 +215,7 @@ class ResilienceInstrumentedTest {
         val controller = RingController(
             store, flakyAlarms, flakyHistory, timers, settings, scheduler, wakeCheckController, pending, runtime, time, notifier, surfaces, diagnostics,
         )
-        val triggers = TriggerHandler(controller, wakeCheckController, starter, scheduler, notifier, settings, runtime, time, diagnostics, BatteryGauge { null })
+        val triggers = TriggerHandler(controller, wakeCheckController, starter, scheduler, notifier, settings, runtime, time, diagnostics, tonight)
         return controller to triggers
     }
 

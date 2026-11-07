@@ -34,7 +34,7 @@ enum class TriggerKind {
     WATCHDOG,
     /** Rings an alarm again that was cut off: the ring screen crashed, the service died, or the OS refused to start it. */
     RING_RETRY,
-    /** A look at the battery some hours before the next alarm, to warn while there is still time to charge. */
+    /** A look at the next alarm some hours before it, to warn while something can still be done, and a silent one shortly before it. */
     BATTERY_CHECK,
     /** Fires every 30 s while a ring is on, so a ring killed without warning is brought back from its saved state. */
     RING_SENTINEL,
@@ -122,10 +122,10 @@ class PendingAlarms @Inject constructor(
     }.also { if (!it) dropUnregistered(kind, id, index) }
 
     /** Inexact, battery-friendly trigger used by the watchdog. */
-    fun setInexact(kind: TriggerKind, id: Long, atMillis: Long): Boolean = guarded {
+    fun setInexact(kind: TriggerKind, id: Long, atMillis: Long, index: Int = 0): Boolean = guarded {
         call("setAndAllowWhileIdle")
-        AlarmManagerCompat.setAndAllowWhileIdle(alarmManager, AlarmManager.RTC_WAKEUP, atMillis, operation(kind, id, 0, atMillis, -1))
-    }.also { if (!it) dropUnregistered(kind, id, 0) }
+        AlarmManagerCompat.setAndAllowWhileIdle(alarmManager, AlarmManager.RTC_WAKEUP, atMillis, operation(kind, id, index, atMillis, -1))
+    }.also { if (!it) dropUnregistered(kind, id, index) }
 
     /**
      * The OS allows 500 concurrent alarms per app and throws beyond that (and a revoked permission throws too). A

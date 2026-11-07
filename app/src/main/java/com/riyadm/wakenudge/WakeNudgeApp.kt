@@ -5,6 +5,7 @@ import com.riyadm.wakenudge.di.AppScope
 import com.riyadm.wakenudge.engine.PerAlarmSettingsCopy
 import com.riyadm.wakenudge.engine.RingController
 import com.riyadm.wakenudge.engine.RingCrashGuard
+import com.riyadm.wakenudge.engine.RingLedger
 import com.riyadm.wakenudge.engine.StartupRepair
 import com.riyadm.wakenudge.engine.audio.AlarmAudioEngine
 import com.riyadm.wakenudge.engine.notify.Notifier
@@ -23,6 +24,7 @@ class WakeNudgeApp : Application() {
     @Inject lateinit var startupRepair: StartupRepair
     @Inject lateinit var perAlarmSettingsCopy: PerAlarmSettingsCopy
     @Inject lateinit var exitPostMortem: ExitPostMortem
+    @Inject lateinit var ringLedger: RingLedger
     @Inject @AppScope lateinit var appScope: CoroutineScope
 
     override fun onCreate() {
@@ -45,6 +47,8 @@ class WakeNudgeApp : Application() {
             runCatching { startupRepair.repairIfNeeded() }
             // A ring the last process left behind comes back, or is told about if it cannot.
             runCatching { ring.reviveDurableRing(triggersWiped = wiped) }
+            // Last, when all of the above has recorded what it found: an alarm that did not ring on time is explained.
+            ringLedger.update()
         }
     }
 }

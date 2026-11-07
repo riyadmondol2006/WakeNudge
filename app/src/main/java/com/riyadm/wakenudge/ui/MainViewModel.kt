@@ -13,6 +13,7 @@ import com.riyadm.wakenudge.domain.usecase.AlarmActions
 import com.riyadm.wakenudge.engine.TimerController
 import com.riyadm.wakenudge.ui.nav.AlarmEditRoute
 import com.riyadm.wakenudge.ui.nav.AlarmsRoute
+import com.riyadm.wakenudge.ui.nav.HealthRoute
 import com.riyadm.wakenudge.ui.nav.SleepRoute
 import com.riyadm.wakenudge.ui.nav.TimerRoute
 import com.riyadm.wakenudge.update.UpdateChecker
@@ -85,6 +86,8 @@ class MainViewModel @Inject constructor(
             MainActivity.ACTION_SHOW_ALARMS, AlarmClock.ACTION_SHOW_ALARMS -> _commands.send(AlarmsRoute)
             MainActivity.ACTION_SHOW_TIMERS, AlarmClock.ACTION_SHOW_TIMERS -> _commands.send(TimerRoute)
             MainActivity.ACTION_SHOW_SLEEP -> _commands.send(SleepRoute)
+            // A fix opens over Alarm Health (MainActivity starts it), so coming back shows the check again.
+            MainActivity.ACTION_SHOW_HEALTH, MainActivity.ACTION_HEALTH_FIX -> _commands.send(HealthRoute)
             // A long-press on the Quick Settings tile lands on the alarm list.
             ACTION_QS_TILE_PREFERENCES -> _commands.send(AlarmsRoute)
             AlarmClock.ACTION_SET_ALARM -> setAlarmFromIntent(intent)

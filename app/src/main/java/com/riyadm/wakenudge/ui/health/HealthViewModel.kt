@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.riyadm.wakenudge.domain.repository.DiagnosticRecord
 import com.riyadm.wakenudge.domain.repository.DiagnosticsLog
 import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
+import com.riyadm.wakenudge.engine.LedgerEntry
+import com.riyadm.wakenudge.engine.RingLedger
 import com.riyadm.wakenudge.health.DiagnosticsExporter
 import com.riyadm.wakenudge.health.HealthChecker
 import com.riyadm.wakenudge.health.HealthReport
@@ -27,6 +29,7 @@ class HealthViewModel @Inject constructor(
     private val exporter: DiagnosticsExporter,
     private val scheduler: AlarmScheduler,
     private val log: DiagnosticsLog,
+    private val ledger: RingLedger,
     settings: SettingsRepository,
 ) : ViewModel() {
     /** For the test alarm's "rings at" line, in the app's 12/24-hour choice like every other time. */
@@ -42,8 +45,17 @@ class HealthViewModel @Inject constructor(
     /** Epoch millis the last test alarm will ring, or 0. */
     val testArmedAt: StateFlow<Long> = _testArmedAt.asStateFlow()
 
+    private val _ledger = MutableStateFlow<List<LedgerEntry>>(emptyList())
+
+    /** Recent alarms that did not go as they should, and why. Newest first. */
+    val ledgerEntries: StateFlow<List<LedgerEntry>> = _ledger.asStateFlow()
+
     fun refresh() {
         viewModelScope.launch { _report.value = checker.check() }
+        viewModelScope.launch {
+            ledger.update()
+            _ledger.value = ledger.entries()
+        }
     }
 
     fun armTestAlarm(seconds: Int) {

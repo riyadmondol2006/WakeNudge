@@ -7,6 +7,9 @@ import com.riyadm.wakenudge.domain.model.AppSettings
 import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
 import com.riyadm.wakenudge.domain.scheduling.NextAlarm
 import com.riyadm.wakenudge.engine.notify.Notifier
+import com.riyadm.wakenudge.health.HealthChecker
+import com.riyadm.wakenudge.health.HealthSnapshot
+import com.riyadm.wakenudge.missions.MissionProbe
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -69,10 +72,18 @@ class LowBatteryTriggerTest {
     private val notifier = mockk<Notifier>(relaxed = true)
     private val scheduler = mockk<AlarmScheduler>(relaxed = true)
 
-    private fun handler(settings: AppSettings = AppSettings(), reading: BatteryReading?) = TriggerHandler(
-        mockk(relaxed = true), mockk(relaxed = true), RingStarter { }, scheduler, notifier,
-        MemorySettings(settings), realRuntime(), clock, SilentLog(), BatteryGauge { reading },
-    )
+    private val pending = mockk<PendingAlarms>(relaxed = true).also { every { it.isScheduled(any(), any(), any()) } returns true }
+    private val health = mockk<HealthChecker>().also { coEvery { it.snapshot() } returns HealthSnapshot(nowMillis = clock.now) }
+
+    private fun handler(settings: AppSettings = AppSettings(), reading: BatteryReading?): TriggerHandler {
+        val memory = MemorySettings(settings)
+        val runtime = realRuntime()
+        val tonight = TonightCheck(
+            scheduler, notifier, memory, pending, RingSessionStore(), runtime, clock, SilentLog(), BatteryGauge { reading }, health,
+            mockk<MissionProbe> { every { readiness(any()) } returns MissionReadiness() },
+        )
+        return TriggerHandler(mockk(relaxed = true), mockk(relaxed = true), RingStarter { }, scheduler, notifier, memory, runtime, clock, SilentLog(), tonight)
+    }
 
     private fun trigger(): Intent = mockk {
         every { action } returns Triggers.action(TriggerKind.BATTERY_CHECK)
