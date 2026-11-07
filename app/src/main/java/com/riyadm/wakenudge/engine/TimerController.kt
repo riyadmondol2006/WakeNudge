@@ -8,8 +8,14 @@ import com.riyadm.wakenudge.domain.scheduling.SurfaceRefresher
 import com.riyadm.wakenudge.engine.notify.Notifier
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
-/** Countdown timers: persisted in the database, expiry registered with AlarmManager, live notification with chronometer. */
+/**
+ * Countdown timers: persisted in the database, expiry registered with AlarmManager, live notification with chronometer.
+ * Commands run one at a time: a pause and a start arriving together (a notification button and the screen) each read the
+ * timer, and without the lock the one that saved last could disagree with the trigger the other left armed or cancelled.
+ */
 @Singleton
 class TimerController @Inject constructor(
     private val timers: TimerRepository,
@@ -18,14 +24,18 @@ class TimerController @Inject constructor(
     private val time: TimeSource,
     private val surfaces: SurfaceRefresher,
 ) {
-    suspend fun create(durationMs: Long, label: String, startNow: Boolean): Long {
+    private val lock = Mutex()
+
+    suspend fun create(durationMs: Long, label: String, startNow: Boolean): Long = lock.withLock {
         val id = timers.save(CountdownTimer(label = label.trim(), durationMs = durationMs.coerceIn(1_000, MAX_MS), remainingMs = durationMs.coerceIn(1_000, MAX_MS)))
-        if (startNow) start(id)
+        if (startNow) startLocked(id)
         surfaces.refreshAll()
-        return id
+        id
     }
 
-    suspend fun start(id: Long) {
+    suspend fun start(id: Long) = lock.withLock { startLocked(id) }
+
+    private suspend fun startLocked(id: Long) {
         val timer = timers.getTimer(id) ?: return
         if (timer.state == TimerState.RUNNING) return
         val remaining = if (timer.remainingMs <= 0) timer.durationMs else timer.remainingMs
@@ -37,7 +47,9 @@ class TimerController @Inject constructor(
         surfaces.refreshAll()
     }
 
-    suspend fun pause(id: Long) {
+    suspend fun pause(id: Long) = lock.withLock { pauseLocked(id) }
+
+    private suspend fun pauseLocked(id: Long) {
         val timer = timers.getTimer(id) ?: return
         if (timer.state != TimerState.RUNNING) return
         val remaining = (timer.endsAtMillis - time.nowMillis()).coerceAtLeast(0)
@@ -48,7 +60,9 @@ class TimerController @Inject constructor(
         surfaces.refreshAll()
     }
 
-    suspend fun reset(id: Long) {
+    suspend fun reset(id: Long) = lock.withLock { resetLocked(id) }
+
+    private suspend fun resetLocked(id: Long) {
         val timer = timers.getTimer(id) ?: return
         pending.cancel(TriggerKind.TIMER, id)
         notifier.cancelTimer(id)
@@ -56,7 +70,9 @@ class TimerController @Inject constructor(
         surfaces.refreshAll()
     }
 
-    suspend fun addMinute(id: Long) {
+    suspend fun addMinute(id: Long) = lock.withLock { addMinuteLocked(id) }
+
+    private suspend fun addMinuteLocked(id: Long) {
         val timer = timers.getTimer(id) ?: return
         when (timer.state) {
             TimerState.RUNNING -> {
@@ -74,7 +90,9 @@ class TimerController @Inject constructor(
         surfaces.refreshAll()
     }
 
-    suspend fun delete(id: Long) {
+    suspend fun delete(id: Long) = lock.withLock { deleteLocked(id) }
+
+    private suspend fun deleteLocked(id: Long) {
         pending.cancel(TriggerKind.TIMER, id)
         notifier.cancelTimer(id)
         timers.delete(id)
