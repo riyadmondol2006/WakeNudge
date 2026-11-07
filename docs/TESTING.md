@@ -174,7 +174,7 @@ was used.
 |---|---|
 | The phone restarted | Sound back 21 to 23 s after the boot completed, at full volume and with no snooze |
 | Stop in Active apps | Sound back after 17 s (the 30 s sentinel trigger) |
-| `adb shell am force-stop` | Nothing until the app was next opened; then the ring came back. The resume rule reports a force-stopped ring as missed instead (`ResumePolicy`), so this is not explained yet |
+| `adb shell am force-stop` | Nothing until the app was next opened; then the ring came back. Opening a force-stopped app also delivers the boot broadcast, whose path did not know the triggers had been wiped, so it resumed the ring while the app-start path would have given up; the rule now resumes in both (within the alarm's window or an hour) and is pinned by `DurableRingTest` |
 | Home, Recents, the card swiped away, with "Display over other apps" allowed | Back in front after 1.18 s from Home and 1.17 s from Recents; after about 5.5 s from a swiped card when that was the fourth leave in a row (the backoff). One alarm card per ring in Recents each time |
 | Volume keys | The volume held |
 | Device admin on | Uninstall refused (`DELETE_FAILED_DEVICE_POLICY_MANAGER`). App info's Force stop button still looks enabled, but tapping it does nothing: no dialog, and the app keeps running. Turning it off from WakeNudge's Protection screen works; `adb shell dpm remove-active-admin` cannot remove it. With it off, Force stop shows the normal "Force stop?" dialog |

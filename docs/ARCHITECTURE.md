@@ -221,10 +221,11 @@ next to it. Reading it never throws: a corrupt record counts as no record, and s
   test Pixel 6 the sound was back 21 to 23 s after the boot completed.
 - **Past the limit or the window**: no ring. The event closes as missed with its backups cleared, and a notification says so.
 - **Force-stopped**: Android cancels every trigger and starts nothing. At the next app start the watchdog being gone in the
-  same boot, on the same version, marks this case, and the rule (`ResumePolicy`, `GiveUpReason.ForceStopped`) reports the
-  ring as missed. An app update looks similar but rings again. On the test Pixel 6, though, `am force-stop` mid-ring left
-  it silent until the app was next opened and the ring then came back, which this rule does not predict; why has not been
-  traced yet.
+  same boot, on the same version, marks this case. A force-stop is a way to silence a ring, so it doesn't end one: the
+  ring comes back when the app next runs (Android allows nothing sooner), within the alarm's window or an hour, whichever
+  is longer, even for an alarm that otherwise keeps coming back. Past that, the rule (`ResumePolicy`,
+  `GiveUpReason.ForceStopped`) reports it as missed. Opening a force-stopped app on Android 15+ also delivers the boot
+  broadcast, and both paths now give the same answer; on the test Pixel 6 the ring came back as the app opened.
 - **Another alarm arrives after a kill, before the ring is back**: it waits behind the ring that was on, as it would have
   if the process had lived, so its saved progress is not overwritten.
 

@@ -97,7 +97,8 @@ object ResumePolicy {
      * Only a restart of the phone uses up one of the alarm's [maxResumes] and is held to the window: a process that merely died (the system, or
      * Stop in Active apps) comes back for as long as the ring is unresolved if the alarm [keepsComingBack], and for
      * [SAME_BOOT_LIMIT_MS] or its window if not. [triggersWiped] says Android has forgotten every trigger of this app with
-     * no restart and no update, which is what a force-stop looks like.
+     * no restart and no update, which is what a force-stop looks like: that ring comes back too when the app next runs, but
+     * only within [SAME_BOOT_LIMIT_MS] or its window, whichever is longer.
      */
     fun afterProcessStart(
         record: DurableRingRecord,
@@ -118,8 +119,11 @@ object ResumePolicy {
             return ResumeDecision.Resume(record.copy(resumes = record.resumes + 1, bootCount = bootCount, elapsedAtWrite = elapsed, versionCode = versionCode))
         }
         if (record.versionCode != versionCode) return ResumeDecision.Resume(record.copy(versionCode = versionCode, elapsedAtWrite = elapsed))
-        if (triggersWiped) return ResumeDecision.GiveUp(GiveUpReason.ForceStopped)
-        if (!keepsComingBack && now - record.startedAtWall > maxOf(SAME_BOOT_LIMIT_MS, window * 60_000L)) return ResumeDecision.GiveUp(GiveUpReason.WindowPassed)
+        // A force-stop is a way to silence a ring, so it does not end one: it comes back when the app next runs (Android does
+        // not let it sooner), as a ring the system killed would, but never long after, even on an alarm that keeps coming back.
+        if ((triggersWiped || !keepsComingBack) && now - record.startedAtWall > maxOf(SAME_BOOT_LIMIT_MS, window * 60_000L)) {
+            return ResumeDecision.GiveUp(if (triggersWiped) GiveUpReason.ForceStopped else GiveUpReason.WindowPassed)
+        }
         return ResumeDecision.Resume(record)
     }
 }

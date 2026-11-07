@@ -209,7 +209,8 @@ with the new levels; until then an existing alarm behaves as before except where
   are told
 - An alarm set to ring until it is dealt with also gets a sentinel trigger every 30 seconds, so Stop in Active apps brings
   the sound back within about half a minute, and it keeps being rescued through a crash loop instead of giving up after five
-- Force stop stays silent until the app is next opened, which then tells you about the missed alarm
+- Force stop stays silent until the app is next opened, and then the alarm rings again, within its window (or an hour);
+  found later than that, it is reported as missed
 - Two alarms at once: the one waiting survives a kill too, and both ring in turn
 - A strict alarm whose database cannot be read when it fires still rings with its missions, from a saved copy
 - The ring service runs as `systemExempted` on Android 14 and newer, which unlike `mediaPlayback` may start right after a

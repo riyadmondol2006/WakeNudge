@@ -597,10 +597,21 @@ class DurableRingTest {
 
     // ---- a force-stop ----------------------------------------------------------------------------------------------
 
-    @Test fun `a force-stop stays silent, and the next start reports the missed alarm`() = runBlocking {
+    @Test fun `a force-stop does not end the ring - it comes back when the app next runs`() = runBlocking {
+        val a = hard()
+        ring(a)
+        processDied()
+        assertTrue(controller.reviveDurableRing(triggersWiped = true))
+        assertNotNull(durable.ring())
+        verify { pending.setAlarmClock(TriggerKind.RING_SENTINEL, RingIds.SENTINEL_TRIGGER_ID, any(), any(), any(), any()) }
+        verify(exactly = 0) { notifier.showMissed(any(), any()) }
+    }
+
+    @Test fun `a force-stop found long after the ring reports the missed alarm instead`() = runBlocking {
         val a = hard()
         val s = ring(a)
         processDied()
+        clock.now += 13 * 60 * 60_000L // past Hard's 12-hour window
         assertFalse(controller.reviveDurableRing(triggersWiped = true))
         assertNull(durable.ring())
         verify { notifier.showMissed(any(), s.scheduledAt) }
