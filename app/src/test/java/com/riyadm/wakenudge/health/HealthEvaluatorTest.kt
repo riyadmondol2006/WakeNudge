@@ -400,6 +400,21 @@ class HealthEvaluatorTest {
         assertTrue(evaluate(HealthSnapshot()).none { it.id == "battery_saver" })
     }
 
+    @Test fun `device admin is shown only while it is on, as fine, naming both ways to switch it off`() {
+        assertTrue(evaluate(HealthSnapshot()).none { it.id == "device_admin" })
+        val on = evaluate(HealthSnapshot(deviceAdminActive = true)).item("device_admin")
+        assertEquals(Severity.OK, on.severity)
+        assertTrue(on.detail.startsWith("${R.string.health_detail_device_admin_on}|"))
+    }
+
+    @Test fun `Battery Saver says what Extreme Battery Saver does to alarms`() {
+        assertTrue(evaluate(HealthSnapshot(batterySaver = true)).item("battery_saver").detail.startsWith("${R.string.health_detail_battery_saver}|"))
+    }
+
+    @Test fun `Do Not Disturb set to Total Silence is an error, since no app can override it`() {
+        assertEquals(Severity.ERROR, evaluate(HealthSnapshot(interruptionFilter = NotificationManager.INTERRUPTION_FILTER_NONE)).severity("dnd"))
+    }
+
     @Test fun `the overlay permission is only mentioned when an alarm wants its screen back, and is a warning without it`() {
         assertTrue(evaluate(HealthSnapshot()).none { it.id == "overlay" })
         assertTrue(evaluate(HealthSnapshot(canDrawOverlays = false)).none { it.id == "overlay" })

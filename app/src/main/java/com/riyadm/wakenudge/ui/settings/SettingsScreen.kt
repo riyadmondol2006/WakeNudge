@@ -18,6 +18,7 @@ import androidx.compose.material.icons.outlined.FolderSpecial
 import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MonitorHeart
+import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Timer
@@ -52,6 +53,7 @@ class SettingsNav(
     val exceptions: () -> Unit,
     val sleep: () -> Unit,
     val health: () -> Unit,
+    val protection: () -> Unit,
     val backup: () -> Unit,
     val about: () -> Unit,
     val appearance: () -> Unit,
@@ -135,6 +137,9 @@ fun SettingsScreen(nav: SettingsNav, modifier: Modifier = Modifier, viewModel: S
                 SettingsGroup {
                     item { shape ->
                         NavRow(stringResource(R.string.settings_health), shape, nav.health, summary = stringResource(R.string.settings_health_hint), icon = Icons.Outlined.MonitorHeart)
+                    }
+                    item { shape ->
+                        NavRow(stringResource(R.string.protection_settings_row), shape, nav.protection, summary = stringResource(R.string.protection_settings_hint), icon = Icons.Outlined.Shield)
                     }
                     item { shape ->
                         NavRow(stringResource(R.string.settings_backup), shape, nav.backup, summary = stringResource(R.string.settings_backup_hint), icon = Icons.Outlined.Backup)

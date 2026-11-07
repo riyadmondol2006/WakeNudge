@@ -182,11 +182,24 @@ class ReleaseReadinessTest {
             ".MainActivity", ".TilePreferencesAlias", ".engine.SystemEventsReceiver",
             ".widget.NextAlarmWidgetReceiver", ".widget.ClockWidgetReceiver", ".widget.AlarmListWidgetReceiver",
             ".tile.NextAlarmTileService",
+            // Device admin with no policies: only the system can bind it (BIND_DEVICE_ADMIN). See docs/PERMISSIONS.md.
+            ".engine.protection.WakeNudgeAdminReceiver",
         )
         assertEquals("Exported components changed: review hostile-caller safety, then update docs/PERMISSIONS.md and this list", reviewed, exported)
         // The tile service must stay protected by the system-only binding permission.
         val tile = components.single { it.getAttribute("android:name") == ".tile.NextAlarmTileService" }
         assertEquals("android.permission.BIND_QUICK_SETTINGS_TILE", tile.getAttribute("android:permission"))
+        val admin = components.single { it.getAttribute("android:name") == ".engine.protection.WakeNudgeAdminReceiver" }
+        assertEquals("android.permission.BIND_DEVICE_ADMIN", admin.getAttribute("android:permission"))
+    }
+
+    @Test fun `the device admin asks for no policies at all`() {
+        val file = java.io.File(manifestFile.parentFile, "res/xml/device_admin.xml")
+        val root = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file).documentElement
+        assertEquals("device-admin", root.tagName)
+        val policies = root.children("uses-policies").single()
+        // No wipe, lock, password, camera or any other policy: being active is all it is for.
+        assertEquals(emptyList<Element>(), (0 until policies.childNodes.length).map { policies.childNodes.item(it) }.filterIsInstance<Element>())
     }
 
     @Test fun `the ring screens are not exported and may show over the lock screen`() {

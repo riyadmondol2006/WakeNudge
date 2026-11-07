@@ -4,7 +4,7 @@ An alarm clock is judged on the one morning it fails, so testing is split by wha
 
 | Layer | Where it runs | What it proves |
 |---|---|---|
-| **JVM unit tests** (868) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
+| **JVM unit tests** (885) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
 | **Fuzz tests** (14, part of the JVM tests) | Your computer | 20,000 seeded random alarm/clock/zone combinations never crash the scheduler or yield a time in the past; corrupted and hostile backup files are rejected or sanitised, never half-applied; random commands from stale buttons, keys and forged claims never end a ring whose missions are unfinished |
 | **Instrumented engine tests** (about 130, with the migration tests) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
 | **Instrumented UI tests** (about 70, 25 of them for the update popup and the About screen) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions getting a backup mission (never Continue), Emergency and the way out by click action at font scale 2.0 |
@@ -111,6 +111,16 @@ began life as a question; the ones that found real bugs are marked ✱ and were 
 - `WakeProofTest`: a "Still awake?" check that asks for proof ignores a plain answer and Cancel, passes on its own after 30
   steps on the counter and not after 29, takes no proof from a missing counter or one reset by a restart, counts the steps
   of each check from its own start, and comes 0 to 3 minutes after its delay (a check without proof stays on time).
+- `ProtectionPolicyTest`: over every combination of what Android can report, the "steps left" count, device admin locked
+  until a rehearsal has finished, the Turn off row present in every state and refused only during a ring or snooze, the
+  restricted-settings help only after the setting was tried on Android 13 and later, and no Power Guard step.
+  `RehearsalAndPreflightTest`: a rehearsal's copy (no snooze, no backup, its way out, a timeout), only a finished rehearsal
+  counting and only for the missions it had, a plain test alarm never counting, an unreadable record; the check on saving
+  for each problem, sharing its mission checks with the evening check. `RingTrapTest` adds that a rehearsal of every level
+  and every mission ends, with its way out even where the alarm removed it, by its timeout and at a restart, and that only
+  its missions count. `ReleaseReadinessTest`: the device admin receiver is the one new exported component, behind
+  `BIND_DEVICE_ADMIN`, and its policy list is empty. `ProtectionUiTest` (compiled, not yet run on a device) draws the screen
+  from a faked state as it is after each return from Settings.
 - The app force-killed mid-ring (chaos test): the backup alarm still rings.
 - Rapid snooze/dismiss mashing, double-delivered triggers, concurrent settings writes, missions that cannot be completed
   on this phone, permission revoked mid-flow, huge and hostile labels, 200 % font, RTL, time-zone jumps, DST gaps.
@@ -185,6 +195,9 @@ These could not be done safely or at all in the development setup. They are the 
 | **Focus Tap** half asleep, and **mission rotation** over real mornings | `FocusGameTest`, `MissionRotationTest` (a month, across daylight-saving changes) and `RotationRingTest` cover the rules; `FocusTapUiTest` (touch, screen reader, RTL, font scale 2.0) is compiled but not yet run on a device. Whether it takes under a minute first thing in the morning, or can be done on reflex, was not tried |
 | **Edit protection by hand**: each side door on a real phone, including the Quick Settings tile and the widgets, an alarm 5 minutes away and one 8 hours away | `LockCoverageTest` and `AbuseInstrumentedTest` (compiled, not yet run on a device) cover the rules; the toasts and snackbars were not seen |
 | **"Still awake?" with proof** on a real phone: the step counter after 30 real steps, the prompt's tone on a phone set to silent, Focus Tap on the prompt screen over the lock screen, a re-ring asking for the next mission | `WakeProofTest` covers the rules with a pretend counter. Whether the counter answers at once when listened to (it may wait for the next step on some phones, which then counts as no proof), and whether shaking the phone by hand makes it count, were not observed |
+| **Protection setup from a browser install**: "Display over other apps" blocked by restricted settings, App info's "Allow restricted settings", then the grant | Only the rules and the screen from a faked state are tested. The wording of Android's block, where the three-dot menu is, and whether `adb install` skips the block entirely were not observed |
+| **Device admin** on a real phone: Force stop greyed, Stop gone from Active apps, uninstall refused, Clear storage, then turned off in the app and in Settings and the app uninstalled | `ReleaseReadinessTest` checks the receiver and its empty policy list; Android's behaviour with an active admin is from AOSP-derived code and was not observed |
+| A **rehearsal** ringing over the lock screen and counting when finished; **Extreme Battery Saver** pausing the app | `RingTrapTest` and `RehearsalAndPreflightTest` cover the rules; the real ring of a rehearsal was not seen. What Extreme Battery Saver does to an app not on its essential list is from Pixel's own description, not observed |
 | **NFC** tag read over the lock screen | The mission logic is tested; no tag was scanned |
 | **QR/barcode** decode with a printed code; **photo match** against a detailed real scene | Decoder/matcher tested on generated images only |
 | **TalkBack** end to end | Content descriptions and large-text/RTL are tested; a TalkBack walkthrough was not done |

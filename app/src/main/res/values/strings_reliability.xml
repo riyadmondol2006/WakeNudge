@@ -24,7 +24,7 @@
     <string name="health_title_ring_crash">Alarm stability</string>
     <string name="health_detail_ring_crash">The alarm stopped unexpectedly while it was ringing on %1$s (the alarm screen or the sound service stopped working). WakeNudge started it again right away, but please send a support report from this screen.</string>
     <string name="health_title_battery_saver">Battery Saver</string>
-    <string name="health_detail_battery_saver">Battery Saver is on. Alarms still ring, but timers, heads-up notices and the bedtime reminder can arrive late.</string>
+    <string name="health_detail_battery_saver">Battery Saver is on. Alarms still ring, but timers, heads-up notices and the bedtime reminder can arrive late. Extreme Battery Saver on a Pixel goes further and pauses every app you have not chosen as essential: add WakeNudge to that list, or its alarms may not ring.</string>
 
     <!-- The check before tonight's alarm -->
     <string name="notif_tonight_title">%1$s: your alarm might not work</string>

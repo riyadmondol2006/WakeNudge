@@ -31,3 +31,4 @@ data class AlarmEditRoute(
 @Serializable data object RingingSettingsRoute
 @Serializable data object AudioSettingsRoute
 @Serializable data object TimerSettingsRoute
+@Serializable data object ProtectionRoute

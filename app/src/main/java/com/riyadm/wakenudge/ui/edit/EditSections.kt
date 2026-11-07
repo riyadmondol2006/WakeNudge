@@ -33,6 +33,7 @@ import com.riyadm.wakenudge.engine.audio.SoundPreviewer
 import com.riyadm.wakenudge.ui.components.ChipChoiceRow
 import com.riyadm.wakenudge.ui.components.SectionTitle
 import com.riyadm.wakenudge.ui.components.SettingRow
+import com.riyadm.wakenudge.ui.components.NavRow
 import com.riyadm.wakenudge.ui.components.SettingsGroup
 import com.riyadm.wakenudge.ui.components.SliderRow
 import com.riyadm.wakenudge.ui.components.StepperRow
@@ -396,11 +397,18 @@ fun WakeCheckSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm
 }
 
 @Composable
-fun AntiOversleepSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -> Unit, showTitle: Boolean = true) {
+fun AntiOversleepSection(
+    alarm: Alarm,
+    enabled: Boolean,
+    onChange: ((Alarm) -> Alarm) -> Unit,
+    showTitle: Boolean = true,
+    protection: ProtectionLink? = null,
+) {
     val a = alarm.antiOversleep
     fun set(block: (com.riyadm.wakenudge.domain.model.AntiOversleepSettings) -> com.riyadm.wakenudge.domain.model.AntiOversleepSettings) =
         onChange { it.copy(antiOversleep = block(it.antiOversleep)) }
     var confirmEmergencyOff by remember { mutableStateOf(false) }
+    var confirmWayOutNone by remember { mutableStateOf(false) }
     if (showTitle) SectionTitle(stringResource(R.string.section_anti_oversleep))
     SettingsGroup {
         item { shape ->
@@ -479,6 +487,37 @@ fun AntiOversleepSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> A
                 shape = shape, enabled = enabled,
             )
         }
+    }
+    if (protection != null) {
+        SettingsGroup(Modifier.padding(top = 8.dp)) {
+            // The way out exists only on an alarm with a mission, so only there can it be removed.
+            if (alarm.missions.isNotEmpty()) {
+                item { shape ->
+                    val rehearsed = protection.rehearsed(alarm)
+                    SwitchRow(
+                        title = stringResource(R.string.ao_way_out_none),
+                        subtitle = stringResource(if (rehearsed || a.wayOutRemoved) R.string.ao_way_out_none_hint else R.string.ao_way_out_none_locked),
+                        icon = Icons.Outlined.Shield,
+                        checked = a.wayOutRemoved,
+                        // Putting the way out back is always allowed at once; removing it needs a rehearsal and a warning.
+                        onCheckedChange = { on -> if (!on) set { it.copy(wayOutRemoved = false) } else if (rehearsed) confirmWayOutNone = true },
+                        shape = shape, enabled = enabled && (rehearsed || a.wayOutRemoved),
+                    )
+                }
+            }
+            item { shape -> NavRow(stringResource(R.string.protection_open_from_editor), shape, protection.open, icon = Icons.Outlined.Shield) }
+        }
+    }
+    if (confirmWayOutNone) {
+        val restarts = a.maxResumes.coerceIn(1, com.riyadm.wakenudge.domain.model.AntiOversleepSettings.MAX_RESUMES_LIMIT)
+        com.riyadm.wakenudge.ui.components.ConfirmDialog(
+            title = stringResource(R.string.ao_way_out_none_title),
+            text = androidx.compose.ui.res.pluralStringResource(R.plurals.ao_way_out_none_body, restarts, restarts),
+            confirmLabel = stringResource(R.string.ao_way_out_none_confirm),
+            onConfirm = { set { it.copy(wayOutRemoved = true) }; confirmWayOutNone = false },
+            onDismiss = { confirmWayOutNone = false },
+            destructive = true,
+        )
     }
     Text(
         stringResource(if (a.emergencyStopEnabled) R.string.ao_emergency_note else R.string.ao_emergency_note_off),

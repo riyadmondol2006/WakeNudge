@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- No policies at all: WakeNudge never wipes, locks, sets a password or touches the camera. Being an active device admin
+     is the whole point, because Android then refuses Force stop and uninstall until it is switched off again. -->
+<device-admin>
+    <uses-policies />
+</device-admin>

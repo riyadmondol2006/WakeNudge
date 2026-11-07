@@ -105,7 +105,12 @@ class CategoryOptions(
     /** Per-alarm features that have no meaning as a default: voice announcements, sunrise, missions, still-awake check, rules. */
     val perAlarm: Boolean,
     val missionSlots: MissionSlots? = null,
+    /** The way-out removal and the link to the Protection setup; only for a real alarm. */
+    val protection: ProtectionLink? = null,
 )
+
+/** [rehearsed]: this alarm, with the missions it has now, had a finished rehearsal, which removing its way out needs. */
+class ProtectionLink(val rehearsed: (Alarm) -> Boolean, val open: () -> Unit)
 
 /** Emits the option categories as collapsible cards into a lazy list. */
 fun LazyListScope.alarmCategories(
@@ -157,7 +162,7 @@ fun LazyListScope.alarmCategories(
                         snoozeMissions = { options.missionSlots?.snoozeMissions?.invoke(alarm, enabled, onChange) },
                         showTitle = false,
                     )
-                    AlarmCategory.PROTECTION -> AntiOversleepSection(alarm, enabled, onChange, showTitle = false)
+                    AlarmCategory.PROTECTION -> AntiOversleepSection(alarm, enabled, onChange, showTitle = false, protection = options.protection)
                     AlarmCategory.RULES -> ExtrasSection(alarm, enabled, onChange, showTitle = false)
                 }
             }

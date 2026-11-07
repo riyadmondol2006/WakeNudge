@@ -38,6 +38,52 @@ data class TonightProblem(val kind: TonightProblemKind, val mission: MissionType
 /** What the phone says about one kind of mission. The defaults say all is well, which is also the answer when it will not say. */
 data class MissionReadiness(val permissionMissing: Boolean = false, val nfcOff: Boolean = false, val hardwareMissing: Boolean = false)
 
+/** What can stop one mission from running, worst first; the evening check and the check on saving share it. */
+enum class MissionIssue { NO_HARDWARE, NOT_SET_UP, NEEDS_PERMISSION, NFC_OFF }
+
+object MissionChecks {
+    fun issue(mission: com.riyadm.wakenudge.domain.model.MissionConfig, ready: MissionReadiness): MissionIssue? = when {
+        ready.hardwareMissing -> MissionIssue.NO_HARDWARE
+        !mission.isConfigured -> MissionIssue.NOT_SET_UP
+        ready.permissionMissing -> MissionIssue.NEEDS_PERMISSION
+        ready.nfcOff -> MissionIssue.NFC_OFF
+        else -> null
+    }
+}
+
+/** A problem the editor finds when an alarm is saved: warned about and fixable there, never a reason to refuse the save. */
+enum class PreflightKind { NO_HARDWARE, NOT_SET_UP, NEEDS_CAMERA, NFC_OFF, NEEDS_ACTIVITY, MOTION_WITH_SCREEN_READER }
+
+data class PreflightProblem(val kind: PreflightKind, val mission: MissionType)
+
+/**
+ * The check on saving: the same mission checks as tonight's ([MissionChecks]), plus what is better asked for now than
+ * found at ring time: the steps mission without the physical-activity permission (it then counts with the motion sensor,
+ * which shaking fools), and a mission that needs the phone moved while a screen reader is on.
+ */
+object PreflightPolicy {
+    private val MOTION = setOf(MissionType.SHAKE, MissionType.STEPS, MissionType.SQUATS)
+
+    fun problems(
+        alarm: Alarm,
+        readiness: (MissionType) -> MissionReadiness,
+        activityPermissionGranted: Boolean,
+        screenReaderOn: Boolean,
+    ): List<PreflightProblem> = buildList {
+        for (mission in alarm.missions) {
+            when (MissionChecks.issue(mission, readiness(mission.type))) {
+                MissionIssue.NO_HARDWARE -> add(PreflightProblem(PreflightKind.NO_HARDWARE, mission.type))
+                MissionIssue.NOT_SET_UP -> add(PreflightProblem(PreflightKind.NOT_SET_UP, mission.type))
+                MissionIssue.NEEDS_PERMISSION -> add(PreflightProblem(PreflightKind.NEEDS_CAMERA, mission.type))
+                MissionIssue.NFC_OFF -> add(PreflightProblem(PreflightKind.NFC_OFF, mission.type))
+                null -> Unit
+            }
+            if (mission.type == MissionType.STEPS && !activityPermissionGranted) add(PreflightProblem(PreflightKind.NEEDS_ACTIVITY, mission.type))
+            if (mission.type in MOTION && screenReaderOn) add(PreflightProblem(PreflightKind.MOTION_WITH_SCREEN_READER, mission.type))
+        }
+    }.distinct()
+}
+
 /**
  * "It didn't ring" is what people leave an alarm app over, so about 8 hours before an alarm it is checked while something
  * can still be done. A pure function of what the phone reports. Nothing here changes anything, and what it finds never
@@ -61,12 +107,12 @@ object TonightCheckPolicy {
         if (!snapshot.canScheduleExactAlarms) add(TonightProblem(TonightProblemKind.EXACT_ALARMS_OFF, fix = HealthFixKind.EXACT_ALARMS))
         // Every mission is looked at, not only the one tomorrow would pick: a rotation changes its mind every morning.
         for (mission in alarm.missions) {
-            val ready = readiness(mission.type)
-            when {
-                ready.hardwareMissing -> add(TonightProblem(TonightProblemKind.MISSION_NO_HARDWARE, mission.type))
-                !mission.isConfigured -> add(TonightProblem(TonightProblemKind.MISSION_NOT_SET_UP, mission.type))
-                ready.permissionMissing -> add(TonightProblem(TonightProblemKind.MISSION_NEEDS_PERMISSION, mission.type, HealthFixKind.APP_DETAILS))
-                ready.nfcOff -> add(TonightProblem(TonightProblemKind.MISSION_NEEDS_NFC, mission.type, HealthFixKind.NFC_SETTINGS))
+            when (MissionChecks.issue(mission, readiness(mission.type))) {
+                MissionIssue.NO_HARDWARE -> add(TonightProblem(TonightProblemKind.MISSION_NO_HARDWARE, mission.type))
+                MissionIssue.NOT_SET_UP -> add(TonightProblem(TonightProblemKind.MISSION_NOT_SET_UP, mission.type))
+                MissionIssue.NEEDS_PERMISSION -> add(TonightProblem(TonightProblemKind.MISSION_NEEDS_PERMISSION, mission.type, HealthFixKind.APP_DETAILS))
+                MissionIssue.NFC_OFF -> add(TonightProblem(TonightProblemKind.MISSION_NEEDS_NFC, mission.type, HealthFixKind.NFC_SETTINGS))
+                null -> Unit
             }
         }
         if (!snapshot.postNotificationsGranted || !snapshot.notificationsEnabled) {

@@ -16,7 +16,14 @@ import com.riyadm.wakenudge.domain.scheduling.EditLock
 import com.riyadm.wakenudge.domain.scheduling.NextTriggerCalculator
 import com.riyadm.wakenudge.domain.usecase.ActionResult
 import com.riyadm.wakenudge.domain.usecase.AlarmActions
+import android.content.Context
+import com.riyadm.wakenudge.engine.PreflightPolicy
+import com.riyadm.wakenudge.engine.PreflightProblem
 import com.riyadm.wakenudge.engine.SchedulingContextProvider
+import com.riyadm.wakenudge.engine.protection.Rehearsals
+import com.riyadm.wakenudge.missions.MissionProbe
+import com.riyadm.wakenudge.missions.ui.isPermissionGranted
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.riyadm.wakenudge.engine.audio.AlarmVibrator
 import com.riyadm.wakenudge.engine.audio.SoundPreviewer
 import com.riyadm.wakenudge.ui.alarms.DeletedAlarmRelay
@@ -70,6 +77,9 @@ class AlarmEditViewModel @Inject constructor(
     val vibrator: AlarmVibrator,
     groupRepo: GroupRepository,
     private val deletedRelay: DeletedAlarmRelay,
+    private val rehearsals: Rehearsals,
+    private val probe: MissionProbe,
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val route = handle.toRoute<AlarmEditRoute>()
@@ -79,6 +89,33 @@ class AlarmEditViewModel @Inject constructor(
     val groups: StateFlow<List<AlarmGroup>> = groupRepo.observeGroups().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private var stored: Alarm? = null
+
+    /** The alarm as the last save stored it, for the checks that follow a save. */
+    private var saved: Alarm? = null
+
+    /** Whether [alarm], with the missions it has now, had a finished rehearsal: removing its way out needs one. */
+    fun isRehearsed(alarm: Alarm): Boolean = alarm.id != 0L && rehearsals.isRehearsed(alarm)
+
+    /** What to say once the alarm is saved: problems to fix before it rings, and whether to offer a rehearsal. */
+    data class AfterSave(val alarm: Alarm, val problems: List<PreflightProblem>, val offerRehearsal: Boolean) {
+        val worthShowing: Boolean get() = problems.isNotEmpty() || offerRehearsal
+    }
+
+    /**
+     * The check on saving. It warns and never refuses: the alarm is already saved. A strict alarm with a mission that
+     * was never rehearsed is offered "Try it now".
+     */
+    fun afterSave(screenReaderOn: Boolean): AfterSave? {
+        val alarm = saved ?: return null
+        val activity = android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q ||
+            isPermissionGranted(context, android.Manifest.permission.ACTIVITY_RECOGNITION)
+        val problems = runCatching { PreflightPolicy.problems(alarm, probe::readiness, activity, screenReaderOn) }.getOrDefault(emptyList())
+        val strict = alarm.missions.isNotEmpty() && !alarm.antiOversleep.emergencyStopEnabled
+        return AfterSave(alarm, problems, offerRehearsal = strict && !rehearsals.isRehearsed(alarm))
+    }
+
+    /** Rings a rehearsal of the alarm just saved; returns whether Android armed it. */
+    fun rehearseSaved(): Boolean = saved?.let { runCatching { rehearsals.start(it) }.getOrNull() } != null
 
     /** Set while a save or delete runs, and kept once one succeeded, so a second tap can never act again. */
     private var busy = false
@@ -171,14 +208,19 @@ class AlarmEditViewModel @Inject constructor(
                     skipEpochDay = if (scheduleChanged) null else current.skipEpochDay,
                 )
             }
+            // No way out needs a finished rehearsal of these very missions; changed missions bring the way out back.
+            val checked = if (toSave.antiOversleep.wayOutRemoved && !isRehearsed(toSave)) {
+                toSave.copy(antiOversleep = toSave.antiOversleep.copy(wayOutRemoved = false))
+            } else toSave
             // The edit lock is checked against the alarm now: an editor opened at 06:25 is still locked at 06:50.
-            return when (val result = actions.save(toSave, overrideLock = s.lockOverridden)) {
+            return when (val result = actions.save(checked, overrideLock = s.lockOverridden)) {
                 is ActionResult.Locked -> {
                     _state.value = _state.value.copy(lock = result.lock, lockOverridden = false)
                     SaveOutcome.Locked(result.lock)
                 }
                 is ActionResult.Done -> {
                     finished = true
+                    saved = checked.copy(id = result.value)
                     handle.remove<String>(KEY_DRAFT)
                     SaveOutcome.Saved
                 }

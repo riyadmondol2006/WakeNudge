@@ -1035,6 +1035,8 @@ class RingController @Inject constructor(
                 )
             }
         }
+        // A rehearsal counts only when it ended the way a morning should: with its missions, not the way out or a timeout.
+        if (s.isTest) com.riyadm.wakenudge.engine.protection.RehearsalRecord(runtime).ended(s.alarm, finished = outcome == AlarmOutcome.DISMISSED)
         if (outcome == AlarmOutcome.DISMISSED && !s.isTest) {
             afterDismissal(s.alarm, s.eventId)
         } else if (outcome == AlarmOutcome.EMERGENCY_STOPPED) {

@@ -49,7 +49,9 @@ proof (when it starts and when it is due), to see whether you have walked about;
 until the check ends; **calendar** access is optional and read-only, used only to find which days are all-day
 events (for example public holidays) in the calendars you pick, and the app reads neither event titles nor
 descriptions; **NFC** is used only for the NFC mission. The app never asks for your location, contacts, microphone,
-phone, SMS or files.
+phone, SMS or files. **Device admin** is optional and asks for no device powers at all (it cannot wipe, lock or watch the
+phone); being active only stops WakeNudge from being force-stopped or uninstalled until you switch it off. Which alarms
+you have rehearsed is remembered on the phone only and is not part of a backup.
 
 ## Update check
 

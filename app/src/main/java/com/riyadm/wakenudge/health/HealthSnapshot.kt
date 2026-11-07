@@ -83,6 +83,8 @@ data class HealthSnapshot(
     val alarmsUsingSystemVolume: Int = 0,
     /** Enabled alarms that bring their screen back at once when it is left (`forceReturn`). */
     val alarmsReturning: Int = 0,
+    /** WakeNudge's device admin is on: Force stop and uninstall are refused until it is switched off. */
+    val deviceAdminActive: Boolean = false,
 
     // Things the engine noticed going wrong while it ran
     val batterySaver: Boolean = false,

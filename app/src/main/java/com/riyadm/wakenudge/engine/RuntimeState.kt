@@ -66,6 +66,16 @@ class RuntimeState @Inject constructor(@DeviceProtected private val context: Con
         if (total == null) remove(K_WAKE_PROOF_PREFIX + alarmId) else putFloat(K_WAKE_PROOF_PREFIX + alarmId, total)
     }
 
+    /** The alarm a rehearsal now on is a copy of, or -1. */
+    var rehearsalOf: Long
+        get() = prefs.getLong(K_REHEARSAL_OF, -1)
+        set(value) = prefs.edit(commit = true) { putLong(K_REHEARSAL_OF, value) }
+
+    /** "alarmId:fingerprint" of every finished rehearsal, comma-separated. Kept on this phone, never in a backup. */
+    var rehearsedRaw: String
+        get() = prefs.getString(K_REHEARSED, "") ?: ""
+        set(value) = prefs.edit(commit = true) { putString(K_REHEARSED, value) }
+
     /** Times (epoch millis) at which the app died while an alarm was ringing; only recent ones matter. */
     fun ringCrashTimes(): List<Long> =
         prefs.getString(K_RING_CRASHES, "").orEmpty().split(',').mapNotNull { it.toLongOrNull() }
@@ -180,6 +190,8 @@ class RuntimeState @Inject constructor(@DeviceProtected private val context: Con
         const val K_RING_LEDGER = "ring_ledger"
         const val SNAPSHOT_PREFIX = "alarm_snapshot_"
         const val K_WAKE_PROOF_PREFIX = "wake_proof_baseline_"
+        const val K_REHEARSAL_OF = "rehearsal_of"
+        const val K_REHEARSED = "rehearsed_alarms"
         const val MAX_CRASHES_KEPT = 10
     }
 }

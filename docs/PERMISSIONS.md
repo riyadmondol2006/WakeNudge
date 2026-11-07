@@ -28,7 +28,8 @@ manifest (`app/src/main/AndroidManifest.xml`) too.
 | Permission | Why | How it is requested |
 |---|---|---|
 | `USE_FULL_SCREEN_INTENT` | Show the ring screen over the lock screen. On Android 14+ the system grants it to alarm-clock apps | Shown in onboarding and the Alarm health screen with a shortcut to the system setting if it is ever turned off |
-| `SYSTEM_ALERT_WINDOW` ("Display over other apps") | Bring the ring screen back when you leave it while an alarm rings (Home, Recents, another app). Android lets a background service start an activity only with this permission. **Nothing is drawn over other apps**: it only starts WakeNudge's own ring screen, never over the lock screen's Emergency call, a call or a permission dialog | Never asked on its own. Alarm health shows it, with a shortcut to the system setting, when an alarm is set to come back. Without it the alarm keeps ringing and its notification reappears |
+| `SYSTEM_ALERT_WINDOW` ("Display over other apps") | Bring the ring screen back when you leave it while an alarm rings (Home, Recents, another app). Android lets a background service start an activity only with this permission. **Nothing is drawn over other apps**: it only starts WakeNudge's own ring screen, never over the lock screen's Emergency call, a call or a permission dialog | Never asked on its own. Step 1 of Settings, Protection opens the system setting; on Android 13 and later, where a sideloaded app's grant can be blocked, it then walks through App info, the three-dot menu and "Allow restricted settings", and back to the setting. Alarm health also shows it when an alarm is set to come back. Without it the alarm keeps ringing and its notification reappears |
+| Device admin (`BIND_DEVICE_ADMIN` on `WakeNudgeAdminReceiver`, `res/xml/device_admin.xml`) | **No policies at all**: no wipe, no lock, no password rules, no camera control. While it is active Android refuses Force stop and uninstall, so an alarm cannot be removed half asleep | Opt-in, step 6 of Settings, Protection, offered only after one finished rehearsal, through Android's own confirmation screen. Turned off in the same screen whenever no alarm rings or is snoozed (the row is always there), or at any time in Settings, Security, Device admin apps |
 
 ## Runtime permissions (asked only when needed)
 
@@ -70,6 +71,7 @@ list changes, so a new exported component forces a conscious review.
 | `SystemEventsReceiver` | Boot, app update, clock and time-zone changes | All actions are system-protected broadcasts except the vendor action `QUICKBOOT_POWERON`, which any app can send. It only triggers an idempotent re-registration of alarms |
 | Three widget receivers | App-widget updates | `APPWIDGET_UPDATE` is a protected broadcast, so only the system can send it |
 | `NextAlarmTileService` | Quick Settings tile | Protected by `android.permission.BIND_QUICK_SETTINGS_TILE`, which only the system holds |
+| `engine.protection.WakeNudgeAdminReceiver` | Device admin, which the system binds | Protected by `android.permission.BIND_DEVICE_ADMIN`, which only the system holds. It declares no policies and its only code returns the warning shown when it is switched off |
 
 Everything else of the app's own (`RingActivity`, `SafeRingActivity`, `WakeCheckActivity`, `RingService`, `AlarmReceiver`,
 `ActionReceiver`) is not exported. All `PendingIntent`s are created with `FLAG_IMMUTABLE`. The app defines no content

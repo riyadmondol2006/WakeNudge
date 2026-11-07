@@ -348,6 +348,8 @@ class AlarmSchedulerImpl @Inject constructor(
             base.copy(sound = d.sound, volume = d.volume, vibration = d.vibration)
         }
         runtime.testAlarmJson = WakeJson.instance.encodeToString(Alarm.serializer(), test)
+        // A plain test alarm is not a rehearsal of anything, even if one was left unfinished.
+        runtime.rehearsalOf = -1
         pending.setAlarmClock(TriggerKind.ALARM, TEST_ALARM_ID, at)
         diagnostics.info("Scheduler", "test alarm armed for +${delaySeconds}s")
         return at

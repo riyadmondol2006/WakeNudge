@@ -85,6 +85,7 @@ fun AlarmEditScreen(
     onClose: () -> Unit,
     missionSlots: MissionSlots,
     modifier: Modifier = Modifier,
+    onOpenProtection: () -> Unit = {},
     viewModel: AlarmEditViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -99,6 +100,8 @@ fun AlarmEditScreen(
     var confirmDiscard by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var showOverride by remember { mutableStateOf(false) }
+    var afterSave by remember { mutableStateOf<AlarmEditViewModel.AfterSave?>(null) }
+    val screenReader = com.riyadm.wakenudge.missions.ui.rememberScreenReaderOn()
     val expanded = rememberExpandedCategories()
 
     BackHandler(enabled = state.dirty) { confirmDiscard = true }
@@ -123,7 +126,12 @@ fun AlarmEditScreen(
                         onClick = {
                             scope.launch {
                                 when (val r = viewModel.save()) {
-                                    SaveOutcome.Saved -> { haptics.confirm(); onClose() }
+                                    SaveOutcome.Saved -> {
+                                        haptics.confirm()
+                                        // Warned about, never refused: the alarm is saved either way.
+                                        val after = viewModel.afterSave(screenReader)
+                                        if (after?.worthShowing == true) afterSave = after else onClose()
+                                    }
                                     is SaveOutcome.Locked -> snackbar.showSnackbar(LockText.message(resources, r.lock))
                                     SaveOutcome.Gone -> {
                                         val choice = snackbar.showSnackbar(
@@ -197,7 +205,7 @@ fun AlarmEditScreen(
             }
             alarmCategories(
                 alarm = alarm, enabled = enabled, expanded = expanded,
-                options = CategoryOptions(perAlarm = true, missionSlots = missionSlots),
+                options = CategoryOptions(perAlarm = true, missionSlots = missionSlots, protection = ProtectionLink(viewModel::isRehearsed, onOpenProtection)),
                 previewer = viewModel.soundPreviewer, vibrator = viewModel.vibrator, onChange = update,
             )
         }
@@ -232,6 +240,20 @@ fun AlarmEditScreen(
             },
             onDismiss = { confirmDelete = false },
             destructive = true,
+        )
+    }
+    afterSave?.let { after ->
+        PreflightDialog(
+            after,
+            onRehearse = {
+                val armed = viewModel.rehearseSaved()
+                android.widget.Toast.makeText(
+                    context, resources.getString(if (armed) R.string.protection_rehearsal_armed else R.string.protection_rehearsal_failed), android.widget.Toast.LENGTH_LONG,
+                ).show()
+                afterSave = null
+                onClose()
+            },
+            onDone = { afterSave = null; onClose() },
         )
     }
     if (showOverride && state.lock?.canOverride == true) {

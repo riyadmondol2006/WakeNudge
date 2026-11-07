@@ -258,6 +258,39 @@ of these classes and the view models in front of them, so a new way to change an
 `AlarmScheduler.cancel` and `cancelFollowUps` with `byUser` leave a ring or snooze of an alarm with a mission as it is, so a
 future path that forgets the lock still cannot close one as dismissed.
 
+## Protection setup
+
+Settings, Protection (also linked from the editor) walks a sideloaded install to full protection. `ProtectionPolicy` is the
+pure part: the steps, how many are left ("Fully protected" or "N steps left"), and the device
+admin row. `ProtectionViewModel` reads everything again from Android (`HealthChecker.snapshot`, `DeviceAdmin`) each time the
+screen comes back to the front, since every step happens in a Settings screen the app cannot watch.
+
+1. "Display over other apps", which bringing the ring screen back needs. On Android 13 and later a sideloaded app's grant can
+   be blocked until "Allow restricted settings" is used in App info, which nothing can detect, so after the setting was
+   opened without the grant the screen walks through App info and back (the stage is kept in `SavedStateHandle`).
+2. to 4. Battery unrestricted, notifications, full-screen alarms, each with its Settings shortcut (`HealthFix`).
+5. "Try it now", a rehearsal (`Rehearsals`): a copy of the alarm (`RingKind.TEST`, `RuntimeState.testAlarmJson`) rung 5 s
+   later through the real trigger, service, ring screen and `RingPolicy`, with no snooze, no backup, nothing saved to come
+   back after a restart, its way out always there, and a 10-minute timeout. It counts (`RehearsalRecord`, kept in
+   `RuntimeState`, not in a backup) only when ended with its missions, and only for the missions it had: changing them needs
+   another. The editor offers it after saving a strict alarm with a mission never rehearsed.
+6. Device admin (`WakeNudgeAdminReceiver`, `res/xml/device_admin.xml` with an empty `<uses-policies/>`), locked until one
+   rehearsal has finished. While active, Android refuses Force stop and uninstall. The Turn off row is always shown; it is
+   refused only while an alarm rings or is snoozed (storage that cannot be read counts as "not snoozed"), and the system
+   route, Settings, Security, Device admin apps, is always named next to it.
+
+There is no power-off protection: the screen says plainly that holding the power button, the power menu or a voice
+assistant can switch the phone off or restart it, and that the alarm rings again after a restart (see "A ring outlives its
+process"). Extreme Battery Saver and Do Not Disturb set to Total Silence are named as what it cannot override.
+
+Removing the way out ("No way out without the mission", `wayOutRemoved`) is offered in the editor only for an alarm with a
+mission and only after a finished rehearsal of those missions, with a warning that names the restart cap and Safe mode as
+the only exits left. Saving an alarm whose missions changed since its rehearsal puts the way out back.
+
+On saving, `PreflightPolicy` (sharing `MissionChecks` with the evening check) warns, never refuses: a mission whose phone
+lacks the hardware, one not set up, the camera not allowed, NFC off, the steps mission without the physical-activity
+permission, a motion mission while a screen reader is on. Permissions are asked for right there.
+
 ## Direct Boot
 
 Room, DataStore and SharedPreferences live in **device-protected storage**, and the receivers, ring service and ring

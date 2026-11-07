@@ -68,6 +68,8 @@ import com.riyadm.wakenudge.ui.nav.DefaultsRoute
 import com.riyadm.wakenudge.ui.nav.ExceptionsRoute
 import com.riyadm.wakenudge.ui.nav.GroupsRoute
 import com.riyadm.wakenudge.ui.nav.HealthRoute
+import com.riyadm.wakenudge.ui.nav.ProtectionRoute
+import com.riyadm.wakenudge.ui.protection.ProtectionScreen
 import com.riyadm.wakenudge.ui.nav.MorningRoute
 import com.riyadm.wakenudge.ui.nav.RingingSettingsRoute
 import com.riyadm.wakenudge.ui.nav.SettingsRoute
@@ -203,7 +205,11 @@ private fun AppNavHost(nav: NavHostController) {
             // Closes this editor only while it is still the one on top: a second call (double tap) finds another screen
             // there and does nothing. Not "only while resumed": after a save the editor must close even if a ringing
             // alarm or a system dialog has just covered it, or Save would look dead.
-            AlarmEditScreen(onClose = { if (nav.currentBackStackEntry?.id == entry.id) nav.popBackStack() }, missionSlots = missionSlots())
+            AlarmEditScreen(
+                onClose = { if (nav.currentBackStackEntry?.id == entry.id) nav.popBackStack() },
+                missionSlots = missionSlots(),
+                onOpenProtection = dropUnlessResumed { nav.navigate(ProtectionRoute) },
+            )
         }
         composable<SleepRoute> {
             SleepScreen(
@@ -220,6 +226,7 @@ private fun AppNavHost(nav: NavHostController) {
                     exceptions = dropUnlessResumed { nav.navigate(ExceptionsRoute) },
                     sleep = dropUnlessResumed { nav.navigate(SleepRoute) },
                     health = dropUnlessResumed { nav.navigate(HealthRoute) },
+                    protection = dropUnlessResumed { nav.navigate(ProtectionRoute) },
                     backup = dropUnlessResumed { nav.navigate(BackupRoute) },
                     about = dropUnlessResumed { nav.navigate(AboutRoute) },
                     appearance = dropUnlessResumed { nav.navigate(AppearanceSettingsRoute) },
@@ -234,6 +241,7 @@ private fun AppNavHost(nav: NavHostController) {
         composable<ExceptionsRoute> { ExceptionsScreen(onBack = dropUnlessResumed { nav.popBackStack() }) }
         composable<AboutRoute> { AboutScreen(onBack = dropUnlessResumed { nav.popBackStack() }) }
         composable<HealthRoute> { HealthScreen(onBack = dropUnlessResumed { nav.popBackStack() }) }
+        composable<ProtectionRoute> { ProtectionScreen(onBack = dropUnlessResumed { nav.popBackStack() }) }
         composable<BackupRoute> { BackupScreen(onBack = dropUnlessResumed { nav.popBackStack() }) }
         composable<AppearanceSettingsRoute> { AppearanceSettingsScreen(onBack = dropUnlessResumed { nav.popBackStack() }) }
         composable<RingingSettingsRoute> { RingingSettingsScreen(onBack = dropUnlessResumed { nav.popBackStack() }) }

@@ -4,6 +4,29 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 Releases are built and published automatically from `main` and numbered `MAJOR.MINOR.N`, where `N` is the commit count
 (see [docs/RELEASING.md](docs/RELEASING.md)); the notes of each GitHub release list the commits it contains.
 
+## Protection setup, device admin and a rehearsal before anything hard to undo
+
+- **Settings, Protection** (also linked from the alarm editor) takes a phone that installed WakeNudge from a download to
+  full protection, one step at a time, showing what Android says each time you come back: "Display over other apps" (with
+  the App info, three dots, "Allow restricted settings" detour Android asks of apps not from a store), unrestricted
+  battery, notifications, full-screen alarms, a rehearsal and device admin. It says "Fully protected" or how many steps are
+  left
+- **Try it now**: a real ring of the alarm 5 seconds later, with its missions, through the real alarm path. No snooze, no
+  backup, it gives up after 10 minutes, and Emergency and the way out work as on a real morning. It counts as rehearsed only
+  when you finish its missions. Saving a strict alarm with a mission never rehearsed offers it
+- **Device admin, opt-in, with no device powers**: while it is on, Android won't let WakeNudge be force-stopped or
+  uninstalled. It is offered only after a finished rehearsal. Turn it off in Protection any time no alarm rings or is
+  snoozed (the Turn off row is always there), or in Settings, Security, Device admin apps at any time. Alarm Health shows
+  when it is on
+- **No way out without the mission**, per alarm with a mission, only after a finished rehearsal of those missions and with
+  a warning: if something goes wrong, restarting the phone up to the alarm's limit or Safe mode are the only ways to stop
+  it. Emergency and the backup mission stay. Changing the missions, or restoring a backup, puts the way out back
+- **On saving**, the editor warns about what would stop the missions (camera not allowed, NFC off, not set up, no sensor,
+  the steps mission without physical activity, a motion mission with a screen reader on) and asks for the permission there
+- **What isn't protected** is said plainly in the setup: power off isn't blocked, and after a restart the alarm rings
+  again; Extreme Battery Saver, Total Silence, Safe mode and a flat battery are named too. Alarm Health's Battery Saver
+  note now mentions Extreme Battery Saver
+
 ## No side doors before the alarm, and a still-awake check a sleeper cannot answer
 
 - **Edit protection now covers every way round it.** While an alarm is inside its "Lock before it rings" window, pausing

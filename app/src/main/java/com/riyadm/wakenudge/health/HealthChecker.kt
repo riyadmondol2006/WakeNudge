@@ -132,6 +132,7 @@ class HealthChecker @Inject constructor(
             hasVibrator = safe(true) { context.getSystemService(Vibrator::class.java).hasVibrator() },
             alarmsUsingSystemVolume = enabled.count { it.volume.level == 0 && !it.volume.useMaxSystemVolume },
             alarmsReturning = enabled.count { it.antiOversleep.returnToAlarm && it.antiOversleep.forceReturn },
+            deviceAdminActive = safe(false) { com.riyadm.wakenudge.engine.protection.DeviceAdmin(context).isActive() },
             batterySaver = safe(false) { context.getSystemService(PowerManager::class.java).isPowerSaveMode },
             schedulingProblem = runtime.lastSchedulingProblem,
             audioProblem = runtime.lastAudioProblem,

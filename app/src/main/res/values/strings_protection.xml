@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Protection setup -->
+    <string name="protection_title">Protection</string>
+    <string name="protection_settings_row">Protection</string>
+    <string name="protection_settings_hint">Stop yourself leaving, force-stopping or uninstalling an alarm half asleep</string>
+    <string name="protection_intro">Each step closes one way out of a strict alarm. Do them in order; you can leave and come back, and every step shows what Android says right now.</string>
+    <string name="protection_status_full">Fully protected</string>
+    <plurals name="protection_status_left">
+        <item quantity="one">%d step left to stop you leaving the alarm</item>
+        <item quantity="other">%d steps left to stop you leaving the alarm</item>
+    </plurals>
+    <string name="protection_done">Done</string>
+    <string name="protection_locked">After a rehearsal</string>
+
+    <string name="protection_overlay_title">1. Let WakeNudge come back to the front</string>
+    <string name="protection_overlay_body">Allow \"Display over other apps\" for WakeNudge. Then, if you leave an alarm while it rings, its screen comes back. Nothing is drawn over other apps.</string>
+    <string name="protection_overlay_open">Open the setting</string>
+    <string name="protection_overlay_blocked">If the switch was greyed out or a message said it is restricted: Android blocks this for apps not from a store. Tap OK on that message, then press Next.</string>
+    <string name="protection_overlay_next">Next</string>
+    <string name="protection_restricted_body">In App info, tap the three dots, top right, then Allow restricted settings, then confirm with your fingerprint or PIN. Then come back here.</string>
+    <string name="protection_overlay_again">Back to the setting</string>
+    <string name="protection_overlay_again_body">Now switch on \"Display over other apps\" again. It should work this time.</string>
+
+    <string name="protection_battery_title">2. Battery: unrestricted</string>
+    <string name="protection_battery_body">So Android does not hold WakeNudge back overnight.</string>
+    <string name="protection_notifications_title">3. Notifications on</string>
+    <string name="protection_notifications_body">The ring notification is what wakes the screen when the phone is locked.</string>
+    <string name="protection_full_screen_title">4. Full-screen alarm</string>
+    <string name="protection_full_screen_body">Lets the alarm screen open over the lock screen.</string>
+    <string name="protection_fix">Fix</string>
+
+    <string name="protection_rehearsal_title">5. Try it now</string>
+    <string name="protection_rehearsal_body">A real ring of the alarm in 5 seconds, with its missions, so you know you can finish it before anything hard to undo. It has no snooze and gives up after 10 minutes. Emergency and the way out work as on a real morning.</string>
+    <string name="protection_rehearsal_none">Set an alarm with a mission first.</string>
+    <string name="protection_rehearsal_try">Try it now</string>
+    <string name="protection_rehearsal_done">Rehearsed</string>
+    <string name="protection_rehearsal_armed">Rings in a few seconds. Lock the phone if you like.</string>
+    <string name="protection_rehearsal_failed">Android refused to set the rehearsal. Check Alarm Health.</string>
+
+    <string name="protection_admin_title">6. Block force stop and uninstall</string>
+    <string name="protection_admin_body">Turns on device admin for WakeNudge. While it is on, Android won\'t let you force-stop or uninstall WakeNudge. Turn it off here any time an alarm isn\'t ringing, or in Settings, Security, Device admin apps.</string>
+    <string name="protection_admin_locked">Finish one rehearsal first (step 5), so you know you can end the alarm before you make it harder to remove.</string>
+    <string name="protection_admin_restricted">If Android says this is restricted, use \"Allow restricted settings\" in App info as in step 1, then try again.</string>
+    <string name="protection_admin_turn_on">Turn on</string>
+    <string name="protection_admin_turn_off">Turn off</string>
+    <string name="protection_admin_on">On: Force stop and uninstall are blocked.</string>
+    <string name="protection_admin_off">Off</string>
+    <string name="protection_admin_wait">An alarm is ringing or snoozed. Finish it first, then turn this off here. You can also turn it off now in Settings, Security, Device admin apps.</string>
+    <string name="protection_admin_system_route">You can always turn it off in Settings, Security, Device admin apps (on some phones: Security and privacy, More security settings, Device admin apps).</string>
+    <string name="protection_admin_turned_off">Device admin is off. Force stop and uninstall work again.</string>
+    <string name="protection_admin_refused">Android didn\'t turn it off. Use Settings, Security, Device admin apps.</string>
+    <string name="protection_admin_explanation">WakeNudge asks for no device admin powers at all: it can\'t wipe, lock or watch your phone. Being active only means Android won\'t let you force-stop or uninstall it. Turn it off in WakeNudge\'s Protection screen, or here, any time an alarm isn\'t ringing.</string>
+    <string name="protection_admin_description">Stops a half-asleep force stop or uninstall of your alarm. No device powers are used.</string>
+    <string name="protection_admin_disable_warning">Your alarms can then be force-stopped or uninstalled again.</string>
+
+    <string name="protection_limits_title">What this doesn\'t stop</string>
+    <string name="protection_limits_power">Power off isn\'t blocked. Holding the power button, the power menu or a voice assistant can switch the phone off or restart it. When the phone starts again, the alarm rings again at full volume with no snooze, as many times as the alarm allows.</string>
+    <string name="protection_limits_other">A phone that stays off can\'t ring. Safe mode, a factory reset, a computer with USB debugging and a flat battery also beat it. Do Not Disturb set to Total Silence can silence alarms. Extreme Battery Saver pauses apps you haven\'t chosen as essential, so add WakeNudge to that list. Emergency calls always work.</string>
+    <string name="protection_open_from_editor">Protection setup</string>
+
+    <!-- Way out removed, per alarm -->
+    <string name="ao_way_out_none">No way out without the mission</string>
+    <string name="ao_way_out_none_hint">If I get stuck it\'s on me. Emergency and the backup mission stay.</string>
+    <string name="ao_way_out_none_locked">Needs a finished rehearsal of this alarm with these missions first: Protection, Try it now.</string>
+    <string name="ao_way_out_none_title">Remove the way out?</string>
+    <plurals name="ao_way_out_none_body">
+        <item quantity="one">If you lose your code or something goes wrong, the only ways to stop this alarm are restarting the phone up to %d time or Safe mode. Emergency calls still work. Don\'t use this if you might be driving or on call when it rings.</item>
+        <item quantity="other">If you lose your code or something goes wrong, the only ways to stop this alarm are restarting the phone up to %d times or Safe mode. Emergency calls still work. Don\'t use this if you might be driving or on call when it rings.</item>
+    </plurals>
+    <string name="ao_way_out_none_confirm">Remove it</string>
+
+    <!-- Preflight on save -->
+    <string name="preflight_title">Saved. Before it rings:</string>
+    <string name="preflight_permission_camera">The camera is not allowed, so the %1$s mission can\'t run.</string>
+    <string name="preflight_permission_activity">Physical activity is not allowed, so the steps mission counts with the motion sensor, which shaking can fool.</string>
+    <string name="preflight_nfc_off">NFC is off, so the NFC mission can\'t read your tag.</string>
+    <string name="preflight_not_set_up">The %1$s mission isn\'t set up yet.</string>
+    <string name="preflight_no_hardware">This phone has no sensor for the %1$s mission. A backup mission will take its place.</string>
+    <string name="preflight_motion_screen_reader">A screen reader is on. The %1$s mission needs you to move the phone; Focus Tap or typing may suit you better.</string>
+    <string name="preflight_allow">Allow</string>
+    <string name="preflight_open_nfc">Open NFC settings</string>
+    <string name="preflight_rehearse">This alarm has never been rehearsed. Try it now: a real ring in 5 seconds.</string>
+    <string name="preflight_ok">OK</string>
+
+    <!-- Health -->
+    <string name="health_title_device_admin">Device admin</string>
+    <string name="health_detail_device_admin_on">On: Android won\'t let WakeNudge be force-stopped or uninstalled. Turn it off in Settings, Protection, or in Android\'s Settings, Security, Device admin apps.</string>
+</resources>

@@ -53,6 +53,7 @@ class HealthEvaluator(private val res: HealthResources) {
         add(ringChannel(s))
         add(fullScreen(s))
         overlay(s)?.let(::add)
+        deviceAdmin(s)?.let(::add)
         add(exactAlarms(s))
         add(battery(s))
         standby(s)?.let(::add)
@@ -172,6 +173,12 @@ class HealthEvaluator(private val res: HealthResources) {
         } else {
             item("overlay", Severity.WARNING, title, R.string.health_detail_overlay_off, fix = HealthFixKind.OVERLAY to R.string.health_fix_overlay)
         }
+    }
+
+    /** Shown only while it is on, so nobody forgets it, with both ways to switch it off. */
+    private fun deviceAdmin(s: HealthSnapshot): HealthItem? {
+        if (!s.deviceAdminActive) return null
+        return item("device_admin", Severity.OK, R.string.health_title_device_admin, R.string.health_detail_device_admin_on)
     }
 
     /**

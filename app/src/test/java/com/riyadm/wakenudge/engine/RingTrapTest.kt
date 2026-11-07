@@ -237,6 +237,44 @@ class RingTrapTest {
      * With the way out removed (the owner's explicit choice), exactly two exits are left besides doing the mission: the backup
      * mission when a failure is detected, and the cap on restarts. This test says so: if either went, someone could be stuck.
      */
+    /**
+     * A rehearsal is a real ring of a copy of the alarm. It must end at every level and with every mission, even for an
+     * alarm whose way out was removed: with its missions (the only end that counts as rehearsed), with its way out, by its
+     * 10-minute timeout, and a restart never brings it back.
+     */
+    @Test fun `a rehearsal of every level and every mission ends, and only its missions count`() = runBlocking {
+        for ((level, base) in shapes) for (missions in missionLists) for (removed in listOf(false, true)) for (end in listOf("missions", "way out", "timeout", "restart")) {
+            if (end == "way out" && missions.isEmpty()) continue
+            val source = alarm(base.copy(wayOutRemoved = removed), missions)
+            val label = "$level, ${missions.map { it.type }}, way out removed $removed, $end"
+            val rehearsals = com.riyadm.wakenudge.engine.protection.Rehearsals(runtime, pending, clock, log)
+            rehearsals.start(source)
+            controller.begin(controller.onAlarmFired(RingIds.TEST_ALARM_ID, clock.now)!!)
+            val s = store.current!!
+            assertTrue(label, s.isTest)
+            assertFalse("$label: no snooze", s.canSnooze)
+            assertEquals(label, missions, s.alarm.missions)
+            when (end) {
+                "missions" -> assertTrue(label, finish())
+                "way out" -> assertTrue(label, takeWayOut())
+                "timeout" -> {
+                    clock.now += com.riyadm.wakenudge.engine.protection.Rehearsals.TIMEOUT_MINUTES * 60_000L + 1_000
+                    controller.tick()
+                }
+                "restart" -> {
+                    restart()
+                    comeBack()
+                }
+            }
+            assertNull("$label: it ended", store.current)
+            assertNull("$label: nothing brings it back", durable.ring())
+            assertEquals("$label: only the missions count as a rehearsal", end == "missions", rehearsals.isRehearsed(source))
+            runtime.rehearsedRaw = ""
+            alarms.rows.remove(source.id)
+            clock.now += 1_000
+        }
+    }
+
     @Test fun `with the way out removed, the only exits left are the detected-failure backup and the restart cap`() = runBlocking {
         for ((level, base) in shapes) for (missions in missionLists.filter { it.isNotEmpty() }) {
             val anti = base.copy(wayOutRemoved = true)
