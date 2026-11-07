@@ -58,7 +58,8 @@ class UpdateFlowUiTest {
 
     @Before fun setUp() {
         hilt.inject()
-        runBlocking { settings.update { it.copy(onboardingDone = true) } }
+        // Settings are real and outlive a test class: start from a fresh install's update state whatever ran before.
+        runBlocking { settings.update { it.copy(onboardingDone = true, updateChecksEnabled = true, lastUpdateCheckAt = 0, skippedUpdateVersion = "") } }
     }
 
     @After fun tearDown() {
@@ -69,19 +70,22 @@ class UpdateFlowUiTest {
 
     private fun showPrompt() = compose.setContent { WakeNudgeTheme { UpdatePromptHost() } }
 
-    private fun scrollAboutTo(text: String) {
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText(text))
-    }
-
     /**
-     * For rows that a touch has to hit: scrolling to a node leaves it at the very top, under the app bar, where a touch
-     * (unlike a real user's) would land on the bar instead of the row. Move it into the middle of the screen first.
+     * Scrolls the About screen until the row with [text] is in the middle of the screen. Scrolling to a node only brings it
+     * just into view, at the bottom edge when it was further down, where the rest of its row (and a touch) can fall outside
+     * the screen; so the list is then moved by how far the node is from the middle.
      */
-    private fun scrollAboutToMidScreen(text: String) {
-        scrollAboutTo(text)
-        compose.onNode(hasScrollAction()).performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, -500f) }
+    private fun scrollAboutTo(text: String, substring: Boolean = false) {
+        val list = compose.onNode(hasScrollAction())
+        list.performScrollToNode(hasText(text, substring = substring))
+        compose.waitForIdle()
+        val viewport = list.fetchSemanticsNode().boundsInRoot
+        val node = compose.onNode(hasText(text, substring = substring)).fetchSemanticsNode().boundsInRoot
+        list.performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, node.center.y - viewport.center.y) }
         compose.waitForIdle()
     }
+
+    private fun scrollAboutToMidScreen(text: String) = scrollAboutTo(text)
 
     @Test fun anUpdateFoundOnStartIsAnnouncedAndSkippingItIsRemembered() {
         client.next = LookupResult.Found(newer)
@@ -138,6 +142,8 @@ class UpdateFlowUiTest {
         compose.onNodeWithText("Check now").assertIsDisplayed()
         compose.onNodeWithText("Not checked yet").assertIsDisplayed()
         scrollAboutTo("What this contacts")
+        compose.onNodeWithText("What this contacts").assertIsDisplayed()
+        scrollAboutTo("api.github.com", substring = true)
         compose.onNode(hasText("api.github.com", substring = true)).assertIsDisplayed()
     }
 

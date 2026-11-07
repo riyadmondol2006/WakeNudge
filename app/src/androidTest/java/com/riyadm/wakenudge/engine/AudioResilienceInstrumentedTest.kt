@@ -58,6 +58,11 @@ class AudioResilienceInstrumentedTest {
 
     @Before fun setUp() {
         hilt.inject()
+        runtime.clearDurableRing()
+        // A run killed mid-ring (a crash, a force stop, the runner ending) leaves the stream at the ring's level with the
+        // user's own level saved. Taking that as the original would make this class put the wrong level back for good and
+        // forget the right one, so the saved level goes back first, as the app does on its next start.
+        onMain { audio.restoreSystemVolumeIfStale() }
         originalAlarmVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
         runtime.lastAudioProblem = ""
         runtime.clearRingCrashes()

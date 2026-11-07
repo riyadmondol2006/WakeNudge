@@ -11,6 +11,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -29,7 +30,15 @@ class UpdateStateRestoreInstrumentedTest {
     @Inject lateinit var settings: SettingsRepository
     @Inject lateinit var backup: BackupManager
 
-    @Before fun setUp() = hilt.inject()
+    private lateinit var before: com.riyadm.wakenudge.domain.model.AppSettings
+
+    @Before fun setUp() {
+        hilt.inject()
+        before = runBlocking { settings.current() }
+    }
+
+    /** The settings are the phone's real ones: put back what these tests switched off or restored from a file. */
+    @After fun tearDown() = runBlocking { settings.update { before } }
 
     private fun restore(json: String) = runBlocking { assertTrue(backup.import(json) is ImportResult.Success) }
 
@@ -58,10 +67,11 @@ class UpdateStateRestoreInstrumentedTest {
     }
 
     @Test fun anExportCarriesNoUpdateState() = runBlocking {
-        settings.update { it.copy(updateChecksEnabled = false, lastUpdateCheckAt = 1_777_000_000_123, skippedUpdateVersion = "1.0.7") }
+        // A skipped version that cannot be part of this build's own version (1.0.N), which the export does carry.
+        settings.update { it.copy(updateChecksEnabled = false, lastUpdateCheckAt = 1_777_000_000_123, skippedUpdateVersion = "7.7.7777") }
         val json = backup.export(includeHistory = false)
-        assertFalse(json.contains("1.0.7"))
-        assertFalse(json.contains("1777000000123"))
+        assertFalse("the skipped version is not exported:\n$json", json.contains("7.7.7777"))
+        assertFalse("the last check time is not exported:\n$json", json.contains("1777000000123"))
         assertTrue("and exporting changes nothing here", !settings.current().updateChecksEnabled)
     }
 }

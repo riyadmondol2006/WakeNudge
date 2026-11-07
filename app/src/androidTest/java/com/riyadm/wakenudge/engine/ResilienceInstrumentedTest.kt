@@ -469,24 +469,48 @@ class ResilienceInstrumentedTest {
         assertFalse(pending.isScheduled(TriggerKind.RING_RETRY, id))
     }
 
-    @Test fun afterTwoCrashesTheNotificationCarriesTheControlsInsteadOfLaunchingTheScreen() = runBlocking {
+    /**
+     * Phase 3 changed safe mode on purpose: after two crashes the full-screen alarm launches the plain [SafeRingActivity]
+     * instead of nothing, so a mission alarm is not left with a one-tap Dismiss on its notification. Only an alarm that ends
+     * with one tap anyway keeps Dismiss and Snooze there.
+     */
+    @Test fun afterTwoCrashesTheFullScreenAlarmOpensThePlainScreenAndOnlyAOneTapAlarmKeepsItsButtons() = runBlocking {
         val id = savedAlarm()
         val normal = ring.begin(ring.onAlarmFired(id, time.nowMillis())!!)!!
         assertFalse(normal.safeMode)
         assertNotNull("normally the full-screen alarm is attached", notifier.ring(normal).fullScreenIntent)
+        assertFalse("normally it is the real ring screen", notifier.ring(normal).fullScreenIntent == safeScreen())
         ring.dismiss()
 
         runtime.recordRingCrash(time.nowMillis() - 60_000)
         runtime.recordRingCrash(time.nowMillis() - 5_000)
-        val request = RingRequest(id, -1, time.nowMillis(), RingKind.PRIMARY)
-        val safe = ring.begin(request)!!
+        val safe = ring.begin(RingRequest(id, -1, time.nowMillis(), RingKind.PRIMARY))!!
         assertTrue(safe.safeMode)
         val notification = notifier.ring(safe)
-        assertNull("the screen that keeps crashing is no longer launched on its own", notification.fullScreenIntent)
+        assertNotNull("the plain screen stands in for the one that keeps crashing", notification.fullScreenIntent)
+        assertEquals(safeScreen(), notification.fullScreenIntent)
+        assertEquals(safeScreen(), notification.contentIntent)
         val titles = notification.actions.map { it.title.toString() }
-        assertTrue("a direct way to stop: $titles", context.getString(R.string.action_dismiss) in titles)
+        assertTrue("a one-tap alarm keeps a direct way to stop: $titles", context.getString(R.string.action_dismiss) in titles)
         assertTrue(context.getString(R.string.action_snooze) in titles)
+        ring.dismiss()
+
+        val withMission = savedAlarm { copy(missions = listOf(com.riyadm.wakenudge.domain.model.MissionConfig(com.riyadm.wakenudge.domain.model.MissionType.MATH))) }
+        val safeMission = ring.begin(RingRequest(withMission, -1, time.nowMillis(), RingKind.PRIMARY))!!
+        assertTrue(safeMission.safeMode)
+        val missionNotification = notifier.ring(safeMission)
+        assertEquals(safeScreen(), missionNotification.fullScreenIntent)
+        val missionTitles = missionNotification.actions.map { it.title.toString() }
+        assertFalse("a mission alarm is never dismissed from its notification: $missionTitles", context.getString(R.string.action_dismiss) in missionTitles)
+        assertTrue(missionTitles.toString(), context.getString(R.string.action_solve_to_dismiss) in missionTitles)
+        missionNotification.actions.forEach { assertEquals("every button opens the plain screen", safeScreen(), it.actionIntent) }
     }
+
+    /** The notification's PendingIntent for the plain ring screen, if it exists (equal PendingIntents are the same token). */
+    private fun safeScreen(): android.app.PendingIntent? = android.app.PendingIntent.getActivity(
+        context, 5, notifier.ringScreenIntent(safeMode = true),
+        android.app.PendingIntent.FLAG_NO_CREATE or android.app.PendingIntent.FLAG_IMMUTABLE,
+    )
 
     /** What a ring leaves behind lives in real preferences, which outlast a test: the next test must not find it. */
     private fun forgetSavedRing() {

@@ -324,8 +324,11 @@ class CategoriesAndPickerUiTest {
 
     // ---- strict alarms: the way out and snooze are per-alarm switches ----------------------------------------------
 
-    private fun ringSession(alarm: Alarm) =
-        RingSession(alarm = alarm, kind = RingKind.PRIMARY, phase = RingPhase.RINGING, eventId = 1, scheduledAt = 0, startedAt = 0)
+    // Started now: the way out's delay counts from the start of the ring on the wall clock, so a ring from 1970 has it open.
+    private fun ringSession(alarm: Alarm): RingSession {
+        val now = System.currentTimeMillis()
+        return RingSession(alarm = alarm, kind = RingKind.PRIMARY, phase = RingPhase.RINGING, eventId = 1, scheduledAt = now, startedAt = now)
+    }
 
     private fun showRing(alarm: Alarm) {
         compose.setContent {
