@@ -20,6 +20,7 @@ import com.riyadm.wakenudge.domain.repository.HistoryRepository
 import com.riyadm.wakenudge.domain.repository.SettingsRepository
 import com.riyadm.wakenudge.domain.repository.TimerRepository
 import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
+import com.riyadm.wakenudge.domain.scheduling.MissionRotation
 import com.riyadm.wakenudge.domain.scheduling.SnoozePolicy
 import com.riyadm.wakenudge.domain.scheduling.SurfaceRefresher
 import com.riyadm.wakenudge.engine.notify.Notifier
@@ -331,7 +332,7 @@ class RingController @Inject constructor(
     private fun emergencySession(request: RingRequest): RingSession {
         store.current?.let { return it }
         val restored = durable.ring()?.takeIf { it.matches(request) && request.phase == RingPhase.RINGING }
-        val alarm = restored?.alarm() ?: armedCopies.get(request.alarmId) ?: Alarm(id = request.alarmId, label = "Alarm")
+        val alarm = restored?.alarm() ?: (armedCopies.get(request.alarmId) ?: Alarm(id = request.alarmId, label = "Alarm")).let { forRingOf(it, request, 0) }
         val session = RingSession(
             alarm = alarm,
             kind = request.kind,
@@ -377,7 +378,8 @@ class RingController @Inject constructor(
         val restored = saved?.takeIf { ringing && nothingOn && it.matches(request) }
         // A later occurrence of the same alarm takes over from one that never ended, which would otherwise stay open for good.
         if (ringing && saved != null && restored == null && nothingOn && saved.alarmId == request.alarmId) closeOccurrenceAsMissed(saved, now)
-        val alarm = loadForRing(request, appSettings, restored) ?: return@withLock null
+        // A ring back from the dead asks for what it asked for; a new one picks today's mission if the alarm changes it each morning.
+        val alarm = loadForRing(request, appSettings, restored)?.let { if (restored != null) it else forRing(it, request) } ?: return@withLock null
 
         val existing = store.current
         if (existing != null && existing.alarm.id != alarm.id) {
@@ -1056,6 +1058,16 @@ class RingController @Inject constructor(
             }
         }
     }
+
+    /** One of the alarm's missions for this occurrence if it changes them each morning; each still-awake re-ring moves on to the next. */
+    private suspend fun forRing(alarm: Alarm, request: RingRequest): Alarm {
+        if (!alarm.antiOversleep.rotateMissions || request.kind == RingKind.TIMER || request.kind == RingKind.TEST) return alarm
+        val reRings = if (request.eventId > 0) tryDb("looking up the re-rings of alarm ${alarm.id}", 0) { wakeChecks.reRingsFor(alarm.id, request.eventId) } else 0
+        return forRingOf(alarm, request, reRings)
+    }
+
+    private fun forRingOf(alarm: Alarm, request: RingRequest, reRings: Int): Alarm =
+        if (request.kind == RingKind.TIMER || request.kind == RingKind.TEST) alarm else MissionRotation.forRing(alarm, request.scheduledAt, reRings, time.zone())
 
     private fun timerAlarm(timer: CountdownTimer, s: AppSettings) = Alarm(
         id = RingIds.TIMER_ALARM_BASE - timer.id,

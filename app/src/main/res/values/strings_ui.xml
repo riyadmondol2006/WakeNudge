@@ -368,4 +368,9 @@
     <string name="ao_emergency_off_title">Turn off the Emergency stop?</string>
     <string name="ao_emergency_off_body">Nothing on the ring screen will be able to skip this alarm\'s missions. Pick this for alarms you really must get up for, and make sure the missions are ones you can always do.</string>
     <string name="ao_emergency_off_confirm">Turn off</string>
+
+    <string name="edit_missions_count_rounds">Rounds</string>
+    <string name="edit_missions_rotate">Change the mission each morning</string>
+    <string name="edit_missions_rotate_hint">One of these each morning, in turn, instead of all of them. A mission done every day soon becomes a habit.</string>
+    <string name="ring_today_mission">Today: %1$s</string>
 </resources>

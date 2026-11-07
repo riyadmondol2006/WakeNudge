@@ -4,6 +4,17 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 Releases are built and published automatically from `main` and numbered `MAJOR.MINOR.N`, where `N` is the commit count
 (see [docs/RELEASING.md](docs/RELEASING.md)); the notes of each GitHub release list the commits it contains.
 
+## A new mission, and a different one each morning
+
+- **Focus Tap**: shapes come and go on a 3 x 3 board and you tap only the one you are asked for. A wrong tap starts the
+  round again, the shape to find changes every round, and neither its colour nor its shape alone gives it away. With a
+  screen reader nothing is timed: each shape is announced and you answer "That's it" or "Not this one"
+- **"Change the mission each morning"** (shown once an alarm has two or more missions): each ring asks for one of them, the
+  next in turn, so no mission is asked for two mornings running. A snooze, a backup or a restart asks for the same one; a
+  still-awake re-ring moves on to the next. With several codes in different rooms, the ring screen says which one
+- The mission picker lists a code in another room first and says honestly which missions wear off or can be faked
+- Older versions skip a Focus Tap mission in a backup instead of refusing the file
+
 ## Hear about it the night before, not the morning after
 
 - **About 8 hours before an alarm (and with the bedtime reminder) WakeNudge checks that it will really work**: its trigger,

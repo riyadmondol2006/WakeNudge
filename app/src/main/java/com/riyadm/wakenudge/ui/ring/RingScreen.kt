@@ -70,6 +70,7 @@ import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.core.TimeText
 import com.riyadm.wakenudge.domain.model.AppSettings
 import com.riyadm.wakenudge.domain.model.MissionConfig
+import com.riyadm.wakenudge.missions.MissionInfo
 import com.riyadm.wakenudge.domain.scheduling.SnoozePolicy
 import com.riyadm.wakenudge.engine.RingKind
 import com.riyadm.wakenudge.engine.RingPhase
@@ -240,6 +241,19 @@ private fun Header(session: RingSession, settings: AppSettings, now: Long, compa
     }
 }
 
+/**
+ * What this morning asks for, when the alarm changes its mission each morning: the mission, and for a code the label it
+ * was given, so with codes in several rooms it is clear which one to go to.
+ */
+@Composable
+private fun todaysMission(session: RingSession): String? {
+    if (!session.alarm.antiOversleep.rotateMissions || session.alarm.missions.size != 1) return null
+    val mission = session.alarm.missions.single()
+    val name = stringResource(MissionInfo.titleRes(mission.type))
+    val label = mission.params[MissionConfig.PARAM_CODE_LABEL]?.takeIf { it.isNotBlank() }
+    return stringResource(R.string.ring_today_mission, if (label != null) "$name · $label" else name)
+}
+
 /** Why this ring is special (a test, the backup, a re-ring) and how often it was snoozed, in display order. */
 @Composable
 private fun badgeTexts(session: RingSession): List<String> = buildList {
@@ -357,6 +371,7 @@ private fun Controls(
                 } else if (alarm.snooze.enabled) {
                     Text(stringResource(R.string.ring_no_more_snoozes), style = MaterialTheme.typography.bodyMedium, color = onBottom)
                 }
+                todaysMission(session)?.let { Text(it, style = MaterialTheme.typography.titleMedium, color = onBottom, textAlign = TextAlign.Center) }
                 when {
                     session.hasMissions -> Button(
                         onClick = { haptics.click(); actions.onInteraction(); setMode(RingMode.DismissMissions) },

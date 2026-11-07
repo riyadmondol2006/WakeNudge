@@ -199,9 +199,14 @@ be tested without a real broadcast.
 ## Missions
 
 `MissionHost` runs a list of `MissionConfig`s in order and reports progress. Each mission (`math`, `memory`, `typing`,
-`scan`, `nfc`, `sensors` for shake/steps/squats, `puzzle`, `photo`) has a pure core (problem generation, matching,
+`scan`, `nfc`, `sensors` for shake/steps/squats, `puzzle`, `photo`, `focus` for Focus Tap) has a pure core (problem generation, matching,
 rep counting) tested on the JVM and a thin Compose UI. A mission that cannot be completed on this phone (no camera, no
 step sensor, permission refused) shows "Continue" instead of trapping the user.
+
+An alarm with "Change the mission each morning" (`rotateMissions`) and two or more missions asks for one of them per
+occurrence: `MissionRotation.pick` takes the next in turn, counted in the alarm's own ring days, plus one for each
+still-awake re-ring. `RingController.begin` puts only that mission in the session, so the policy, the mission count, the
+saved ring and the history need nothing else; a snooze coming back, a backup and a restart ask for the same one.
 
 ## Health
 

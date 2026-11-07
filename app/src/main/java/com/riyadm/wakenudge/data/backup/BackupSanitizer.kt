@@ -77,7 +77,7 @@ object BackupSanitizer {
     private val MAX_MISSION_COUNT = mapOf(
         MissionType.MATH to 20, MissionType.MEMORY to 20, MissionType.TYPING to 10, MissionType.QR_BARCODE to 5,
         MissionType.NFC to 5, MissionType.SHAKE to 500, MissionType.STEPS to 1_000, MissionType.SQUATS to 200,
-        MissionType.PUZZLE to 10, MissionType.PHOTO to 5,
+        MissionType.PUZZLE to 10, MissionType.PHOTO to 5, MissionType.FOCUS_TAP to 10,
     )
 
     fun sanitize(file: BackupFile): Sanitized {

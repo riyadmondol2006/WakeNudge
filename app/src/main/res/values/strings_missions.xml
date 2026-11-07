@@ -256,4 +256,30 @@
         <item>Great days start with great habits, so stand up and stretch.</item>
         <item>Look outside, count to ten, and enjoy this quiet moment.</item>
     </string-array>
+
+    <!-- Focus Tap -->
+    <string name="mission_title_focus">Focus Tap</string>
+    <string name="mission_desc_focus">Shapes come and go. Tap only the one you are asked for; anything else starts the round again.</string>
+    <string name="mission_focus_prompt">Tap only the %1$s</string>
+    <string name="mission_focus_progress">Round %1$d of %2$d</string>
+    <string name="mission_focus_hits">%1$d of %2$d</string>
+    <string name="mission_focus_wrong">Not that one. This round starts again.</string>
+    <string name="mission_focus_now">Now: %1$s</string>
+    <string name="mission_focus_its_it">That\'s it</string>
+    <string name="mission_focus_not_it">Not this one</string>
+    <string name="mission_focus_done">Done</string>
+    <string name="mission_focus_blue_circle">blue circle</string>
+    <string name="mission_focus_blue_square">blue square</string>
+    <string name="mission_focus_blue_triangle">blue triangle</string>
+    <string name="mission_focus_blue_diamond">blue diamond</string>
+    <string name="mission_focus_orange_circle">orange circle</string>
+    <string name="mission_focus_orange_square">orange square</string>
+    <string name="mission_focus_orange_triangle">orange triangle</string>
+    <string name="mission_focus_orange_diamond">orange diamond</string>
+
+    <!-- Honest notes in the mission picker -->
+    <string name="mission_note_qr">Works best. Put a code on something you use next, like toothpaste, in another room.</string>
+    <string name="mission_note_math">Easy to do half asleep.</string>
+    <string name="mission_note_photo">Can wear off, and light changes can fail it.</string>
+    <string name="mission_note_steps">Can be faked by shaking.</string>
 </resources>

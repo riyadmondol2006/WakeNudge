@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.riyadm.wakenudge.R
@@ -43,6 +44,7 @@ object MissionInfo {
         MissionType.SQUATS -> R.string.mission_title_squats
         MissionType.PUZZLE -> R.string.mission_title_puzzle
         MissionType.PHOTO -> R.string.mission_title_photo
+        MissionType.FOCUS_TAP -> R.string.mission_title_focus
     }
 
     @StringRes
@@ -57,6 +59,7 @@ object MissionInfo {
         MissionType.SQUATS -> R.string.mission_desc_squats
         MissionType.PUZZLE -> R.string.mission_desc_puzzle
         MissionType.PHOTO -> R.string.mission_desc_photo
+        MissionType.FOCUS_TAP -> R.string.mission_desc_focus
     }
 
     fun icon(type: MissionType): ImageVector = when (type) {
@@ -70,6 +73,7 @@ object MissionInfo {
         MissionType.SQUATS -> Icons.Filled.FitnessCenter
         MissionType.PUZZLE -> Icons.Filled.Extension
         MissionType.PHOTO -> Icons.Filled.PhotoCamera
+        MissionType.FOCUS_TAP -> Icons.Filled.TouchApp
     }
 
     /**
@@ -84,12 +88,31 @@ object MissionInfo {
 
     /** Whether the phone has the hardware the mission needs; unsupported missions should not be offered or enforced. */
     fun isSupported(context: Context, type: MissionType): Boolean = when (type) {
-        MissionType.MATH, MissionType.MEMORY, MissionType.TYPING, MissionType.PUZZLE -> true
+        MissionType.MATH, MissionType.MEMORY, MissionType.TYPING, MissionType.PUZZLE, MissionType.FOCUS_TAP -> true
         MissionType.QR_BARCODE, MissionType.PHOTO -> context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
         MissionType.NFC -> NfcAdapter.getDefaultAdapter(context) != null
         MissionType.SHAKE, MissionType.SQUATS -> context.hasSensor(Sensor.TYPE_ACCELEROMETER)
         MissionType.STEPS -> context.hasSensor(Sensor.TYPE_STEP_COUNTER) || context.hasSensor(Sensor.TYPE_STEP_DETECTOR) ||
             context.hasSensor(Sensor.TYPE_ACCELEROMETER)
+    }
+
+    /**
+     * The order the mission picker lists them in. A code on something in another room is what works best for most people,
+     * so it comes first; the ones that wear off or can be faked come last, each with a note saying so ([noteRes]).
+     */
+    val pickerOrder: List<MissionType> = listOf(
+        MissionType.QR_BARCODE, MissionType.NFC, MissionType.FOCUS_TAP, MissionType.MEMORY, MissionType.PUZZLE, MissionType.TYPING,
+        MissionType.MATH, MissionType.PHOTO, MissionType.STEPS, MissionType.SQUATS, MissionType.SHAKE,
+    )
+
+    /** An honest line about how well a mission keeps people up, where there is something worth saying. */
+    @StringRes
+    fun noteRes(type: MissionType): Int? = when (type) {
+        MissionType.QR_BARCODE -> R.string.mission_note_qr
+        MissionType.MATH -> R.string.mission_note_math
+        MissionType.PHOTO -> R.string.mission_note_photo
+        MissionType.STEPS -> R.string.mission_note_steps
+        else -> null
     }
 
     @StringRes

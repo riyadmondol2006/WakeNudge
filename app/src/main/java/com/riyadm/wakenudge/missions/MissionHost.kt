@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.domain.model.MissionConfig
 import com.riyadm.wakenudge.domain.model.MissionType
+import com.riyadm.wakenudge.missions.focus.FocusMission
 import com.riyadm.wakenudge.missions.math.MathMission
 import com.riyadm.wakenudge.missions.memory.MemoryMission
 import com.riyadm.wakenudge.missions.nfc.NfcMission
@@ -256,6 +257,7 @@ private fun MissionContent(config: MissionConfig, onInteraction: () -> Unit, onD
             MissionType.SQUATS -> SquatsMission(config, onInteraction, onDone)
             MissionType.PUZZLE -> PuzzleMission(config, onInteraction, onDone)
             MissionType.PHOTO -> PhotoMission(config, onInteraction, onDone)
+            MissionType.FOCUS_TAP -> FocusMission(config, onInteraction, onDone)
     }
 }
 

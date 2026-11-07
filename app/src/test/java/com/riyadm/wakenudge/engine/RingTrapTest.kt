@@ -107,6 +107,24 @@ class RingTrapTest {
         }
     }
 
+    @Test fun `an alarm that changes its mission each morning can always be finished too, after any restart`() = runBlocking {
+        for ((level, anti) in shapes) for (missions in missionLists.filter { it.size >= 2 } + listOf(MissionType.entries.map { MissionConfig(it) }.take(5))) {
+            for (restarts in 0..anti.maxResumes) {
+                val a = alarm(anti.copy(rotateMissions = true), missions)
+                controller.begin(controller.onAlarmFired(a.id, clock.now)!!)
+                repeat(restarts) {
+                    restart()
+                    comeBack()
+                }
+                assertEquals("$level: one mission a morning", 1, store.current!!.alarm.missions.size)
+                assertTrue("$level, rotating ${missions.map { it.type }}, $restarts restarts can be finished", finish())
+                assertNull(durable.ring())
+                alarms.rows.remove(a.id)
+                clock.now += 24 * 3_600_000L
+            }
+        }
+    }
+
     @Test fun `every limit a restored file can hold ends in a missed alarm, not in a ring that returns for ever`() = runBlocking {
         for (limit in 1..AntiOversleepSettings.MAX_RESUMES_LIMIT) {
             val a = alarm(anti(1_440, limit, strict = true, never = true), listOf(MissionConfig(MissionType.QR_BARCODE)))

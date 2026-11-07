@@ -17,6 +17,8 @@ enum class MissionType(val defaultCount: Int, val needsSetup: Boolean) {
     SQUATS(defaultCount = 10, needsSetup = false),
     PUZZLE(defaultCount = 1, needsSetup = false),
     PHOTO(defaultCount = 1, needsSetup = true),
+    /** Rounds of tapping only the shape asked for. Appended: the order of these is what older files and rows hold. */
+    FOCUS_TAP(defaultCount = 3, needsSetup = false),
 }
 
 /** Sub-games of the puzzle mission, stored in [MissionConfig.params] under [MissionConfig.PARAM_PUZZLE]. */

@@ -63,6 +63,7 @@ import com.riyadm.wakenudge.missions.MissionSetup
 import com.riyadm.wakenudge.ui.components.ChipChoiceRow
 import com.riyadm.wakenudge.ui.components.SectionTitle
 import com.riyadm.wakenudge.ui.components.StepperRow
+import com.riyadm.wakenudge.ui.components.SwitchRow
 import com.riyadm.wakenudge.ui.theme.Blobs
 import com.riyadm.wakenudge.ui.theme.LocalWakeHaptics
 import com.riyadm.wakenudge.ui.theme.PolygonShape
@@ -79,6 +80,9 @@ fun MissionListEditor(
     enabled: Boolean,
     maxMissions: Int,
     onChange: (List<MissionConfig>) -> Unit,
+    /** Whether one of the missions is asked for each morning instead of all of them; null where that is not offered. */
+    rotate: Boolean? = null,
+    onRotateChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val haptics = LocalWakeHaptics.current
@@ -130,6 +134,12 @@ fun MissionListEditor(
                     ) { Text(stringResource(R.string.snackbar_undo), color = MaterialTheme.colorScheme.inversePrimary) }
                 }
             }
+        }
+        if (rotate != null && missions.size >= 2) {
+            SwitchRow(
+                title = stringResource(R.string.edit_missions_rotate), subtitle = stringResource(R.string.edit_missions_rotate_hint),
+                checked = rotate, onCheckedChange = onRotateChange, shape = RoundedCornerShape(28.dp), enabled = enabled,
+            )
         }
         if (missions.size < maxMissions) {
             OutlinedButton(onClick = { haptics.click(); picking = true }, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
@@ -281,7 +291,7 @@ private fun MissionPicker(onPick: (MissionType) -> Unit, onDismiss: () -> Unit) 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         LazyColumn(Modifier.navigationBarsPadding(), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item { Text(stringResource(R.string.edit_missions_pick_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)) }
-            items(MissionType.entries.toList(), key = { it.name }) { type ->
+            items(MissionInfo.pickerOrder, key = { it.name }) { type ->
                 val supported = MissionInfo.isSupported(context, type)
                 Surface(
                     onClick = { if (supported) onPick(type) },
@@ -299,6 +309,13 @@ private fun MissionPicker(onPick: (MissionType) -> Unit, onDismiss: () -> Unit) 
                                 stringResource(if (supported) MissionInfo.descriptionRes(type) else MissionInfo.unsupportedReasonRes(type)),
                                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                            MissionInfo.noteRes(type)?.takeIf { supported }?.let { note ->
+                                Text(
+                                    stringResource(note), style = MaterialTheme.typography.bodyMedium,
+                                    color = if (type == MissionType.QR_BARCODE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 4.dp),
+                                )
+                            }
                         }
                     }
                 }
@@ -318,6 +335,7 @@ private fun countRange(type: MissionType) = when (type) {
     MissionType.STEPS -> CountRange(10, 200, 10)
     MissionType.SQUATS -> CountRange(3, 30, 1)
     MissionType.PUZZLE, MissionType.QR_BARCODE, MissionType.NFC, MissionType.PHOTO -> CountRange(1, 3, 1)
+    MissionType.FOCUS_TAP -> CountRange(1, 5, 1)
 }
 
 private fun countLabel(type: MissionType) = when (type) {
@@ -327,6 +345,7 @@ private fun countLabel(type: MissionType) = when (type) {
     MissionType.SHAKE -> R.string.edit_missions_count_shake
     MissionType.STEPS -> R.string.edit_missions_count_steps
     MissionType.SQUATS -> R.string.edit_missions_count_squats
+    MissionType.FOCUS_TAP -> R.string.edit_missions_count_rounds
     else -> R.string.edit_missions_count_times
 }
 
@@ -356,6 +375,8 @@ fun missionSlots(): MissionSlots = MissionSlots(
             hint = stringResource(R.string.edit_missions_hint),
             missions = alarm.missions, enabled = enabled, maxMissions = MissionConfig.MAX_MISSIONS,
             onChange = { list -> onChange { it.copy(missions = list) } },
+            rotate = alarm.antiOversleep.rotateMissions,
+            onRotateChange = { on -> onChange { it.copy(antiOversleep = it.antiOversleep.copy(rotateMissions = on)) } },
         )
     },
     snoozeMissions = { alarm, enabled, onChange ->
