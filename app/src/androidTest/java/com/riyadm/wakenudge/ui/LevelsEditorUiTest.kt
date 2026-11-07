@@ -5,6 +5,8 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
@@ -89,7 +91,12 @@ class LevelsEditorUiTest {
         compose.waitUntil(5_000) { compose.onAllNodesWithText("How hard?").fetchSemanticsNodes().isNotEmpty() }
     }
 
-    private fun scrollTo(text: String) = compose.onNode(hasScrollAction()).performScrollToNode(hasText(text))
+    /**
+     * The editor's list, not the time wheels: they scroll too, but each is one merged node that carries its rows as text,
+     * while the list itself has none.
+     */
+    private fun scrollTo(text: String) =
+        compose.onNode(hasScrollAction() and SemanticsMatcher.keyNotDefined(SemanticsProperties.Text)).performScrollToNode(hasText(text))
 
     /** An hour ago, so tomorrow's ring is far off and no lock window applies while the test edits it. */
     private fun anHourAgo() = LocalTime.now().minusHours(1)

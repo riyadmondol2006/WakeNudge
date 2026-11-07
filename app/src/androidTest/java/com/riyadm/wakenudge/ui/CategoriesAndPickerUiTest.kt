@@ -384,7 +384,9 @@ class CategoriesAndPickerUiTest {
         compose.onNodeWithContentDescription("Allow snooze").performClick()
         compose.waitForIdle()
         assertEquals("the switch turns snooze off", false, alarm.snooze.enabled)
-        compose.onNodeWithText("Off").assertIsDisplayed()           // the collapsed card now says so
+        // The collapsed Snooze card now says so. "Voice and light" and "Still up?" also read Off for a default alarm, so the
+        // summary is looked for in the Snooze card's header, which is one merged node with its title.
+        compose.onNode(hasText("Snooze") and hasText("Off")).assertIsDisplayed()
         compose.onNodeWithText("Snooze length").assertDoesNotExist() // and it stayed closed
     }
 }
