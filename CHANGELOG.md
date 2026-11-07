@@ -4,6 +4,22 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 Releases are built and published automatically from `main` and numbered `MAJOR.MINOR.N`, where `N` is the commit count
 (see [docs/RELEASING.md](docs/RELEASING.md)); the notes of each GitHub release list the commits it contains.
 
+## The docs say what the app does on a real phone
+
+- **README**: a short explanation of Easy, Normal, Hard and No mercy for a new user, Focus Tap among the eleven missions,
+  and a new section, **What it can't stop**: power off isn't blocked (the alarm rings again after a restart, at full volume
+  with no snooze), and what device admin, Safe mode, Do Not Disturb, calls and a code kept by the bed mean in practice
+- **Measured on the test Pixel 6** (Android 17, gesture navigation) and written down in docs/TESTING.md: after a restart
+  mid-ring the sound is back 21 to 23 seconds after the phone finishes starting; after Stop in Active apps, 17 seconds;
+  after a force stop, when the app is next opened. The alarm screen is back about 1.2 seconds after Home or Recents. With
+  device admin on, uninstall is refused and Force stop does nothing
+- The store listing no longer says the app has no internet permission (it holds one, for the optional update check), and
+  no longer describes the old Emergency stop and a still-awake check you can always cancel
+- The phone the app was tested on is a Pixel 6, not a Pixel 6 Pro as the README said
+- Power-off blocking was planned as an optional add-on and dropped; nothing offers it
+- A new test fails if the app's text, the README or the store listing claims the alarm can't be escaped or that power off
+  is blocked, or if the README loses its "What it can't stop" section
+
 ## A morning record, a torch for an ignored alarm, and no credit for a machine
 
 - **How it went**, on the Morning screen: whether the backup mission was used, a way out taken, a ring missed, and how many

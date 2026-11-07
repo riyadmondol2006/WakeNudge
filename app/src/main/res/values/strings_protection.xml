@@ -39,18 +39,18 @@
     <string name="protection_rehearsal_failed">Android refused to set the rehearsal. Check Alarm Health.</string>
 
     <string name="protection_admin_title">6. Block force stop and uninstall</string>
-    <string name="protection_admin_body">Turns on device admin for WakeNudge. While it is on, Android won\'t let you force-stop or uninstall WakeNudge. Turn it off here any time an alarm isn\'t ringing, or in Settings, Security, Device admin apps.</string>
+    <string name="protection_admin_body">Turns on device admin for WakeNudge. While it is on, Android won\'t let you force-stop or uninstall WakeNudge. It doesn\'t stop the phone being switched off. Turn it off here any time an alarm isn\'t ringing or snoozed, or in Settings, Security, Device admin apps at any time.</string>
     <string name="protection_admin_locked">Finish one rehearsal first (step 5), so you know you can end the alarm before you make it harder to remove.</string>
     <string name="protection_admin_restricted">If Android says this is restricted, use \"Allow restricted settings\" in App info as in step 1, then try again.</string>
     <string name="protection_admin_turn_on">Turn on</string>
     <string name="protection_admin_turn_off">Turn off</string>
-    <string name="protection_admin_on">On: Force stop and uninstall are blocked.</string>
+    <string name="protection_admin_on">On: Force stop and uninstall are blocked. The Force stop button may still look available, but it does nothing.</string>
     <string name="protection_admin_off">Off</string>
     <string name="protection_admin_wait">An alarm is ringing or snoozed. Finish it first, then turn this off here. You can also turn it off now in Settings, Security, Device admin apps.</string>
     <string name="protection_admin_system_route">You can always turn it off in Settings, Security, Device admin apps (on some phones: Security and privacy, More security settings, Device admin apps).</string>
     <string name="protection_admin_turned_off">Device admin is off. Force stop and uninstall work again.</string>
     <string name="protection_admin_refused">Android didn\'t turn it off. Use Settings, Security, Device admin apps.</string>
-    <string name="protection_admin_explanation">WakeNudge asks for no device admin powers at all: it can\'t wipe, lock or watch your phone. Being active only means Android won\'t let you force-stop or uninstall it. Turn it off in WakeNudge\'s Protection screen, or here, any time an alarm isn\'t ringing.</string>
+    <string name="protection_admin_explanation">WakeNudge asks for no device admin powers at all: it can\'t wipe, lock or watch your phone. Being active only means Android won\'t let you force-stop or uninstall it. Turn it off here at any time, or in WakeNudge\'s Protection screen when no alarm is ringing or snoozed.</string>
     <string name="protection_admin_description">Stops a half-asleep force stop or uninstall of your alarm. No device powers are used.</string>
     <string name="protection_admin_disable_warning">Your alarms can then be force-stopped or uninstalled again.</string>
 

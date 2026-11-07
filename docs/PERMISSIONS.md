@@ -29,7 +29,7 @@ manifest (`app/src/main/AndroidManifest.xml`) too.
 |---|---|---|
 | `USE_FULL_SCREEN_INTENT` | Show the ring screen over the lock screen. On Android 14+ the system grants it to alarm-clock apps | Shown in onboarding and the Alarm health screen with a shortcut to the system setting if it is ever turned off |
 | `SYSTEM_ALERT_WINDOW` ("Display over other apps") | Bring the ring screen back when you leave it while an alarm rings (Home, Recents, another app). Android lets a background service start an activity only with this permission. **Nothing is drawn over other apps**: it only starts WakeNudge's own ring screen, never over the lock screen's Emergency call, a call or a permission dialog | Never asked on its own. Step 1 of Settings, Protection opens the system setting; on Android 13 and later, where a sideloaded app's grant can be blocked, it then walks through App info, the three-dot menu and "Allow restricted settings", and back to the setting. Alarm health also shows it when an alarm is set to come back. Without it the alarm keeps ringing and its notification reappears |
-| Device admin (`BIND_DEVICE_ADMIN` on `WakeNudgeAdminReceiver`, `res/xml/device_admin.xml`) | **No policies at all**: no wipe, no lock, no password rules, no camera control. While it is active Android refuses Force stop and uninstall, so an alarm cannot be removed half asleep | Opt-in, step 6 of Settings, Protection, offered only after one finished rehearsal, through Android's own confirmation screen. Turned off in the same screen whenever no alarm rings or is snoozed (the row is always there), or at any time in Settings, Security, Device admin apps |
+| Device admin (`BIND_DEVICE_ADMIN` on `WakeNudgeAdminReceiver`, `res/xml/device_admin.xml`) | **No policies at all**: no wipe, no lock, no password rules, no camera control. While it is active Android refuses uninstall (`DELETE_FAILED_DEVICE_POLICY_MANAGER`), and App info's Force stop button still looks enabled but does nothing (seen on a Pixel 6 with Android 17), so an alarm cannot be removed half asleep. It does not block power off | Opt-in, step 6 of Settings, Protection, offered only after one finished rehearsal, through Android's own confirmation screen. Turned off in the same screen whenever no alarm rings or is snoozed (the row is always there), or at any time in Settings, Security, Device admin apps. On the test phone `adb shell dpm remove-active-admin` could not remove it |
 
 ## Runtime permissions (asked only when needed)
 
@@ -98,9 +98,14 @@ The in-app backup file (validated, then re-armed on restore) is the supported wa
   phone the unlock screen and its Emergency call button. Whether a call is going on is read from the audio mode
   (`AudioManager.getMode`), which needs no phone permission.
 - Android 17 added hardening around background audio: an app in the background must run a foreground service and also
-  hold the exact-alarm permission while using `USAGE_ALARM` audio. WakeNudge does all three. On a test Pixel 6 Pro
-  running Android 17 the system logs warn-only lines about background playback, but alarm playback was verified as
-  `USAGE_ALARM` with `mutedState:none` (the `USE_EXACT_ALARM` alarm-clock exemption applies). Platform behaviour could
+  hold the exact-alarm permission while using `USAGE_ALARM` audio. WakeNudge does all three. On the test Pixel 6
+  running Android 17 the system logs `AudioHardening ... would be ignored/muted ... level: full` when a ring starts, yet
+  the volume changes and the alarm plays (`USAGE_ALARM` with `mutedState:none`; the `USE_EXACT_ALARM` alarm-clock
+  exemption applies). Platform behaviour could
   tighten in a later update; Alarm health is the place that would surface it.
+- "Flash the torch if I ignore it" uses `CameraManager.setTorchMode`, which needs no permission and does not open the
+  camera.
+- Power off and restart are not blocked by any permission WakeNudge holds, and no accessibility service is used. A ring
+  cut short by a restart rings again when the phone starts, through `RECEIVE_BOOT_COMPLETED` and the alarm trigger.
 - Battery optimisation exemption is **not** requested automatically and `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` is not
   declared. A shortcut to the system battery settings page is offered on the Alarm health screen.

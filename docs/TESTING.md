@@ -4,7 +4,7 @@ An alarm clock is judged on the one morning it fails, so testing is split by wha
 
 | Layer | Where it runs | What it proves |
 |---|---|---|
-| **JVM unit tests** (919) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
+| **JVM unit tests** (939, from the result XML) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
 | **Fuzz tests** (14, part of the JVM tests) | Your computer | 20,000 seeded random alarm/clock/zone combinations never crash the scheduler or yield a time in the past; corrupted and hostile backup files are rejected or sanitised, never half-applied; random commands from stale buttons, keys and forged claims never end a ring whose missions are unfinished |
 | **Instrumented engine tests** (about 130, with the migration tests) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
 | **Instrumented UI tests** (about 80, 25 of them for the update popup and the About screen) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions getting a backup mission (never Continue), Emergency and the way out by click action at font scale 2.0 |
@@ -108,9 +108,9 @@ began life as a question; the ones that found real bugs are marked ✱ and were 
   never touched with the setting off, before the ring is ignored, for a timer or a sunrise, off for a camera mission, a pause
   or a mute, and put out when the ring ends; changing the rate or dropping the "ignored" condition was watched failing.
   `StatsTest` adds "How it went". `MissionInfoTest`: "I can't do timed or physical missions" hides exactly those missions and
-  makes chains sums and typing. `NoTimedMissionsUiTest` (compiled, not yet run on a device): the picker and the still-awake
+  makes chains sums and typing. `NoTimedMissionsUiTest` (passes on the Pixel 6): the picker and the still-awake
   check's sums.
-- `CategoriesAndPickerUiTest` and `LevelsEditorUiTest` (compiled, not yet run on a device): picking each level sets and names
+- `CategoriesAndPickerUiTest` and `LevelsEditorUiTest` (pass on the Pixel 6): picking each level sets and names
   it, a changed detail shows Custom, the protection line under Hard opens the setup, the slider never reaches "use the phone's
   alarm volume", "Keep ringing until I finish the mission" is a switch and "Stop ringing after" stops at 1 minute, the way out
   is Hold, Tasks or (after a rehearsal and a warning) None, every level and option fits 360 dp at font scale 2.0, the real
@@ -139,7 +139,7 @@ began life as a question; the ones that found real bugs are marked ✱ and were 
   classes that change alarms, groups, vacation and exception days, so a new one fails until it is classified. Each fix was
   broken on purpose and the test watched failing. `SchedulerResilienceTest` adds that a change from outside never closes a
   snoozed mission alarm as dismissed, while the engine's own clean-up still does. `AbuseInstrumentedTest`
-  (`aSnoozedStrictAlarmSurvivesEverySideDoorAndStillRings`, compiled, not yet run on a device) does the same against the
+  (`aSnoozedStrictAlarmSurvivesEverySideDoorAndStillRings`, passes on the Pixel 6) does the same against the
   real database and `AlarmManager`.
 - `WakeProofTest`: a "Still awake?" check that asks for proof ignores a plain answer and Cancel, passes on its own after 30
   steps on the counter and not after 29, takes no proof from a missing counter or one reset by a restart, counts the steps
@@ -152,15 +152,41 @@ began life as a question; the ones that found real bugs are marked ✱ and were 
   for each problem, sharing its mission checks with the evening check. `RingTrapTest` adds that a rehearsal of every level
   and every mission ends, with its way out even where the alarm removed it, by its timeout and at a restart, and that only
   its missions count. `ReleaseReadinessTest`: the device admin receiver is the one new exported component, behind
-  `BIND_DEVICE_ADMIN`, and its policy list is empty. `ProtectionUiTest` (compiled, not yet run on a device) draws the screen
+  `BIND_DEVICE_ADMIN`, and its policy list is empty. `ProtectionUiTest` (passes on the Pixel 6) draws the screen
   from a faked state as it is after each return from Settings.
+- `HonestClaimsTest`, next to `OfflineClaimsTest`: no app string, README text or store listing text may say the alarm
+  "can't be escaped", "cannot be turned off", "no escape", "impossible to", "unstoppable" or "guaranteed" (any apostrophe),
+  or offer Power Guard or blocking power off, which were not built; the README must keep its "What it can't stop" section,
+  naming power off, restarts, Safe mode, force stop and Emergency, and the Protection screen must say power off isn't
+  blocked.
 - The app force-killed mid-ring (chaos test): the backup alarm still rings.
 - Rapid snooze/dismiss mashing, double-delivered triggers, concurrent settings writes, missions that cannot be completed
   on this phone, permission revoked mid-flow, huge and hostile labels, 200 % font, RTL, time-zone jumps, DST gaps.
 
 ## Verified on a real device
 
-Hardware: **Google Pixel 6 Pro, Android 17 (API 37)**. No other physical device was used.
+Hardware: **Google Pixel 6, Android 17 (API 37), gesture navigation**, with no screen lock PIN. No other physical device
+was used.
+
+### The hard-alarm checks on the phone
+
+| What was done during a ring | What happened |
+|---|---|
+| The phone restarted | Sound back 21 to 23 s after the boot completed, at full volume and with no snooze |
+| Stop in Active apps | Sound back after 17 s (the 30 s sentinel trigger) |
+| `adb shell am force-stop` | Nothing until the app was next opened; then the ring came back. The resume rule reports a force-stopped ring as missed instead (`ResumePolicy`), so this is not explained yet |
+| Home, Recents, the card swiped away, with "Display over other apps" allowed | Back in front after 1.18 s from Home and 1.17 s from Recents; after about 5.5 s from a swiped card when that was the fourth leave in a row (the backoff). One alarm card per ring in Recents each time |
+| Volume keys | The volume held |
+| Device admin on | Uninstall refused (`DELETE_FAILED_DEVICE_POLICY_MANAGER`). App info's Force stop button still looks enabled, but tapping it does nothing: no dialog, and the app keeps running. Turning it off from WakeNudge's Protection screen works; `adb shell dpm remove-active-admin` cannot remove it. With it off, Force stop shows the normal "Force stop?" dialog |
+| Ring start, logcat | Android 17 logs `AudioHardening ... would be ignored/muted ... level: full`, yet the volume changes and the sound plays. Recorded as observed and not blocking; a later platform update could enforce more |
+
+Baseline, measured on the same phone with Alarmy: back in front 3 s after Home; after Recents or a swiped card it had not
+come back after 13 s. Its volume keys also held the volume.
+
+Power-off blocking (the Power Guard add-on in the plan) was dropped and is not built: power off and restart are not
+blocked, and the ring above is what happens instead.
+
+### Earlier device runs
 
 - Alarm registered with `setAlarmClock`; fired 86 ms after its scheduled time with the screen off and the phone locked;
   full-screen ring UI shown over the lock screen; `USAGE_ALARM` audio playing with `mutedState:none`; vibration;
@@ -211,19 +237,23 @@ Hardware: **Google Pixel 6 Pro, Android 17 (API 37)**. No other physical device 
 ## Not verified. Please be sceptical here
 
 These could not be done safely or at all in the development setup. They are the first things to test on your own phone.
+In short, nobody has yet seen on a device: ringing before the first unlock on a phone with a PIN, three-button navigation,
+split screen, Clear all, a 5-press SOS, the lock-screen Emergency dialer during a ring, the restricted-settings steps after
+a browser install, any phone but the one Pixel 6, a TalkBack walkthrough, right-to-left on the new controls, and a real
+ring longer than about 13 minutes.
 
 | Scenario | Why it matters / status |
 |---|---|
-| An **hours-long ring** with the ring timeout set to Never | The state machine, the backup interplay and the wake-lock renewal are JVM-tested with a moved clock and a mock lock; a real multi-hour ring on a device (renewal in `dumpsys power`, playback, vendor battery managers, Android 15+ service limits) was not observed |
-| The **database updates to versions 4 and 5** on a real install, and a notification action on a mission alarm | The migration has an instrumented test (`DatabaseMigrationTest`, compiled but not yet run on a device), its defaults are compared to the model on the JVM, and the command rules are JVM-tested; installing over a release with real alarms and tapping the real notification were not done |
-| A real **process kill during a ring** (`START_REDELIVER_INTENT`), **Stop in Active apps** and a real **crash of the ring screen** (`RingCrashGuard` rescue) | The service flag is checked with `dumpsys`, and the saved ring, the sentinel and the rescue are armed and replayed in tests (`DurableRingTest`, and `RingServiceInstrumentedTest`, compiled but not yet run on a device), but the OS restarting a killed process, the sentinel firing for real and the gap in sound were not observed |
-| **`systemExempted`** as the ring service's type on a real phone, and **`ExitPostMortem`** reading real exit reasons | The choice of type and the fallback's order are JVM-tested and the type in use has an instrumented test (not yet run). Whether Android accepts it from a boot start, and how sound behaves under Android 17's audio hardening with it, were not observed. The wording Android uses for a memory-limiter kill is from memory |
-| The **evening check** posting its notice and its fix button, the **silent re-arm**, and the **ledger** explaining a real force stop, power-off or late delivery | Policies and wake-up counts are JVM-tested (`TonightCheckTest`, `RingLedgerTest`); `TonightCheckInstrumentedTest` (compiled, not yet run on a device) fires the real trigger. Which exit reason and description Android records for `am force-stop` and Active apps Stop was not observed, so how the ledger names those is from the documentation; before Android 11 it cannot tell a force stop at all |
+| An **hours-long ring** with the ring timeout set to Never, and a real overnight ring | The state machine and the backup interplay are JVM-tested with a moved clock; an instrumented test on the Pixel 6 shows the renewed ring wake lock outliving its first timeout. The longest real ring observed was about 13 minutes; a multi-hour or overnight ring on battery (playback, vendor battery managers, Android 15+ service limits) was not observed |
+| The **database updates to versions 4 and 5** on a real install, and a notification action on a mission alarm | The migration has an instrumented test (`DatabaseMigrationTest`, which passes on the Pixel 6), its defaults are compared to the model on the JVM, and the command rules are JVM-tested; installing over a release with real alarms and tapping the real notification were not done |
+| A real **crash of the ring screen** (`RingCrashGuard` rescue) and a low-memory kill (`START_REDELIVER_INTENT`) | Stop in Active apps and `am force-stop` were done on the phone (see above). The rescue is armed and replayed in tests (`DurableRingTest`, `RingServiceInstrumentedTest`), but a real crash loop and a memory kill were not provoked |
+| **`systemExempted`** as the ring service's type on a real phone, and **`ExitPostMortem`** reading real exit reasons | The choice of type and the fallback's order are JVM-tested and the type in use has an instrumented test that passes on the Pixel 6. A ring came back with sound after a real restart (above), but which type Android granted for that start was not recorded. The wording Android uses for a memory-limiter kill is from memory |
+| The **evening check** posting its notice and its fix button, the **silent re-arm**, and the **ledger** explaining a real force stop, power-off or late delivery | Policies and wake-up counts are JVM-tested (`TonightCheckTest`, `RingLedgerTest`); `TonightCheckInstrumentedTest` (passes on the Pixel 6) fires the real trigger. Which exit reason and description Android records for `am force-stop` and Active apps Stop was not observed, so how the ledger names those is from the documentation; before Android 11 it cannot tell a force stop at all |
 | **Android 15+ foreground-service limits** (media services from a boot receiver; `onTimeout`) | The refused-start retry and fallback notification are tested with a simulated refusal; the real restriction and a real timeout were not provoked |
 | **Notifications blocked, ring channel muted or full-screen permission revoked** | The sound path does not use any of them (tested with no ring screen); the decision and the direct launch of the screen are tested, but the system was not put in those states |
 | Real **headphones or Bluetooth** plugged and pulled mid-ring | The route logic is tested by feeding it a pretend headset; a real `AudioDeviceCallback` event and the per-output alarm volume were not observed |
 | A **corrupt database file** | Room deletes and recreates it, so the alarm definitions are lost (only an exported backup restores them); the engine's behaviour with an unreadable database is tested, a corrupt file was not produced |
-| Real **power-off and reboot**, including ringing **before first unlock** (Direct Boot), and a **ring coming back after one** | Designed and tested with a simulated restart (`DurableRingTest`: as many as the alarm's limit come back, at full volume with no snooze, the next one and anything past the window are reported as missed; `MissedAlarmRecoveryTest` for an alarm due while off), but not demonstrated with a real power cycle. A real **force-stop** and its missed notice at the next start are the same |
+| Ringing **before first unlock** (Direct Boot), the **restart cap** reached for real, and an alarm **due while the phone was off** | A ring coming back after a real restart was seen (above), on a phone with no PIN, so it was already unlocked in Direct Boot terms. The cap and the window are tested with a simulated restart (`DurableRingTest`: as many as the alarm's limit come back, the next one and anything past the window are reported as missed; `MissedAlarmRecoveryTest` for an alarm due while off) |
 | **Forced deep Doze** (`dumpsys deviceidle force-idle`) | Needs changing device power state; `setAlarmClock` is Doze-exempt by design. Not forced, only ordinary screen-off idle |
 | **Time-zone change and DST transition** on a device | Maths covered by 20k fuzz cases and DST unit tests; the broadcast path is exercised by calling the handler (`SystemEventHandler`), but the system was never asked to change its clock or zone |
 | **Other manufacturers** (Samsung, Xiaomi, OnePlus, Huawei, …) | Their battery managers can still kill background work. Alarm health helps detect settings but cannot override a vendor |
@@ -231,25 +261,25 @@ These could not be done safely or at all in the development setup. They are the 
 | Human **shaking, squats and steps** | Counters are unit-tested with synthetic sensor traces; real motion was not performed |
 | **A machine rejected, a person not**: 30 shakes by hand, an even walk, then a phone on a mechanical shaker | `CadenceGuard`'s bars (0.08 for shakes, 0.01 for steps) come from synthetic streams; a person who shakes very evenly may lose a few counts, and how a real shaker and real sensor timing look is unknown |
 | The **torch** flashing for an ignored alarm, with a camera mission open, and after the app is killed mid-flash | `TorchFlasherTest` uses a fake torch; whether Android turns off a torch left on by a killed process was not checked |
-| **"How hard?"** picked by someone who has never seen the app, timed; each level's alarm overnight; 5 varied existing alarms after the update | The level table is JVM-tested twice over and the editor is compiled; nobody has used it on a phone |
+| **"How hard?"** picked by someone who has never seen the app, timed; each level's alarm overnight; 5 varied existing alarms after the update | The level table is JVM-tested twice over and `LevelsEditorUiTest` passes on the Pixel 6; nobody new to the app has used it |
 | **"I can't do timed or physical missions"** with Switch Access and Voice Access | The setting and the services' detection by package are code-reviewed and partly UI-tested; neither service was run |
-| The **backup mission** on a real phone: camera permission revoked before a locked ring, NFC off, the lens covered for a minute, a dead sensor | `FallbackChainTest`, `SensorAndCameraWatchTest` and `RingTrapTest` cover the rules; `RingAndMissionUiTest` and `RobustUiTest` (no Continue node, a keypad appears) are compiled, not yet run on a device. The permission dialog over the lock screen was not observed |
+| The **backup mission** on a real phone: camera permission revoked before a locked ring, NFC off, the lens covered for a minute, a dead sensor | `FallbackChainTest`, `SensorAndCameraWatchTest` and `RingTrapTest` cover the rules; `RingAndMissionUiTest` and `RobustUiTest` (no Continue node, a keypad appears) pass on the Pixel 6. The permission dialog over the lock screen was not observed |
 | **Emergency** on a real phone: the phone app or the lock-screen Emergency call button, a real incoming call during a ring, the safe ring screen after two crashes | The pause, its count and the call budget are JVM-tested (`WayOutAndEmergencyTest`, `CallPauseTest`); opening the dialer, the bouncer and `AudioManager` mode changes were not observed, nor `SafeRingActivity` on the lock screen |
-| **Coming back to the ring screen** on a real phone: Home, Recents, a swiped card, Clear all, split screen, opening the app, a ring back from a kill or a restart, both navigation modes, the screen switched off, a 5-press SOS, the camera double-press, Circle to Search under `FLAG_SECURE` | `ResurfacePolicyTest` and `RingScreenFrontTest` cover the rules on the JVM. On a Pixel 6 (Android 17, gesture navigation) `RingServiceInstrumentedTest` passes, measuring front by the system's top resumed activity and input focus: Home 1.2 s, Recents 1.2 s (Android does let the screen leave the Overview once the app notices it), Home again 1.3 s, a card swiped away (two swipes: the first only turns the live card into a screenshot) back 5.2 s later inside the 5 s backoff, in a new task, with one ring task in `dumpsys activity recents` each time; and the screen staying away without the permission. Clear all, split screen, three-button navigation, the screen switched off, SOS, the camera double-press, Circle to Search, and whether a re-alert disturbs the lock-screen Emergency dialer were not observed |
-| The **volume lock** and **forced speaker** on a real phone: keys, the shade slider and Settings turning the alarm down, headphones with the hearing cap | `VolumeFloorTest` covers the floor and the cap; the heartbeat that holds it and the routed-device check were not observed with real audio |
-| **Focus Tap** half asleep, and **mission rotation** over real mornings | `FocusGameTest`, `MissionRotationTest` (a month, across daylight-saving changes) and `RotationRingTest` cover the rules; `FocusTapUiTest` (touch, screen reader, RTL, font scale 2.0) is compiled but not yet run on a device. Whether it takes under a minute first thing in the morning, or can be done on reflex, was not tried |
-| **Edit protection by hand**: each side door on a real phone, including the Quick Settings tile and the widgets, an alarm 5 minutes away and one 8 hours away | `LockCoverageTest` and `AbuseInstrumentedTest` (compiled, not yet run on a device) cover the rules; the toasts and snackbars were not seen |
+| **Coming back to the ring screen** beyond Home, Recents and a swiped card: Clear all, split screen, three-button navigation, the screen switched off, a 5-press SOS, the camera double-press, Circle to Search under `FLAG_SECURE`, and the **lock-screen Emergency dialer** during a ring | `ResurfacePolicyTest` and `RingScreenFrontTest` cover the rules on the JVM. On the Pixel 6 (gesture navigation) `RingServiceInstrumentedTest` passes, measuring front by the system's top resumed activity and input focus: Home 1.2 s, Recents 1.2 s (Android does let the screen leave the Overview once the app notices it), Home again 1.3 s, a card swiped away (two swipes: the first only turns the live card into a screenshot) back 5.2 s later inside the 5 s backoff, in a new task, with one ring task in `dumpsys activity recents` each time; and the screen staying away without the permission. The rest of this row, including whether a re-alert disturbs the lock-screen Emergency dialer, was not observed |
+| The **volume lock** and **forced speaker** beyond the keys: the shade slider and Settings turning the alarm down, headphones with the hearing cap | `VolumeFloorTest` covers the floor and the cap. The keys holding the volume was seen on the phone; the rest, and the routed-device check, were not observed with real audio |
+| **Focus Tap** half asleep, and **mission rotation** over real mornings | `FocusGameTest`, `MissionRotationTest` (a month, across daylight-saving changes) and `RotationRingTest` cover the rules; `FocusTapUiTest` (touch, screen reader, RTL, font scale 2.0) passes on the Pixel 6. Whether it takes under a minute first thing in the morning, or can be done on reflex, was not tried |
+| **Edit protection by hand**: each side door on a real phone, including the Quick Settings tile and the widgets, an alarm 5 minutes away and one 8 hours away | `LockCoverageTest` and `AbuseInstrumentedTest` (passes on the Pixel 6) cover the rules; the toasts and snackbars were not seen |
 | **"Still awake?" with proof** on a real phone: the step counter after 30 real steps, the prompt's tone on a phone set to silent, Focus Tap on the prompt screen over the lock screen, a re-ring asking for the next mission | `WakeProofTest` covers the rules with a pretend counter. Whether the counter answers at once when listened to (it may wait for the next step on some phones, which then counts as no proof), and whether shaking the phone by hand makes it count, were not observed |
-| **Protection setup from a browser install**: "Display over other apps" blocked by restricted settings, App info's "Allow restricted settings", then the grant | Only the rules and the screen from a faked state are tested. The wording of Android's block, where the three-dot menu is, and whether `adb install` skips the block entirely were not observed |
-| **Device admin** on a real phone: Force stop greyed, Stop gone from Active apps, uninstall refused, Clear storage, then turned off in the app and in Settings and the app uninstalled | `ReleaseReadinessTest` checks the receiver and its empty policy list; Android's behaviour with an active admin is from AOSP-derived code and was not observed |
+| **Protection setup from a browser install**: "Display over other apps" blocked by restricted settings, App info's "Allow restricted settings", then the grant | Only the rules and the screen from a faked state are tested. The test phone's installs came over `adb`, so the wording of Android's block and where the three-dot menu is were not observed |
+| **Device admin** beyond what was seen: Stop in Active apps and Clear storage while it is on, and turning it off from Android's Settings, Security, Device admin apps | Uninstall refused, Force stop doing nothing and turning it off from the Protection screen were seen on the phone (above). `ReleaseReadinessTest` checks the receiver and its empty policy list |
 | A **rehearsal** ringing over the lock screen and counting when finished; **Extreme Battery Saver** pausing the app | `RingTrapTest` and `RehearsalAndPreflightTest` cover the rules; the real ring of a rehearsal was not seen. What Extreme Battery Saver does to an app not on its essential list is from Pixel's own description, not observed |
 | **NFC** tag read over the lock screen | The mission logic is tested; no tag was scanned |
 | **QR/barcode** decode with a printed code; **photo match** against a detailed real scene | Decoder/matcher tested on generated images only |
-| **TalkBack** end to end | Content descriptions and large-text/RTL are tested; a TalkBack walkthrough was not done |
+| **TalkBack** end to end, and **right-to-left** on the new controls (How hard?, More options, Protection, Focus Tap, the way-out chain) | Content descriptions and large-text/RTL are tested for the older screens and UI tests that pass on the Pixel 6 cover some of the new ones (`FocusTapUiTest` in RTL); a TalkBack walkthrough and an RTL pass over the new controls on the phone were not done |
 | **Headphones / Bluetooth** routing | Policies tested on the JVM; no real headset was connected (see also the row above) |
 | **Tablets and foldables** | Layout adapts by window size; not seen on such hardware |
 | Widgets and tile **placed and interacted with** | Registered, not added to a home screen or tile layout (that would change the owner's launcher) |
-| Android 17 **background-audio hardening** | Currently warn-only for alarm apps; a later platform update could enforce more |
+| Android 17 **background-audio hardening** | On the Pixel 6 it logs `AudioHardening ... would be ignored/muted ... level: full` at ring start while the volume changes and the sound plays (above). A later platform update could enforce more |
 
 ## Device safety rules used for this project
 

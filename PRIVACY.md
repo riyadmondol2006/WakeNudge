@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 26 October 2026_
+_Last updated: 7 November 2026_
 
 **WakeNudge: Alarm Clock** ("WakeNudge", "the app") is a free, open-source alarm clock. This policy explains what the
 app does with information. Short version: **everything stays on your phone.**
@@ -27,7 +27,10 @@ created by you using the app and is used only to make the app work:
 |---|---|
 | Your alarms (times, labels, repeat days, sounds, missions), groups, timers, world clocks, exception dates and settings | So your alarms work |
 | References to sound files you picked (the file's address, not a copy) | So the alarm can play your own music |
-| Alarm history (when each alarm rang, snoozed, was dismissed or missed, how many missions were done) | The morning dashboard and streaks |
+| Alarm history (when each alarm rang, snoozed, was dismissed or missed, how many missions were done, and whether a backup mission, a way out, an Emergency pause, a restart, a mute or a return to the alarm screen happened) | The morning dashboard, streaks and "How it went" |
+| While an alarm rings: a copy of that alarm and its progress (snoozes used, missions done) | So a ring that is killed or cut short by a restart comes back as it was. Removed when the ring ends, and never part of a backup |
+| For about a week: why recent alarms rang late or not at all (force stopped, phone off, restarted), worked out from the history and from what Android reports about how the app last stopped | To tell you at the next start, and in Alarm health. Never part of a backup |
+| Which alarms you have rehearsed | To offer device admin and removing the way out only after a rehearsal. Never part of a backup |
 | A short diagnostics log (scheduling events, errors) | The Alarm health screen. It is bounded and never leaves the phone unless you export and share it |
 | For the QR/barcode mission: the text of the code you chose | To check that you scanned the same code |
 | For the NFC mission: the identifier of the tag you chose | To check that you tapped the same tag |
@@ -51,7 +54,8 @@ events (for example public holidays) in the calendars you pick, and the app read
 descriptions; **NFC** is used only for the NFC mission. The app never asks for your location, contacts, microphone,
 phone, SMS or files. **Device admin** is optional and asks for no device powers at all (it cannot wipe, lock or watch the
 phone); being active only stops WakeNudge from being force-stopped or uninstalled until you switch it off. Which alarms
-you have rehearsed is remembered on the phone only and is not part of a backup.
+you have rehearsed is remembered on the phone only and is not part of a backup. The torch that can flash for an ignored
+alarm is switched on and off without opening the camera.
 
 ## Update check
 

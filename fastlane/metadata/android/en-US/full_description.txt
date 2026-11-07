@@ -1,44 +1,50 @@
-WakeNudge is a free, open-source alarm clock that makes sure you actually get up. It is built for heavy sleepers, shift workers, students and anyone who has ever slept through an alarm, and it works completely offline: no ads, no accounts, no subscriptions, no tracking and no internet permission at all.
+WakeNudge is a free, open-source alarm clock that makes it hard to go back to sleep. It is built for heavy sleepers, shift workers, students and anyone who has ever slept through an alarm. No ads, no accounts, no subscriptions and no tracking. The only thing that goes online is an optional check for a newer version, which you can switch off.
 
-WHY WAKENUDGE
-• Rings when it should: exact alarms that work on the lock screen, in silent mode, after a restart and through time-zone and daylight-saving changes
-• Missions that wake your brain, not just your ears
-• A gentle design that follows your wallpaper colours (Material You), with light, dark and AMOLED themes
-• Open source under the Apache 2.0 licence
+HOW HARD?
+Each alarm has one choice that sets everything else:
+• Easy: swipe to stop, snooze allowed
+• Normal: finish a mission to stop, snooze up to 3 times, keeps ringing until you deal with it
+• Hard: no snooze, the loudest the phone allows, checks you are still up a few minutes later
+• No mercy: Hard, with two checks and the strictest limits
+Every detail can be changed under More options.
 
 WAKE-UP MISSIONS
-Solve to dismiss: math problems, memory patterns, typing a sentence, scanning a QR code or barcode, tapping an NFC tag, shaking your phone, walking steps, doing squats, puzzles, or photographing the same spot you set up the night before. Pick the difficulty, chain several missions, preview them first, or use Solve to Snooze.
+Eleven missions: math problems, memory patterns, typing a sentence, scanning a QR code or barcode, tapping an NFC tag, shaking your phone, walking steps, doing squats, puzzles, photographing the same spot you set up the night before, and Focus Tap, a quick game of attention. Pick the difficulty, chain several, preview them first, or let the alarm ask for a different one each morning. A mission your phone can't do is replaced by a short backup mission, never skipped.
+
+HARD TO WRIGGLE OUT OF
+• Leave the alarm screen and it comes back in about a second, once you allow "Display over other apps"
+• Restart the phone and the alarm rings again, at full volume with no snooze
+• Turning the volume down while it rings doesn't stick
+• An optional lock on changing the alarm in the hours before it rings, also covering vacation mode and profiles
+• Optional device admin stops a half-asleep force stop or uninstall, and you can switch it off again
+• A rehearsal of the alarm, so you know you can finish it before you make it stricter
+
+ALWAYS AN EXIT
+Every ring has an Emergency button that pauses the alarm so you can make a call. Alarms with a mission keep a way out without the mission: a 10-second hold, or on Hard and No mercy a run of tasks that opens after a few minutes. Power off isn't blocked, and Safe mode or a flat battery still beat it.
 
 STILL AWAKE? CHECK
-After you dismiss, WakeNudge asks if you are still awake a few minutes later and rings again if you do not answer. It survives restarts, and you can cancel it whenever you like.
+After you dismiss, WakeNudge checks a few minutes later that you are still up and rings again if you are not. On Hard and No mercy it asks for a round of Focus Tap, or 30 steps, instead of a button.
 
 A SOUND THAT WAKES YOU UP
-• 12 tones from gentle to loud, or your own music from your phone
+• 12 tones from gentle to loud, a different one each morning if you like, or your own music
 • Volume ramp-up, Extra Loud mode and an alarm that intensifies if you ignore it
-• Strong vibration patterns, or record your own rhythm
-• Spoken announcements using your phone's offline text-to-speech
-• Sunrise mode and a backup alarm
+• Strong vibration patterns, and spoken announcements
+• Sunrise mode, a backup alarm and a torch that can flash when you ignore it
 • Hearing-safety limit on headphones. Your alarm volume is restored afterwards
 
-STOP OVERSLEEPING
-Snooze limits that shrink, hold-to-dismiss, protection against accidental dismissal, optional lock on last-minute edits, extra backup rings, and a morning dashboard with history and streaks. Everything can be switched off. By default an Emergency stop is one press-and-hold away, so the app never traps you, and for a strict alarm you can turn it (and snooze) off per alarm.
-
 PLAN YOUR DAYS
-Unlimited alarms with labels and repeat days, groups like Work and Weekend, skip next ring, vacation mode, holiday and calendar exceptions, bedtime reminders and a sleep planner based on sleep cycles.
-
-CLOCK TOOLS
-Timer, stopwatch with laps, world clock, live countdown to your next alarm, home-screen widgets and a Quick Settings tile.
+Unlimited alarms with repeat days, groups like Work and Weekend, skip next ring, vacation mode, holiday and calendar exceptions, bedtime reminders and a sleep planner. Plus a timer, stopwatch, world clock, widgets and a Quick Settings tile.
 
 ALARM HEALTH
-A built-in checkup shows whether notifications, full-screen alerts, exact alarms, battery settings, Do Not Disturb and audio routing could stop an alarm, tells you how to fix each, and lets you ring a real test alarm. It can also warn you before bed when the battery is low and not charging.
+A checkup shows whether notifications, full-screen alerts, exact alarms, battery settings or Do Not Disturb could stop an alarm, how to fix each, and rings a real test alarm. The evening before, the next alarm is checked and you hear about it only if something is wrong.
 
 BACKUP AND RESTORE
-Save your alarms and settings to a file you choose and restore them on a new phone. Nothing is uploaded.
+Save your alarms and settings to a file you choose. Nothing is uploaded.
 
-PRIVACY
-No account. No ads. No analytics. No internet permission. Permissions such as camera, step counter and calendar are asked for only when you use the feature that needs them.
+PRIVACY AND PRICE
+No account, no ads, no analytics. Alarms and history stay on your phone. Permissions such as camera and calendar are asked for only when you use the feature that needs them. Every mission, the still-awake check and the edit lock are free, and features never go away.
 
 A NOTE ON RELIABILITY
-No app can override a phone that is switched off, and some manufacturers restrict background apps aggressively. WakeNudge uses the system alarm-clock APIs and tells you in Alarm health if something on your phone could get in the way.
+No app can ring a phone that is switched off, and some manufacturers restrict background apps aggressively. WakeNudge has been tested on a Pixel, and Alarm health tells you if something on your phone could get in the way.
 
-Free and open source. Wake up on purpose.
+Open source under the Apache 2.0 licence. Wake up on purpose.

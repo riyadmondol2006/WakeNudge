@@ -154,9 +154,9 @@ Once started, the engine looks after itself:
   that it finished.
 - Whenever a fallback was needed, `RuntimeState.lastAudioProblem` records it and Alarm Health says so.
 
-Android 17 logs warn-only "background playback would be muted" lines for background apps. Because WakeNudge is an
-alarm-clock app holding `USE_EXACT_ALARM` and plays `USAGE_ALARM`, real playback is unmuted (checked with
-`dumpsys audio`: `mutedState:none`). This is platform behaviour to keep watching.
+Android 17 logs `AudioHardening ... would be ignored/muted ... level: full` when a ring starts. Because WakeNudge is an
+alarm-clock app holding `USE_EXACT_ALARM` and plays `USAGE_ALARM` from a foreground service, real playback is unmuted and
+volume changes work (seen on a Pixel 6; `dumpsys audio`: `mutedState:none`). This is platform behaviour to keep watching.
 
 ### When things go wrong
 
@@ -210,16 +210,21 @@ next to it. Reading it never throws: a corrupt record counts as no record, and s
 - **Killed** (the system, Stop in Active apps): a `RING_SENTINEL` trigger is pushed 30 seconds ahead while an alarm that keeps
   coming back rings, or while anything is queued, and it only fires if the process is gone. `RingController.begin` picks
   up the record, so strictness and progress return with the sound. `START_REDELIVER_INTENT` takes the same path. An alarm
-  without a sentinel comes back only when something else starts the app, and is reported as missed after an hour.
+  without a sentinel comes back only when something else starts the app, and is reported as missed after an hour. On the
+  test Pixel 6, Stop in Active apps mid-ring had the sound back after 17 s.
 - **Restarted**: the boot broadcast, the app start and the watchdog all call `reviveDurableRing`. A new boot (`Settings.Global.BOOT_COUNT`,
   or elapsed time going backwards when that is unavailable) uses up one of the alarm's `maxResumes` (3 unless changed, never
   more than 20) and must be within its `resumeWindowMinutes` of when the ring first started (`ResumePolicy`). The ring starts
   from a sentinel armed 2 seconds ahead, not from the receiver, because an alarm trigger is where the system allows the service
   to start. A ring back from a restart stays at full volume with no ramp (`RingSession.soundAlarm`; only a headset's hearing
-  cap still applies) and `RingPolicy` refuses it a snooze, so restarting never buys a quieter alarm or more sleep.
+  cap still applies) and `RingPolicy` refuses it a snooze, so restarting never buys a quieter alarm or more sleep. On the
+  test Pixel 6 the sound was back 21 to 23 s after the boot completed.
 - **Past the limit or the window**: no ring. The event closes as missed with its backups cleared, and a notification says so.
 - **Force-stopped**: Android cancels every trigger and starts nothing. At the next app start the watchdog being gone in the
-  same boot, on the same version, marks this case: the ring is reported as missed. An app update looks similar but rings again.
+  same boot, on the same version, marks this case, and the rule (`ResumePolicy`, `GiveUpReason.ForceStopped`) reports the
+  ring as missed. An app update looks similar but rings again. On the test Pixel 6, though, `am force-stop` mid-ring left
+  it silent until the app was next opened and the ring then came back, which this rule does not predict; why has not been
+  traced yet.
 - **Another alarm arrives after a kill, before the ring is back**: it waits behind the ring that was on, as it would have
   if the process had lived, so its saved progress is not overwritten.
 
@@ -289,11 +294,13 @@ screen comes back to the front, since every step happens in a Settings screen th
    `ProtectionPolicy.stepsLeft` as "Fully protected" or "N steps left to stop you leaving the alarm", read again each time
    the editor comes back, and opens this screen.
 6. Device admin (`WakeNudgeAdminReceiver`, `res/xml/device_admin.xml` with an empty `<uses-policies/>`), locked until one
-   rehearsal has finished. While active, Android refuses Force stop and uninstall. The Turn off row is always shown; it is
+   rehearsal has finished. While active, Android refuses uninstall, and App info's Force stop button looks enabled but
+   does nothing (seen on a Pixel 6 with Android 17). The Turn off row is always shown; it is
    refused only while an alarm rings or is snoozed (storage that cannot be read counts as "not snoozed"), and the system
    route, Settings, Security, Device admin apps, is always named next to it.
 
-There is no power-off protection: the screen says plainly that holding the power button, the power menu or a voice
+There is no power-off protection (the plan's optional Power Guard add-on was dropped, and the unused `powerGuard` field
+is all that is left of it): the screen says plainly that holding the power button, the power menu or a voice
 assistant can switch the phone off or restart it, and that the alarm rings again after a restart (see "A ring outlives its
 process"). Extreme Battery Saver and Do Not Disturb set to Total Silence are named as what it cannot override.
 
@@ -409,6 +416,8 @@ switch it off in About, then Updates; debug builds never check by themselves. Th
 `UpdateChecker` interface, so its view model is tested without the network, and UI tests swap the GitHub client for a
 scripted one (`TestUpdateModule`). A JVM test (`OfflineClaimsTest`) checks that no user-facing text claims the app
 cannot go online, and that text about going online names the update check and says it can be switched off.
+`HonestClaimsTest` does the same for strictness: no string, README or store text may claim the alarm can't be escaped or
+that power off is blocked, and the README must keep its "What it can't stop" section.
 
 ## Database migrations
 

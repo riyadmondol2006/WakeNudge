@@ -16,6 +16,9 @@ Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT
    must cover any new failure reason, level or exit.
 3. **Restore what you change.** Anything modifying system state (alarm volume, brightness) must put it back.
 4. **No placeholders.** No TODO-shaped UI, no mock buttons, no dead settings.
+5. **Say what it can't stop.** WakeNudge makes going back to sleep hard, not impossible: power off isn't blocked, and Safe
+   mode, a factory reset and a flat battery beat it. No text may claim otherwise. `HonestClaimsTest` checks the strings,
+   the README and the store listing, and the README's "What it can't stop" section must stay true when behaviour changes.
 
 ## Gradle tasks
 
@@ -51,7 +54,9 @@ real alarms with real audio, so use a test device, not the phone you sleep with.
 - Strings go in `res/values/strings*.xml`, with plurals where a number is shown.
 - Run the app with large fonts (up to 200%), RTL and TalkBack at least once for UI changes.
 - Do not claim something was tested on a real device unless it was. Add anything new that you could not verify to the
-  "Not verified" table in [docs/TESTING.md](docs/TESTING.md).
+  "Not verified" table in [docs/TESTING.md](docs/TESTING.md), and update the test counts there only from the test
+  result XML.
+- Store listing text (`fastlane/metadata`) names no other app and makes no ranking claim; `ReleaseReadinessTest` checks it.
 
 ## Commit messages
 
