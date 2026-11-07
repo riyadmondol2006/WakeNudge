@@ -83,6 +83,7 @@ class AbuseInstrumentedTest {
         cancelEverything()
         store.set(null)
         while (ring.takeQueued() != null) Unit
+        forgetSavedRing()
     }
 
     /** Cancels everything the test could have armed; ids come from what actually exists, not from a blind range. */
@@ -237,7 +238,7 @@ class AbuseInstrumentedTest {
         val b = alarms.save(alarmIn(1))
         ring.begin(ring.onAlarmFired(a, time.nowMillis())!!)
         ring.begin(ring.onAlarmFired(b, time.nowMillis())!!)
-        store.update { it.copy(lastInteractionAt = time.nowMillis() - 90_000) }
+        store.update { it.copy(lastInteractionAt = time.elapsedMillis() - 90_000) }
         ring.tick()
         assertNull("first alarm timed out", store.current)
         assertEquals(b, ring.takeQueued()?.alarmId)
@@ -345,5 +346,11 @@ class AbuseInstrumentedTest {
         assertEquals("مرحبا بالعالم — שלום עולם", alarms.getAlarm(rtl)!!.label)
         val huge = (actions.save(alarmIn(99) { copy(label = "x".repeat(100_000)) }) as ActionResult.Done).value
         assertTrue(alarms.getAlarm(huge)!!.label.length <= 60)
+    }
+
+    /** What a ring leaves behind lives in real preferences, which outlast a test: the next test must not find it. */
+    private fun forgetSavedRing() {
+        runtime.clearDurableRing()
+        pending.cancel(TriggerKind.RING_SENTINEL, RingIds.SENTINEL_TRIGGER_ID)
     }
 }

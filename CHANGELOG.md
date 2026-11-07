@@ -4,6 +4,22 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 Releases are built and published automatically from `main` and numbered `MAJOR.MINOR.N`, where `N` is the commit count
 (see [docs/RELEASING.md](docs/RELEASING.md)); the notes of each GitHub release list the commits it contains.
 
+## A ring that survives what happens to the phone
+
+- **A ring now outlives its process.** What it must not lose (the alarm as it fired, the snooze count, the missions done) is
+  saved outside the database, so being killed, a database failure or a restart cannot soften it. After a restart it rings
+  again if it was unresolved, up to 3 times per ring and within the alarm's window, then it is recorded as missed and you
+  are told
+- An alarm set to ring until it is dealt with also gets a sentinel trigger every 30 seconds, so Stop in Active apps brings
+  the sound back within about half a minute, and it keeps being rescued through a crash loop instead of giving up after five
+- Force stop stays silent until the app is next opened, which then tells you about the missed alarm
+- Two alarms at once: the one waiting survives a kill too, and both ring in turn
+- A strict alarm whose database cannot be read when it fires still rings with its missions, from a saved copy
+- The ring service runs as `systemExempted` on Android 14 and newer, which unlike `mediaPlayback` may start right after a
+  restart, and falls back if the system refuses it
+- A ring's timeout and a temporary silence count real time, so changing the clock neither ends nor extends them
+- Restoring a backup is refused while an alarm is ringing or waiting to come back
+
 ## One rule for ending a ring
 
 - **Every way to end or quiet a ring now goes through one decision.** A notification action, a volume key or a button left

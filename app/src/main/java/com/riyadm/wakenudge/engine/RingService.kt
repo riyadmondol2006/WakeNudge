@@ -3,6 +3,7 @@ package com.riyadm.wakenudge.engine
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.IBinder
 import androidx.core.app.ServiceCompat
 import com.riyadm.wakenudge.R
@@ -29,6 +30,18 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
+ * Which foreground-service types the ring service asks for, best first. `systemExempted` is open to exact-alarm apps and,
+ * unlike `mediaPlayback`, may start right after a restart. Neither has a time limit today. If the system refuses one the
+ * next is tried in the same call.
+ */
+object RingServiceTypes {
+    fun candidates(sdk: Int): List<Int> = buildList {
+        if (sdk >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) add(ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED)
+        add(ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+    }
+}
+
+/**
  * Foreground service that owns the sound, vibration and wake lock while an alarm is active. It is a thin effect
  * layer: decisions are made by [RingController], this class only reacts to [RingSessionStore].
  *
@@ -47,7 +60,6 @@ class RingService : Service() {
     @Inject lateinit var diagnostics: DiagnosticsLog
     @Inject lateinit var time: TimeSource
     @Inject lateinit var runtime: RuntimeState
-    @Inject lateinit var starter: RingStarter
     @Inject lateinit var locks: RingWakeLocks
     @Inject lateinit var rescue: RingCrashGuard
 
@@ -64,6 +76,9 @@ class RingService : Service() {
     private var stoppedOnPurpose = false
     private var ringingStarted = false
     private var lastIntensified = false
+
+    /** Foreground types the system refused this service; one that said no is not asked again on every notification. */
+    private val refusedTypes = mutableSetOf<Int>()
 
     /** Starts whose ring has not been looked up yet. Main thread only. While one is in flight the service must not stop. */
     private var startsInFlight = 0
@@ -124,18 +139,24 @@ class RingService : Service() {
 
     /**
      * Android 15+ gives foreground services of some types a time limit and calls this when it is up; the service
-     * must stop within seconds. A media-playback service has no limit today, but if one is ever imposed the alarm is
-     * handed to a fresh service rather than silenced.
+     * must stop within seconds. Neither type used here has a limit today. If one is ever imposed the ring moves to the
+     * other type in this same service, so the sound never stops. With nowhere to move to the service stops as it must, and
+     * [onDestroy] rings it again from its saved state: a moment of silence beats the system killing the whole process.
      */
-    override fun onTimeout(startId: Int, fgsType: Int) = handOver("foreground service time limit (type $fgsType)")
+    override fun onTimeout(startId: Int, fgsType: Int) = handOver("foreground service time limit (type $fgsType)", fgsType)
 
-    override fun onTimeout(startId: Int) = handOver("foreground service time limit")
+    override fun onTimeout(startId: Int) = handOver("foreground service time limit", foregroundType)
 
-    private fun handOver(reason: String) {
-        val request = store.current?.takeIf { it.phase == RingPhase.RINGING }?.toRequest()
-        diagnostics.warn("Service", "$reason; the ring continues in a fresh service")
-        shutdown()
-        request?.let { starter.start(it) }
+    private fun handOver(reason: String, timedOutType: Int) {
+        refusedTypes += timedOutType
+        val session = store.current
+        if (session == null) {
+            shutdown()
+            return
+        }
+        val moved = runCatching { goForeground(notifier.ring(session)) }.getOrDefault(false)
+        diagnostics.warn("Service", "$reason; ${if (moved) "the ring continues under another service type" else "stopping, and ringing again from the saved state"}")
+        if (!moved) stopSelf()
     }
 
     /**
@@ -213,7 +234,7 @@ class RingService : Service() {
     }
 
     private fun render(prev: RingSession?, s: RingSession) {
-        val now = time.nowMillis()
+        val now = time.elapsedMillis()
         // A different alarm replacing the previous one (the conflated "null" in between may never be seen).
         if (prev != null && (prev.alarm.id != s.alarm.id || prev.eventId != s.eventId)) {
             guard("stopping the previous alarm") {
@@ -295,13 +316,23 @@ class RingService : Service() {
         }
     }
 
-    /** Returns whether the service really became a foreground service. */
-    private fun goForeground(notification: android.app.Notification): Boolean = runCatching {
-        ServiceCompat.startForeground(this, NotificationIds.RING, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
-    }.onFailure {
-        runtime.lastServiceStartFailure = "${System.currentTimeMillis()}: startForeground ${it.javaClass.simpleName}: ${it.message}"
-        diagnostics.error("Service", "startForeground failed", it)
-    }.isSuccess
+    /** Returns whether the service really became a foreground service, under the best type the system allows it. */
+    private fun goForeground(notification: android.app.Notification): Boolean {
+        for (type in RingServiceTypes.candidates(Build.VERSION.SDK_INT)) {
+            if (type in refusedTypes) continue
+            val started = runCatching { ServiceCompat.startForeground(this, NotificationIds.RING, notification, type) }
+                .onFailure {
+                    refusedTypes += type
+                    runtime.lastServiceStartFailure = "${System.currentTimeMillis()}: startForeground type $type ${it.javaClass.simpleName}: ${it.message}"
+                    diagnostics.error("Service", "startForeground type $type was refused", it)
+                }.isSuccess
+            if (started) {
+                foregroundType = type
+                return true
+            }
+        }
+        return false
+    }
 
     private fun stopSounds() {
         guard("stopping the sound") {
@@ -341,6 +372,7 @@ class RingService : Service() {
     override fun onDestroy() {
         val interrupted = !stoppedOnPurpose
         val session = store.current
+        foregroundType = 0
         scope.cancel()
         audio.stop()
         vibrator.stop()
@@ -368,6 +400,7 @@ class RingService : Service() {
             snoozeCount = getIntExtra(EXTRA_SNOOZE_COUNT, 0),
             phase = phase,
             timerId = getLongExtra(EXTRA_TIMER_ID, 0),
+            attempt = getIntExtra(EXTRA_ATTEMPT, 0),
         )
     }
 
@@ -380,6 +413,11 @@ class RingService : Service() {
         const val EXTRA_SNOOZE_COUNT = "snooze_count"
         const val EXTRA_PHASE = "phase"
         const val EXTRA_TIMER_ID = "timer_id"
+        const val EXTRA_ATTEMPT = "attempt"
+
+        /** The service type in use, or 0; what `dumpsys` would show, for tests. */
+        @Volatile internal var foregroundType = 0
+            private set
 
         private const val VOICE_FIRST_DELAY_MS = 2_500L
         private const val RESURFACE_EVERY_MS = 20_000L

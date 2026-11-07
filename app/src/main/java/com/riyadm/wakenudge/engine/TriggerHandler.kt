@@ -45,10 +45,12 @@ class TriggerHandler @Inject constructor(
             TriggerKind.BEDTIME -> onBedtime()
             TriggerKind.BATTERY_CHECK -> onBatteryCheck()
             TriggerKind.RING_RETRY -> ring.onRetry(id, eventId, at, RingRetry.kindOf(index), RingRetry.attemptOf(index))?.let(launcher::start)
+            TriggerKind.RING_SENTINEL -> ring.onSentinelFired()?.let(launcher::start)
             TriggerKind.WATCHDOG -> {
                 runtime.lastWatchdogAt = time.nowMillis()
                 scheduler.rescheduleAll("watchdog")
                 ring.recoverStaleState()
+                ring.reviveDurableRing()
             }
         }
     }

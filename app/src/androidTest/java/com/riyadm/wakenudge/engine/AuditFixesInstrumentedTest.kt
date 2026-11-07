@@ -62,6 +62,7 @@ class AuditFixesInstrumentedTest {
             for (kind in TriggerKind.entries) for (i in 0..3) pending.cancel(kind, id, i)
         }
         store.set(null)
+        forgetSavedRing()
     }
 
     private fun alarmIn(minutesAhead: Long, block: Alarm.() -> Alarm = { this }): Alarm {
@@ -241,5 +242,11 @@ class AuditFixesInstrumentedTest {
         // The list was drawn before this morning's ring and still names it.
         actions.skipNext(id, occurrenceAt = time.nowMillis() - 3_600_000L)
         assertEquals(Instant.ofEpochMilli(next).atZone(time.zone()).toLocalDate().toEpochDay(), alarms.getAlarm(id)!!.skipEpochDay)
+    }
+
+    /** What a ring leaves behind lives in real preferences, which outlast a test: the next test must not find it. */
+    private fun forgetSavedRing() {
+        runtime.clearDurableRing()
+        pending.cancel(TriggerKind.RING_SENTINEL, RingIds.SENTINEL_TRIGGER_ID)
     }
 }

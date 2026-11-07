@@ -44,6 +44,7 @@ class RingServiceLauncher @Inject constructor(
             .putExtra(RingService.EXTRA_SNOOZE_COUNT, request.snoozeCount)
             .putExtra(RingService.EXTRA_PHASE, request.phase.name)
             .putExtra(RingService.EXTRA_TIMER_ID, request.timerId)
+            .putExtra(RingService.EXTRA_ATTEMPT, request.attempt)
         // Keeps the CPU awake between this call and the service taking over (it releases the lock itself).
         locks.acquireHandoff()
         try {

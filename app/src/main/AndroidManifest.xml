@@ -21,6 +21,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Exact-alarm apps qualify: unlike mediaPlayback it may start right after a restart, so a ring can come back. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
     <!-- Needed by the loudness-enhancer audio effect used by Extra Loud mode. -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
@@ -127,7 +129,7 @@
             android:name=".engine.RingService"
             android:directBootAware="true"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
+            android:foregroundServiceType="mediaPlayback|systemExempted" />
 
         <receiver
             android:name=".engine.AlarmReceiver"

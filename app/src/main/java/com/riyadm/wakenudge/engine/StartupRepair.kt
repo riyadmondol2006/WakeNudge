@@ -35,6 +35,9 @@ class StartupRepair @Inject constructor(
         return true
     }
 
+    /** The watchdog stays armed for good once there is one, so it being gone means Android has forgotten every trigger. */
+    fun triggersWiped(): Boolean = !pending.isScheduled(TriggerKind.WATCHDOG, 0)
+
     /** What Android no longer holds, or null when everything the app armed is still there. */
     internal fun missingTriggers(): String? {
         if (!pending.isScheduled(TriggerKind.WATCHDOG, 0)) return "the watchdog is not registered"

@@ -2,6 +2,8 @@ package com.riyadm.wakenudge.engine
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -10,17 +12,26 @@ import com.riyadm.wakenudge.RecordingStarter
 import com.riyadm.wakenudge.core.TimeSource
 import com.riyadm.wakenudge.core.WakeJson
 import com.riyadm.wakenudge.domain.model.Alarm
+import com.riyadm.wakenudge.domain.model.AlarmOutcome
+import com.riyadm.wakenudge.domain.model.AntiOversleepSettings
+import com.riyadm.wakenudge.domain.model.MissionConfig
+import com.riyadm.wakenudge.domain.model.MissionType
 import com.riyadm.wakenudge.domain.model.VibrationSettings
 import com.riyadm.wakenudge.domain.model.VolumeSettings
 import com.riyadm.wakenudge.domain.repository.AlarmRepository
+import com.riyadm.wakenudge.domain.repository.DiagnosticRecord
+import com.riyadm.wakenudge.domain.repository.DiagnosticsLog
 import com.riyadm.wakenudge.domain.repository.HistoryRepository
 import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
 import com.riyadm.wakenudge.engine.audio.AlarmAudioEngine
+import com.riyadm.wakenudge.engine.policy.RingProof
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import javax.inject.Inject
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -56,6 +67,7 @@ class RingServiceInstrumentedTest {
     @Inject lateinit var handler: TriggerHandler
     @Inject lateinit var starter: RecordingStarter
     @Inject lateinit var time: TimeSource
+    @Inject lateinit var systemEvents: SystemEventHandler
 
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context: Context = instrumentation.targetContext
@@ -64,12 +76,15 @@ class RingServiceInstrumentedTest {
         hilt.inject()
         runtime.setRegisteredTriggers(emptyMap())
         runtime.clearRingCrashes()
+        runtime.clearDurableRing()
     }
 
     @After fun tearDown() = runBlocking {
         context.stopService(Intent(context, RingService::class.java))
         store.set(null)
         locks.releaseAll()
+        runtime.clearDurableRing()
+        pending.cancel(TriggerKind.RING_SENTINEL, RingIds.SENTINEL_TRIGGER_ID)
         val ids = alarms.getAlarms().map { it.id } + history.recent(100).map { it.alarmId } + RingIds.TEST_ALARM_ID
         for (id in ids.toSet()) for (kind in TriggerKind.entries) for (i in 0..3) if (pending.isScheduled(kind, id, i)) pending.cancel(kind, id, i)
         runtime.testAlarmJson = null
@@ -174,5 +189,77 @@ class RingServiceInstrumentedTest {
         assertEquals(request.eventId, again.eventId)
         assertEquals(RingKind.PRIMARY, again.kind)
         assertEquals(1, again.attempt)
+    }
+
+    // ---- a ring outlives its process ---------------------------------------------------------------------------
+
+    private fun strictAlarm() = quietAlarm(0).copy(
+        label = "keeps coming back",
+        antiOversleep = AntiOversleepSettings(ringTimeoutMinutes = AntiOversleepSettings.RING_TIMEOUT_NEVER, resumeWindowMinutes = 720),
+    )
+
+    @Test fun aKilledRingIsBroughtBackByTheSentinelWithItsSavedState() = runBlocking {
+        val id = alarms.save(strictAlarm().copy(missions = listOf(MissionConfig(MissionType.MATH), MissionConfig(MissionType.MATH))))
+        val request = ring.onAlarmFired(id, time.nowMillis())!!
+        startService(request)
+        await("sound") { store.current?.alarm?.id == id && audio.isAudible }
+        assertTrue("the sentinel is armed while it rings", pending.isScheduled(TriggerKind.RING_SENTINEL, RingIds.SENTINEL_TRIGGER_ID))
+        ring.noteMissionDone(1)
+
+        // Taken down from outside, with no dismissal: what Stop in Active apps leaves behind.
+        context.stopService(Intent(context, RingService::class.java))
+        await("the session to be dropped") { store.current == null }
+        assertEquals("the saved ring outlives the session", 1, DurableRingStore(runtime, NoLog).ring()!!.missionsDone)
+
+        starter.requests.clear()
+        handler.handle(trigger(TriggerKind.RING_SENTINEL, RingIds.SENTINEL_TRIGGER_ID, time.nowMillis()))
+        val back = starter.requests.single()
+        assertEquals(id, back.alarmId)
+        assertEquals(request.eventId, back.eventId)
+
+        startService(back)
+        await("sound again") { store.current?.alarm?.id == id && audio.isAudible }
+        assertEquals("progress came back with it", 1, store.current!!.missionsDone)
+        assertEquals(2, store.current!!.alarm.missions.size)
+
+        store.update { it.copy(missionsDone = 2) }
+        assertTrue(ring.dismiss(proof = RingProof.MissionsComplete))
+        await("silence") { !audio.isAudible }
+        assertNull("a proper dismissal leaves nothing to bring back", DurableRingStore(runtime, NoLog).ring())
+        assertFalse(pending.isScheduled(TriggerKind.RING_SENTINEL, RingIds.SENTINEL_TRIGGER_ID))
+    }
+
+    @Test fun theServiceRunsUnderTheBestTypeTheSystemAllows() = runBlocking {
+        runtime.testAlarmJson = WakeJson.instance.encodeToString(Alarm.serializer(), quietAlarm())
+        startService(RingRequest(RingIds.TEST_ALARM_ID, -1, time.nowMillis(), RingKind.TEST))
+        await("the service to start sounding") { store.current != null && audio.isAudible }
+        val expected = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED
+        } else {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+        }
+        assertEquals(expected, RingService.foregroundType)
+        assertTrue(ring.dismiss())
+    }
+
+    @Test fun aBootBroadcastWithASavedRingArmsItsReturnAndDoesNotThrow() = runBlocking {
+        val id = alarms.save(strictAlarm())
+        val session = ring.begin(ring.onAlarmFired(id, time.nowMillis())!!)!!
+        pending.cancel(TriggerKind.RING_SENTINEL, RingIds.SENTINEL_TRIGGER_ID)
+        store.set(null) // the restart took the process and everything Android held
+
+        systemEvents.handle(Intent.ACTION_BOOT_COMPLETED)
+        assertTrue("a trigger brings it back, not this receiver", pending.isScheduled(TriggerKind.RING_SENTINEL, RingIds.SENTINEL_TRIGGER_ID))
+        assertEquals(AlarmOutcome.RINGING, history.get(session.eventId)!!.outcome)
+        assertEquals(id, DurableRingStore(runtime, NoLog).ring()!!.alarmId)
+    }
+
+    private object NoLog : DiagnosticsLog {
+        override fun info(tag: String, message: String) = Unit
+        override fun warn(tag: String, message: String) = Unit
+        override fun error(tag: String, message: String, error: Throwable?) = Unit
+        override fun observeRecent(limit: Int): Flow<List<DiagnosticRecord>> = flowOf(emptyList())
+        override suspend fun recent(limit: Int): List<DiagnosticRecord> = emptyList()
+        override suspend fun clear() = Unit
     }
 }

@@ -8,6 +8,7 @@ import com.riyadm.wakenudge.engine.RingCrashGuard
 import com.riyadm.wakenudge.engine.StartupRepair
 import com.riyadm.wakenudge.engine.audio.AlarmAudioEngine
 import com.riyadm.wakenudge.engine.notify.Notifier
+import com.riyadm.wakenudge.health.ExitPostMortem
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -21,6 +22,7 @@ class WakeNudgeApp : Application() {
     @Inject lateinit var crashGuard: RingCrashGuard
     @Inject lateinit var startupRepair: StartupRepair
     @Inject lateinit var perAlarmSettingsCopy: PerAlarmSettingsCopy
+    @Inject lateinit var exitPostMortem: ExitPostMortem
     @Inject @AppScope lateinit var appScope: CoroutineScope
 
     override fun onCreate() {
@@ -36,8 +38,13 @@ class WakeNudgeApp : Application() {
                 ring.recoverStaleState()
             }
             perAlarmSettingsCopy.runOnce()
+            // Before anything below settles the saved ring: it is what says a ring was on when the last process ended.
+            exitPostMortem.report()
             // A force-stop wipes every alarm without telling the app; this start is the first chance to put them back.
+            val wiped = runCatching { startupRepair.triggersWiped() }.getOrDefault(false)
             runCatching { startupRepair.repairIfNeeded() }
+            // A ring the last process left behind comes back, or is told about if it cannot.
+            runCatching { ring.reviveDurableRing(triggersWiped = wiped) }
         }
     }
 }

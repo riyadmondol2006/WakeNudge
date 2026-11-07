@@ -19,10 +19,32 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 
-/** A clock the test moves by hand. */
-class TestClock(var now: Long = 1_800_000_000_000L) : TimeSource {
-    override fun nowMillis(): Long = now
+/** A clock the test moves by hand. Moving [now] is time passing, so elapsed time moves with it. */
+class TestClock(start: Long = 1_800_000_000_000L) : TimeSource {
+    private var wall = start
+    private var sinceBoot = 3_600_000L
+
+    var now: Long
+        get() = wall
+        set(value) {
+            sinceBoot += value - wall
+            wall = value
+        }
+
+    override fun nowMillis(): Long = wall
+    override fun elapsedMillis(): Long = sinceBoot
     override fun zone(): ZoneId = ZoneId.of("UTC")
+
+    /** The user or network time changes the clock: no time has passed. */
+    fun changeClockBy(deltaMs: Long) {
+        wall += deltaMs
+    }
+
+    /** The phone restarts [offForMs] after now. */
+    fun restart(offForMs: Long = 60_000L) {
+        wall += offForMs
+        sinceBoot = 20_000L
+    }
 }
 
 /** SharedPreferences held in a map, so [RuntimeState] can be the real class in JVM tests. */

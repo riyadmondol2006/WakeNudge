@@ -61,6 +61,7 @@ class RealWorldInstrumentedTest {
         cancelEverything()
         timers.getTimers().forEach { timerController.delete(it.id) }
         store.set(null)
+        forgetSavedRing()
     }
 
     /** Cancels everything the test could have armed; ids come from what actually exists, not from a blind range. */
@@ -241,5 +242,11 @@ class RealWorldInstrumentedTest {
             (1..100).map { async(Dispatchers.Default) { settings.update { it.copy(emergencyStopHoldSeconds = it.emergencyStopHoldSeconds + 1) } } }.awaitAll()
         }
         assertEquals(before + 100, settings.current().emergencyStopHoldSeconds)
+    }
+
+    /** What a ring leaves behind lives in real preferences, which outlast a test: the next test must not find it. */
+    private fun forgetSavedRing() {
+        runtime.clearDurableRing()
+        pending.cancel(TriggerKind.RING_SENTINEL, RingIds.SENTINEL_TRIGGER_ID)
     }
 }

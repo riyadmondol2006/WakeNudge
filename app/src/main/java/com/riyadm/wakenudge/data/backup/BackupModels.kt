@@ -80,6 +80,9 @@ sealed class ImportFailure(@StringRes val message: Int, val args: List<Any> = em
 
     /** The database refused the write; the previous data is untouched because the replacement is one transaction. */
     data class StoreFailed(val detail: String) : ImportFailure(R.string.backup_fail_store, listOf(detail))
+
+    /** An alarm is ringing, or was when the app last stopped. Replacing the alarms under it would pull the rug from under it. */
+    data object RingInProgress : ImportFailure(R.string.backup_fail_ring_active)
 }
 
 sealed interface ImportResult {

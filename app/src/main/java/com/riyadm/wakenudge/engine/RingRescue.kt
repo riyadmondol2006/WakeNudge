@@ -33,7 +33,18 @@ object CrashRescuePolicy {
     /** Crash times (epoch millis) that still count, newest last. */
     fun recent(crashTimes: List<Long>, now: Long): List<Long> = crashTimes.filter { now - it in 0..WINDOW_MS }
 
-    fun shouldRescue(crashTimes: List<Long>, now: Long): Boolean = recent(crashTimes, now).size <= MAX_RESCUES
+    /** [keepTrying] is an alarm that keeps coming back: its rescues slow down (see [delayMs]) but never give up. */
+    fun shouldRescue(crashTimes: List<Long>, now: Long, keepTrying: Boolean = false): Boolean =
+        keepTrying || recent(crashTimes, now).size <= MAX_RESCUES
+
+    /** How soon to ring again: at once at first, then backing off so a crash loop is not also a loop as fast as it can go. */
+    fun delayMs(crashTimes: List<Long>, now: Long): Long {
+        val over = recent(crashTimes, now).size - MAX_RESCUES
+        return if (over <= 0) RingRetry.DELAY_MS else (RingRetry.DELAY_MS shl over.coerceAtMost(MAX_BACKOFF_STEPS)).coerceAtMost(MAX_DELAY_MS)
+    }
+
+    private const val MAX_DELAY_MS = 60_000L
+    private const val MAX_BACKOFF_STEPS = 6
 
     /** From the second crash inside the window the full-screen ring UI is left out of the notification. */
     fun safeMode(crashTimes: List<Long>, now: Long): Boolean = recent(crashTimes, now).size >= 2
@@ -89,13 +100,13 @@ class RingCrashGuard @Inject constructor(
         val now = time.nowMillis()
         runtime.recordRingCrash(now)
         val crashes = runtime.ringCrashTimes()
-        if (!CrashRescuePolicy.shouldRescue(crashes, now)) {
+        if (!CrashRescuePolicy.shouldRescue(crashes, now, keepTrying = session.alarm.antiOversleep.keepsComingBack)) {
             diagnostics.error("Rescue", "giving up on alarm ${session.alarm.id}: too many crashes in a row")
             return false
         }
         val index = RingRetry.encode(session.kind, 0)
         val armed = pending.setAlarmClock(
-            TriggerKind.RING_RETRY, session.alarm.id, now + RingRetry.DELAY_MS,
+            TriggerKind.RING_RETRY, session.alarm.id, now + CrashRescuePolicy.delayMs(crashes, now),
             index = index, eventId = session.eventId, payloadAt = session.scheduledAt,
         )
         diagnostics.warn("Rescue", "alarm ${session.alarm.id} ring rescue ${if (armed) "armed" else "could NOT be armed"} ($reason)")

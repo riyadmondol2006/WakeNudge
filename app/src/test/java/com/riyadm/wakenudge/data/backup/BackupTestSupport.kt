@@ -34,6 +34,7 @@ import com.riyadm.wakenudge.domain.repository.DiagnosticsLog
 import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
 import com.riyadm.wakenudge.domain.scheduling.NextAlarm
 import com.riyadm.wakenudge.domain.scheduling.SurfaceRefresher
+import com.riyadm.wakenudge.engine.realRuntime
 import io.mockk.mockk
 import java.time.DayOfWeek
 import java.time.Instant
@@ -110,7 +111,8 @@ class BackupRig(initial: BackupFile = BackupFile()) {
     val scheduler = RecordingScheduler()
     val surfaces = CountingSurfaces()
     val log = SilentLog()
-    val manager = BackupManager(mockk<Context>(relaxed = true), store, scheduler, surfaces, FixedTime(), log)
+    val runtime = realRuntime()
+    val manager = BackupManager(mockk<Context>(relaxed = true), store, scheduler, surfaces, FixedTime(), log, runtime)
 }
 
 /** A backup with every kind of content, all of it already valid so a restore must reproduce it exactly. */

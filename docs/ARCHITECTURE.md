@@ -16,7 +16,7 @@ Android dependencies and are tested on the JVM.
 
 All OS alarms go through `PendingAlarms`. A trigger is a `PendingIntent` whose data URI encodes
 `kind` (`ALARM`, `SNOOZE`, `BACKUP`, `SUNRISE`, `UPCOMING`, `WAKE_CHECK_PROMPT`, `WAKE_CHECK_DEADLINE`, `TIMER`,
-`BEDTIME`, `WATCHDOG`, `RING_RETRY`), the owner `id` and an `index` (for example, which backup ring). Two triggers can therefore
+`BEDTIME`, `WATCHDOG`, `RING_RETRY`, `BATTERY_CHECK`, `RING_SENTINEL`), the owner `id` and an `index` (for example, which backup ring). Two triggers can therefore
 never overwrite each other by accident, and any of them can be found and cancelled later.
 
 - Wake-up alarms, snoozes, backup rings and the "still awake?" deadline use `AlarmManager.setAlarmClock`: exempt from
@@ -28,6 +28,7 @@ never overwrite each other by accident, and any of them can be found and cancell
   then an inexact wake-up is tried instead (`lastFallback`): a slightly imprecise alarm beats none.
 - `RING_RETRY` rings an alarm again that was cut off (see "When things go wrong"). Its index carries the ring kind and the
   attempt number (`RingRetry`), so a retry of a retry cannot loop for ever.
+- `RING_SENTINEL` is pushed 30 seconds ahead while a ring that keeps coming back is on (see "A ring outlives its process").
 
 ## Scheduling
 
@@ -52,7 +53,8 @@ exact-alarm permission change, restore, watchdog, tile). It is:
 ## Ringing
 
 `RingController` is a mutex-guarded state machine. `RingSessionStore` is a `StateFlow<RingSession?>` that both the
-`RingService` (foreground, `mediaPlayback`) and the UI observe.
+`RingService` (foreground, `systemExempted` on Android 14+ with `mediaPlayback` as the fallback and below that) and the
+UI observe.
 
 - **Collisions**: if two alarms fire together, or an alarm and a timer, an alarm outranks a timer (the timer returns to
   idle) and otherwise the newcomer is queued and rung after the first is handled. Sunrise sessions are replaced.
@@ -107,8 +109,8 @@ One rule: **persistence, the notification and the ring screen never decide wheth
 - **Storage.** Reading or writing the database or settings can fail (full disk, locked or corrupt file). `RingController`
   treats history, follow-up bookkeeping and settings as best effort around the sound: the ring starts with safe defaults,
   a snooze is armed with the OS before it is recorded, a dismissal cancels the OS triggers first and always ends the
-  session. A trigger for an alarm that the OS holds but the database lost (`RuntimeState.registeredTriggers`) rings as a
-  plain "Alarm"; a trigger whose engine path throws still rings with what the trigger itself carries
+  session. A trigger for an alarm that the OS holds but the database lost (`RuntimeState.registeredTriggers`) rings from
+  its saved copy if it is an alarm a plain one would soften (`AlarmSnapshots`), otherwise as a plain "Alarm"; a trigger whose engine path throws still rings with what the trigger itself carries
   (`TriggerHandler.ringing`). `begin` never throws (it falls back to an emergency session). Housekeeping at process start
   cannot crash the process that an alarm woke. DataStore replaces a corrupt settings file by defaults.
   If Room has to delete a corrupt database the alarm definitions are gone; keep an exported backup.
@@ -119,15 +121,17 @@ One rule: **persistence, the notification and the ring screen never decide wheth
   lock bridges the gap between the trigger receiver and the service. Destroyed while still
   ringing, the service arms a `RING_RETRY` and drops its orphaned session (otherwise later alarms would queue behind it).
   If the system refuses `startForeground` the service carries on as best it can and lines up a `RING_RETRY` too.
-  `onTimeout` (Android 15+ foreground-service time limits) hands the ring to a fresh service.
+  `onTimeout` (Android 15+ foreground-service time limits) moves the ring to the other service type in the same service,
+  so the sound does not stop; with no other type to move to the service stops and rings again from its saved state.
 - **The ring screen shares the process with the sound**, so a crash in it would silence the alarm. `RingCrashGuard` chains
   in front of the platform's uncaught-exception handler: if a ring is on it arms a `RING_RETRY` two seconds ahead
   (alarm-clock trigger, exempt from background-start limits) and the platform handler then ends the process. The new
   process rings the same event again (`RingController.onRetry` refuses if it was handled meanwhile or something already
   rings). After two crashes in ten minutes the notification stops launching the screen and carries Snooze/Dismiss itself
-  (`RingSession.safeMode`); after five it stops rescuing.
-- **The OS refuses to start the service** (Android 15 forbids media foreground services from boot-completed receivers; vendors
-  differ): `RingServiceLauncher` posts a fallback notification that sounds the alarm tone by itself (`ring_fallback_v1`,
+  (`RingSession.safeMode`); after five it stops rescuing, except for an alarm that keeps coming back
+  (`AntiOversleepSettings.keepsComingBack`), whose rescues back off to once a minute instead.
+- **The OS refuses to start the service** (Android 15 forbids media foreground services from boot-completed receivers, which
+  `systemExempted` avoids; vendors differ): `RingServiceLauncher` posts a fallback notification that sounds the alarm tone by itself (`ring_fallback_v1`,
   insistent) and retries from a `RING_RETRY` trigger up to three times.
 - **Notifications blocked, channel muted or full-screen permission revoked**: the sound does not depend on any of them. The
   service opens the ring screen itself (best effort where Android allows it) and lights the display for a few seconds.
@@ -137,11 +141,38 @@ One rule: **persistence, the notification and the ring screen never decide wheth
   boot-time check, so an alarm that the jump made overdue rings (up to 10 minutes late) or is recorded as missed, instead
   of silently moving to tomorrow. An occurrence that already rang is never repeated (`findOccurrence`).
 
+### A ring outlives its process
+
+`DurableRingRecord` holds what a ring must not lose: the alarm as it fired and everything counted so far. It is JSON in
+`RuntimeState` rather than Room, so it is readable before the first unlock and survives a corrupt database, and it is not
+part of a backup. It is written when a ring begins and at each mission step (mute and pause when they arrive), not on
+every touch, and removed when the ring ends, whichever way. Timers and test alarms have none. The rings queued behind it are saved
+next to it. Reading it never throws: a corrupt record counts as no record, and storage trouble never affects the sound.
+
+- **Killed** (the system, Stop in Active apps): a `RING_SENTINEL` trigger is pushed 30 seconds ahead while an alarm that keeps
+  coming back rings, or while anything is queued, and it only fires if the process is gone. `RingController.begin` picks
+  up the record, so strictness and progress return with the sound. `START_REDELIVER_INTENT` takes the same path. An alarm
+  without a sentinel comes back only when something else starts the app, and is reported as missed after an hour.
+- **Restarted**: the boot broadcast, the app start and the watchdog all call `reviveDurableRing`. A new boot (`Settings.Global.BOOT_COUNT`,
+  or elapsed time going backwards when that is unavailable) uses up one of 3 resumes per ring and must be within the alarm's
+  `resumeWindowMinutes` of when the ring first started (`ResumePolicy`). The ring starts from a sentinel armed 2 seconds ahead,
+  not from the receiver, because an alarm trigger is where the system allows the service to start.
+- **Past the limit or the window**: no ring. The event closes as missed with its backups cleared, and a notification says so.
+- **Force-stopped**: Android cancels every trigger and starts nothing. At the next app start the watchdog being gone in the
+  same boot, on the same version, marks this case: the ring is reported as missed. An app update looks similar but rings again.
+- **Another alarm arrives after a kill, before the ring is back**: it waits behind the ring that was on, as it would have
+  if the process had lived, so its saved progress is not overwritten.
+
+The engine reads concrete settings, never a level. Inactivity, silence and mute timing use `TimeSource.elapsedMillis`, so
+changing the clock neither ends nor extends them. `ExitPostMortem` logs how the last process ended when that was a user stop or
+a memory kill during a ring. Restoring a backup is refused while a record exists.
+
 ### Follow-ups survive everything
 
 Snooze, backup rings and the wake-up check are **persisted** (`AlarmEvent.snoozeUntil`, `pendingBackups`,
 `WakeCheck` rows), not just held as OS alarms. After a reboot, app update or process kill, `restoreFollowUps`,
-`restoreWakeChecks` and `restoreTimers` re-arm them, and skip follow-ups whose alarm no longer exists.
+`restoreWakeChecks` and `restoreTimers` re-arm them, and skip follow-ups whose alarm no longer exists. One that came due
+while the phone was off still rings within an hour, or within the alarm's own resume window if that is longer.
 Disabling or deleting an alarm cancels its snooze, backups and wake-check (`cancelFollowUps`).
 
 `MissedAlarmRecovery` runs after boot and app updates. For alarms that were due while the phone was off it rings now if

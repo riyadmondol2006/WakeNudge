@@ -7,6 +7,7 @@
     <string name="backup_fail_malformed">This backup file is damaged (%1$s is missing or invalid).</string>
     <string name="backup_fail_too_large">This file is too large to be a WakeNudge backup.</string>
     <string name="backup_fail_unreadable">The file could not be read: %1$s</string>
+    <string name="backup_fail_ring_active">An alarm is ringing. Deal with it first, then restore your backup.</string>
     <string name="backup_fail_store">Your alarms could not be restored, and nothing was changed: %1$s</string>
 
     <!-- Things to double-check after a successful restore -->

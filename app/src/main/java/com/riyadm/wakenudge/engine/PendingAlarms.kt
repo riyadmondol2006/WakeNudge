@@ -36,6 +36,8 @@ enum class TriggerKind {
     RING_RETRY,
     /** A look at the battery some hours before the next alarm, to warn while there is still time to charge. */
     BATTERY_CHECK,
+    /** Fires every 30 s while a ring is on, so a ring killed without warning is brought back from its saved state. */
+    RING_SENTINEL,
 }
 
 object Triggers {

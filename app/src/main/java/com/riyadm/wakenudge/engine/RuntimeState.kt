@@ -2,6 +2,7 @@ package com.riyadm.wakenudge.engine
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.provider.Settings
 import androidx.core.content.edit
 import com.riyadm.wakenudge.di.DeviceProtected
 import javax.inject.Inject
@@ -13,9 +14,12 @@ import javax.inject.Singleton
  * It lives in device-protected storage so it is readable during Direct Boot.
  */
 @Singleton
-class RuntimeState @Inject constructor(@DeviceProtected context: Context) {
+class RuntimeState @Inject constructor(@DeviceProtected private val context: Context) {
 
     private val prefs: SharedPreferences = context.getSharedPreferences("runtime_state", Context.MODE_PRIVATE)
+
+    /** On their own so that saving the ring, which happens mid-mission, never has to write out every alarm's copy. */
+    private val snapshotPrefs: SharedPreferences = context.getSharedPreferences("alarm_snapshots", Context.MODE_PRIVATE)
 
     /** Alarm-stream volume index that was active before we raised it, or -1 when we changed nothing. */
     var savedAlarmVolume: Int
@@ -86,6 +90,42 @@ class RuntimeState @Inject constructor(@DeviceProtected context: Context) {
         get() = prefs.getBoolean(K_PER_ALARM_COPIED, false)
         set(value) = prefs.edit(commit = true) { putBoolean(K_PER_ALARM_COPIED, value) }
 
+    /** JSON of [DurableRingRecord] for the ring that is on, or was when the process died. Use [DurableRingStore]. */
+    var durableRingJson: String?
+        get() = prefs.getString(K_DURABLE_RING, null)
+        set(value) = prefs.edit(commit = true) { if (value == null) remove(K_DURABLE_RING) else putString(K_DURABLE_RING, value) }
+
+    /** JSON of the rings waiting behind the current one. Use [DurableRingStore]. */
+    var durableQueueJson: String?
+        get() = prefs.getString(K_DURABLE_QUEUE, null)
+        set(value) = prefs.edit(commit = true) { if (value == null) remove(K_DURABLE_QUEUE) else putString(K_DURABLE_QUEUE, value) }
+
+    internal fun clearDurableRing() = prefs.edit(commit = true) { remove(K_DURABLE_RING); remove(K_DURABLE_QUEUE) }
+
+    /** Test seam: what [bootCount] reports. */
+    @Volatile internal var bootCountSource: (() -> Int)? = null
+
+    /** How many times this phone has started, or -1 when the system will not say. */
+    fun bootCount(): Int = bootCountSource?.invoke()
+        ?: runCatching { Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT, -1) }.getOrDefault(-1)
+
+    /** The newest process exit already looked at; see `ExitPostMortem`. */
+    var lastExitSeenAt: Long
+        get() = prefs.getLong(K_LAST_EXIT_SEEN, 0)
+        set(value) = prefs.edit { putLong(K_LAST_EXIT_SEEN, value) }
+
+    /** JSON of an alarm's saved copy. Use [AlarmSnapshots]. */
+    fun alarmSnapshotJson(alarmId: Long): String? = snapshotPrefs.getString(SNAPSHOT_PREFIX + alarmId, null)
+
+    fun setAlarmSnapshotJson(alarmId: Long, json: String?) = snapshotPrefs.edit {
+        if (json == null) remove(SNAPSHOT_PREFIX + alarmId) else putString(SNAPSHOT_PREFIX + alarmId, json)
+    }
+
+    fun replaceAlarmSnapshots(jsonById: Map<Long, String>) = snapshotPrefs.edit {
+        snapshotPrefs.all.keys.filter { it.startsWith(SNAPSHOT_PREFIX) }.forEach { remove(it) }
+        jsonById.forEach { (id, json) -> putString(SNAPSHOT_PREFIX + id, json) }
+    }
+
     /** Trigger time we last registered per alarm (alarmId -> epoch millis); used to detect alarms missed while off. */
     fun registeredTriggers(): Map<Long, Long> =
         prefs.getString(K_TRIGGERS, "").orEmpty().split(';').mapNotNull {
@@ -112,6 +152,10 @@ class RuntimeState @Inject constructor(@DeviceProtected context: Context) {
         const val K_AUDIO_PROBLEM = "last_audio_problem"
         const val K_SCHEDULING_PROBLEM = "last_scheduling_problem"
         const val K_PER_ALARM_COPIED = "per_alarm_settings_copied"
+        const val K_DURABLE_RING = "durable_ring"
+        const val K_DURABLE_QUEUE = "durable_queue"
+        const val K_LAST_EXIT_SEEN = "last_exit_seen_at"
+        const val SNAPSHOT_PREFIX = "alarm_snapshot_"
         const val MAX_CRASHES_KEPT = 10
     }
 }

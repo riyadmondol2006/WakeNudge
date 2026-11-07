@@ -125,7 +125,7 @@ data class AntiOversleepSettings(
     /** Whether only mission progress calms an escalated alarm, rather than any touch. */
     val calmOnlyOnProgress: Boolean = false,
     /** How long after a ring started a restart of the phone may still bring it back. */
-    val resumeWindowMinutes: Int = 10,
+    val resumeWindowMinutes: Int = DEFAULT_RESUME_WINDOW_MINUTES,
     /** Whether the edit lock can be overridden by doing the alarm's own mission. */
     val lockOverrideMission: Boolean = false,
     val powerGuard: Boolean = false,
@@ -133,8 +133,16 @@ data class AntiOversleepSettings(
     val forceSpeaker: Boolean = false,
     val torchWhenIgnored: Boolean = false,
 ) {
+    /**
+     * Whether a ring that gets cut off is brought back by every means there is: an alarm set to ring until it is dealt
+     * with, or given longer than the default to come back after a restart.
+     */
+    val keepsComingBack: Boolean
+        get() = ringTimeoutMinutes == RING_TIMEOUT_NEVER || resumeWindowMinutes > DEFAULT_RESUME_WINDOW_MINUTES
+
     companion object {
         const val RING_TIMEOUT_NEVER = 0
+        const val DEFAULT_RESUME_WINDOW_MINUTES = 10
     }
 }
 

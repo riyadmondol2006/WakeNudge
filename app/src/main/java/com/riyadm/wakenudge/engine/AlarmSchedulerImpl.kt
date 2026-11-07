@@ -52,6 +52,7 @@ class AlarmSchedulerImpl @Inject constructor(
 ) : AlarmScheduler {
 
     private val lock = Mutex()
+    private val armedCopies = AlarmSnapshots(runtime, diagnostics)
 
     /** The global heads-up lead time, read once per scheduling pass so the hot loop never suspends on settings. */
     private var noticeDefault = 0
@@ -133,6 +134,7 @@ class AlarmSchedulerImpl @Inject constructor(
         }
         if (overflow > 0) diagnostics.warn("Scheduler", "$overflow alarms are beyond the OS limit of concurrent alarms and not armed")
         runtime.setRegisteredTriggers(registered)
+        armedCopies.sync(all)
         reportArming(nowMs, unarmed = refused + overflow, usedFallback = pending.fallbackCount > fallbacksBefore, inexact = pending.inexactFallbackCount > inexactBefore)
 
         // Everything below is a safety net or a convenience: each runs on its own so a failing one cannot skip the rest,
@@ -192,7 +194,9 @@ class AlarmSchedulerImpl @Inject constructor(
         val alarm = alarms.getAlarm(alarmId)
         if (alarm == null) {
             cancelAlarmTriggers(alarmId)
+            armedCopies.forget(alarmId)
         } else {
+            armedCopies.update(alarm)
             val now = time.now()
             val from = if (afterMillis > now.toInstant().toEpochMilli()) {
                 java.time.Instant.ofEpochMilli(afterMillis).atZone(now.zone)
@@ -224,6 +228,7 @@ class AlarmSchedulerImpl @Inject constructor(
     override suspend fun cancel(alarmId: Long) = lock.withLock {
         cancelAlarmTriggers(alarmId)
         cancelFollowUpsLocked(alarmId)
+        armedCopies.forget(alarmId)
         val left = runtime.registeredTriggers() - alarmId
         runtime.setRegisteredTriggers(left)
         scheduleBatteryCheck(left.values, time.nowMillis())
@@ -355,11 +360,13 @@ class AlarmSchedulerImpl @Inject constructor(
     /**
      * Snoozes and backup alarms live only in AlarmManager, which forgets them on reboot, app update and force-stop.
      * They are also persisted on the history event; re-arm them here. One that came due while the phone was off rings
-     * right away (within an hour), since the user asked to be woken.
+     * right away (within an hour, or the alarm's own resume window if that is longer), since the user asked to be woken.
      */
     private suspend fun restoreFollowUps(nowMs: Long) {
-        val known = alarms.getAlarms().map { it.id }.toSet()
+        val all = alarms.getAlarms().associateBy { it.id }
+        val known = all.keys
         for (event in history.withFollowUps()) {
+            val stale = maxOf(STALE_FOLLOW_UP_MS, (all[event.alarmId]?.antiOversleep?.resumeWindowMinutes ?: 0) * 60_000L)
             // The alarm was deleted (or replaced by a restore) after this ring: there is nothing left to wake.
             if (event.alarmId !in known && event.alarmId >= 0) {
                 cancelFollowUpsLocked(event.alarmId)
@@ -367,11 +374,11 @@ class AlarmSchedulerImpl @Inject constructor(
             }
             if (event.snoozeUntil > 0) {
                 val at = if (event.snoozeUntil <= nowMs) nowMs + FOLLOW_UP_DELAY_MS else event.snoozeUntil
-                if (nowMs - event.snoozeUntil <= STALE_FOLLOW_UP_MS) pending.setAlarmClock(TriggerKind.SNOOZE, event.alarmId, at, eventId = event.id)
+                if (nowMs - event.snoozeUntil <= stale) pending.setAlarmClock(TriggerKind.SNOOZE, event.alarmId, at, eventId = event.id)
             }
             event.pendingBackups.forEachIndexed { i, backupAt ->
                 val index = i + 1
-                if (nowMs - backupAt > STALE_FOLLOW_UP_MS) return@forEachIndexed
+                if (nowMs - backupAt > stale) return@forEachIndexed
                 val at = if (backupAt <= nowMs) nowMs + FOLLOW_UP_DELAY_MS * index else backupAt
                 pending.setAlarmClock(TriggerKind.BACKUP, event.alarmId, at, index = index, eventId = event.id)
             }

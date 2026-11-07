@@ -131,6 +131,7 @@ class ReleaseReadinessTest {
         val legacy = permissions.getValue("android.permission.SCHEDULE_EXACT_ALARM")
         assertEquals("SCHEDULE_EXACT_ALARM must be capped for Android 12L and lower", "32", legacy.getAttribute("android:maxSdkVersion"))
         assertTrue(permissions.containsKey("android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"))
+        assertTrue(permissions.containsKey("android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED"))
     }
 
     @Test fun `optional hardware is never required so the app installs on every device`() {
@@ -187,7 +188,7 @@ class ReleaseReadinessTest {
             assertEquals("true", activity.getAttribute("android:showWhenLocked"))
         }
         val service = application.children("service").single { it.getAttribute("android:name") == ".engine.RingService" }
-        assertEquals("mediaPlayback", service.getAttribute("android:foregroundServiceType"))
+        assertEquals("mediaPlayback|systemExempted", service.getAttribute("android:foregroundServiceType"))
         assertEquals("false", service.getAttribute("android:exported"))
     }
 

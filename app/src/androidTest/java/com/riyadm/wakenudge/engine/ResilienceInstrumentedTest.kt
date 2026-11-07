@@ -127,6 +127,7 @@ class ResilienceInstrumentedTest {
         // The runtime state lives in the app's real device-protected preferences and survives between tests and runs.
         runtime.setRegisteredTriggers(emptyMap())
         runtime.clearRingCrashes()
+        runtime.clearDurableRing()
         runtime.lastSchedulingProblem = ""
     }
 
@@ -136,6 +137,7 @@ class ResilienceInstrumentedTest {
         runtime.setRegisteredTriggers(emptyMap())
         runtime.clearRingCrashes()
         store.set(null)
+        forgetSavedRing()
         locks.releaseAll()
         notifier.cancelRing()
         // Cancel by id, never through the repositories: some tests leave the database closed.
@@ -483,5 +485,11 @@ class ResilienceInstrumentedTest {
         val titles = notification.actions.map { it.title.toString() }
         assertTrue("a direct way to stop: $titles", context.getString(R.string.action_dismiss) in titles)
         assertTrue(context.getString(R.string.action_snooze) in titles)
+    }
+
+    /** What a ring leaves behind lives in real preferences, which outlast a test: the next test must not find it. */
+    private fun forgetSavedRing() {
+        runtime.clearDurableRing()
+        pending.cancel(TriggerKind.RING_SENTINEL, RingIds.SENTINEL_TRIGGER_ID)
     }
 }

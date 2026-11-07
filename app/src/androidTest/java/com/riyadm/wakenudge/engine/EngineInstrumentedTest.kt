@@ -67,6 +67,7 @@ class EngineInstrumentedTest {
         alarms.getAlarms().forEach { scheduler.cancel(it.id) }
         for (id in history.recent(500).map { it.alarmId }.toSet() + RingIds.TEST_ALARM_ID) for (kind in TriggerKind.entries) for (i in 0..3) pending.cancel(kind, id, i)
         store.set(null)
+        forgetSavedRing()
     }
 
     /** An alarm that rings [minutesAhead] minutes from now (one-time, so it fires exactly once). */
@@ -308,5 +309,11 @@ class EngineInstrumentedTest {
         assertNull(wakeChecks.get(id))
         assertFalse(pending.isScheduled(TriggerKind.WAKE_CHECK_PROMPT, id))
         assertEquals(WakeCheckStatus.CANCELLED, history.get(session.eventId)!!.wakeCheck)
+    }
+
+    /** What a ring leaves behind lives in real preferences, which outlast a test: the next test must not find it. */
+    private fun forgetSavedRing() {
+        runtime.clearDurableRing()
+        pending.cancel(TriggerKind.RING_SENTINEL, RingIds.SENTINEL_TRIGGER_ID)
     }
 }

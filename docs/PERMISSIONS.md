@@ -19,7 +19,7 @@ manifest (`app/src/main/AndroidManifest.xml`) too.
 | `RECEIVE_BOOT_COMPLETED` | Re-arm alarms, snoozes, timers and follow-ups after a restart or app update |
 | `WAKE_LOCK` | Keep the CPU awake while an alarm is ringing |
 | `VIBRATE` | Vibration patterns |
-| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK` | The ring service plays the alarm sound as a foreground media-playback service (`foregroundServiceType="mediaPlayback"`) |
+| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK`, `FOREGROUND_SERVICE_SYSTEM_EXEMPTED` | The ring service plays the alarm sound as a foreground service (`foregroundServiceType="mediaPlayback\|systemExempted"`). `systemExempted`, open to exact-alarm apps on Android 14+, is what lets a ring come back right after a restart; `mediaPlayback` is the fallback and what older Android uses |
 | `MODIFY_AUDIO_SETTINGS` | Raise the alarm stream to the configured level while ringing, and put it back afterwards; used by the loudness-enhancer effect of Extra Loud mode |
 | `NFC` | The NFC mission (the feature is optional: `required=false`) |
 

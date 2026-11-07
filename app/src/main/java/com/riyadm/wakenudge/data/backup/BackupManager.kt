@@ -9,6 +9,8 @@ import com.riyadm.wakenudge.domain.model.StopwatchState
 import com.riyadm.wakenudge.domain.repository.DiagnosticsLog
 import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
 import com.riyadm.wakenudge.domain.scheduling.SurfaceRefresher
+import com.riyadm.wakenudge.engine.DurableRingStore
+import com.riyadm.wakenudge.engine.RuntimeState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -38,6 +40,7 @@ class BackupManager @Inject constructor(
     private val surfaces: SurfaceRefresher,
     private val time: TimeSource,
     private val diagnostics: DiagnosticsLog,
+    private val runtime: RuntimeState,
 ) {
 
     /** The whole configuration as pretty-printed JSON; [includeHistory] adds every logged alarm event. */
@@ -58,6 +61,7 @@ class BackupManager @Inject constructor(
      */
     suspend fun import(json: String): ImportResult {
         if (json.length > MAX_CHARS) return ImportResult.Failure(ImportFailure.TooLarge)
+        if (DurableRingStore(runtime, diagnostics).ring() != null) return ImportResult.Failure(ImportFailure.RingInProgress)
         return try {
             restore(json)
         } catch (cancelled: CancellationException) {

@@ -7,7 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.serialization.Serializable
 
+@Serializable
 enum class RingKind {
     /** The alarm's scheduled time. */
     PRIMARY,
@@ -23,6 +25,7 @@ enum class RingKind {
     TIMER,
 }
 
+@Serializable
 enum class RingPhase {
     /** Pre-alarm screen glow: silent. */
     SUNRISE,
@@ -59,14 +62,22 @@ data class RingSession(
     val snoozeCount: Int = 0,
     /** Set after 40 s without interaction, or immediately for a backup alarm. */
     val intensified: Boolean = false,
-    /** The user pressed a volume key to quiet the alarm for a moment. */
+    /** The user pressed a volume key to quiet the alarm for a moment. On the [com.riyadm.wakenudge.core.TimeSource.elapsedMillis] clock. */
     val silencedUntil: Long = 0,
+    /** On the [com.riyadm.wakenudge.core.TimeSource.elapsedMillis] clock, so changing the time cannot time out a ring. */
     val lastInteractionAt: Long = startedAt,
     val missionsDone: Int = 0,
     val timerId: Long = 0,
     /** The ring screen crashed repeatedly: the notification carries the controls instead of launching the screen. */
     val safeMode: Boolean = false,
     val mutesUsed: Int = 0,
+    /** A backup mission stood in for one this phone could not do. */
+    val fallback: Boolean = false,
+    val wayOutProgress: Int = 0,
+    val pauses: Int = 0,
+    /** Times this ring has come back after the phone restarted. */
+    val resumes: Int = 0,
+    val pullBacks: Int = 0,
 ) {
     val isTimer: Boolean get() = kind == RingKind.TIMER
     val isTest: Boolean get() = kind == RingKind.TEST
@@ -101,6 +112,7 @@ class RingSessionStore @Inject constructor() {
 }
 
 /** Intent payload that starts a ring session; kept primitive so it survives process boundaries. */
+@Serializable
 data class RingRequest(
     val alarmId: Long,
     val eventId: Long,
