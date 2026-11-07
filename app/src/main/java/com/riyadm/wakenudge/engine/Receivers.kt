@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.riyadm.wakenudge.core.TimeSource
-import com.riyadm.wakenudge.domain.model.WakeCheckStatus
 import com.riyadm.wakenudge.domain.usecase.ActionResult
 import com.riyadm.wakenudge.domain.repository.DiagnosticsLog
 import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
@@ -99,8 +98,9 @@ class ActionReceiver : BroadcastReceiver() {
                     // A refused skip (edit protection) leaves the heads-up up, so it does not look as if it worked.
                     if (e.alarmActions().skipNext(id, occurrenceAt = at) !is ActionResult.Locked) e.notifier().cancelUpcoming(id)
                 }
+                // A plain answer and Cancel prove nothing: on an alarm that asks for proof both are refused.
                 Actions.WAKE_CHECK_OK -> e.wakeChecks().answer(id)
-                Actions.WAKE_CHECK_CANCEL -> e.wakeChecks().abandon(id, WakeCheckStatus.CANCELLED)
+                Actions.WAKE_CHECK_CANCEL -> e.wakeChecks().cancelByUser(id)
                 Actions.TIMER_PAUSE -> e.timers().pause(id)
                 Actions.TIMER_RESUME -> e.timers().start(id)
                 Actions.TIMER_RESET -> e.timers().reset(id)

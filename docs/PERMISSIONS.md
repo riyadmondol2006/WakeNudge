@@ -36,7 +36,7 @@ manifest (`app/src/main/AndroidManifest.xml`) too.
 |---|---|---|
 | `POST_NOTIFICATIONS` | The ring notification with Snooze and Dismiss, timer and bedtime notifications | Onboarding, final step |
 | `CAMERA` | QR/barcode mission, photo mission | First time you set up or run one of those missions |
-| `ACTIVITY_RECOGNITION` | Steps mission (hardware step counter) | First time you set up or run the steps mission. Declining is fine: the steps mission can count with the motion sensor instead |
+| `ACTIVITY_RECOGNITION` | Steps mission (hardware step counter); a "Still awake?" check that asks for proof reads the counter's total when it starts and when it is due, to pass on its own after 30 steps | First time you set up or run the steps mission. Declining is fine: the steps mission can count with the motion sensor instead, and the check is then answered with a round of Focus Tap |
 | `READ_CALENDAR` | Optional: treat all-day events in calendars you pick (for example public holidays) as exception days. Only event start and end are read, never titles or descriptions | When you switch on calendar exceptions in Settings |
 
 If you decline a permission, the feature that needs it explains what is missing, and during an alarm a mission that can no

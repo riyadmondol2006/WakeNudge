@@ -90,7 +90,8 @@
         <item quantity="other">%d seconds</item>
     </plurals>
     <string name="cd_edit_alarm">Edit alarm</string>
-    <string name="card_locked">Protected for %1$d more min</string>
+    <string name="card_locked">Protected for %1$s more</string>
+    <string name="card_locked_ringing">Protected until this ring is over</string>
     <string name="card_group_off">Profile “%1$s” is off</string>
     <string name="card_skipping">Skipping %1$s</string>
     <string name="card_holiday_skip">Holiday: skipping %1$s</string>
@@ -106,7 +107,6 @@
     <string name="badge_wake_check">Still-awake check</string>
     <string name="badge_extra_loud">Extra loud</string>
     <string name="badge_sunrise">Sunrise</string>
-    <string name="snackbar_locked">Edit protection is on: this alarm is locked for another %1$d min.</string>
     <string name="snackbar_deleted">Alarm deleted</string>
     <string name="snackbar_profile_only">Only “%1$s” is on now</string>
     <string name="snackbar_duplicated">Copy added</string>
@@ -140,7 +140,8 @@
     <string name="picker_am_pm">AM or PM</string>
     <string name="picker_type_time">Type time</string>
     <string name="lock_banner_title">Protected against late changes</string>
-    <string name="lock_banner_body">This alarm is about to ring, so editing is locked for %1$d more min. This stops half-asleep switch-offs.</string>
+    <string name="lock_banner_body">This alarm is about to ring, so editing is locked for %1$s more. This stops half-asleep switch-offs.</string>
+    <string name="lock_banner_body_ringing">This alarm is ringing or snoozed, so it can\'t be changed until the ring is over.</string>
     <string name="lock_banner_unlock">Unlock</string>
     <string name="lock_override_title">Prove you\'re awake</string>
     <string name="lock_override_body">Solve %2$d quick sums to unlock this alarm. Problem %1$d of %2$d:</string>
@@ -393,4 +394,12 @@
     <string name="edit_missions_rotate">Change the mission each morning</string>
     <string name="edit_missions_rotate_hint">One of these each morning, in turn, instead of all of them. A mission done every day soon becomes a habit.</string>
     <string name="ring_today_mission">Today: %1$s</string>
+    <string name="lock_message_window">Edit protection: an alarm rings in %1$s, so it can\'t be switched off, skipped, changed or paused until then.</string>
+    <string name="lock_message_ringing">An alarm is ringing or snoozed, so it can\'t be switched off, skipped, changed or paused until the ring is over.</string>
+    <string name="lock_duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="lock_duration_hours">%1$d h</string>
+    <string name="lock_banner_unlock_mission">Do the mission</string>
+    <string name="lock_override_mission_title">Do this alarm\'s mission to unlock it</string>
+    <string name="notif_wake_check_text_proof">Open this and do one round of Focus Tap, or the alarm rings again.</string>
+    <string name="wake_check_proof_body">Do one round of Focus Tap to show you\'re up.</string>
 </resources>

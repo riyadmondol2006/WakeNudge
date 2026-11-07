@@ -236,9 +236,10 @@ class AlarmSchedulerImpl @Inject constructor(
         armed
     }
 
-    override suspend fun cancel(alarmId: Long) = lock.withLock {
+    override suspend fun cancel(alarmId: Long, byUser: Boolean) = lock.withLock {
+        val keep = byUser && liveStrictRing(alarmId)
         cancelAlarmTriggers(alarmId)
-        cancelFollowUpsLocked(alarmId)
+        if (!keep) cancelFollowUpsLocked(alarmId)
         armedCopies.forget(alarmId)
         val left = runtime.registeredTriggers() - alarmId
         runtime.setRegisteredTriggers(left)
@@ -246,9 +247,25 @@ class AlarmSchedulerImpl @Inject constructor(
         surfaces.refreshAll()
     }
 
-    override suspend fun cancelFollowUps(alarmId: Long) = lock.withLock {
-        cancelFollowUpsLocked(alarmId)
+    override suspend fun cancelFollowUps(alarmId: Long, byUser: Boolean) = lock.withLock {
+        if (!(byUser && liveStrictRing(alarmId))) cancelFollowUpsLocked(alarmId)
         surfaces.refreshAll()
+    }
+
+    /**
+     * Whether a change made by the user would end a ring or snooze of an alarm with a mission from outside the ring
+     * screen. Edit protection refuses those first; this is the engine refusing too, so no future way in can close one as
+     * dismissed and skip the mission. A look-up that fails counts as "no", as the cancel did before.
+     */
+    private suspend fun liveStrictRing(alarmId: Long): Boolean {
+        val live = sessions.current?.takeIf { it.alarm.id == alarmId && !it.isTimer }
+        val alarm = live?.alarm ?: guarded("reading alarm $alarmId", null) { alarms.getAlarm(alarmId) } ?: armedCopies.get(alarmId)
+        if (alarm == null || alarm.missions.isEmpty()) return false
+        val snoozed = live == null && (pending.isScheduled(TriggerKind.SNOOZE, alarmId) ||
+            guarded("reading the snoozes of alarm $alarmId", false) { history.withFollowUps().any { it.alarmId == alarmId && it.snoozeUntil > 0 } })
+        if (live == null && !snoozed) return false
+        diagnostics.warn("Scheduler", "kept the ${if (live != null) "ring" else "snooze"} of alarm $alarmId: it ends with its mission")
+        return true
     }
 
     /** Snooze, backups, still-awake check and their notifications; closes the events they belonged to. */

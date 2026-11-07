@@ -3,6 +3,7 @@ package com.riyadm.wakenudge.domain
 import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.model.AntiOversleepSettings
 import com.riyadm.wakenudge.domain.model.SnoozeSettings
+import com.riyadm.wakenudge.domain.scheduling.EditLock
 import com.riyadm.wakenudge.domain.scheduling.EditLockPolicy
 import com.riyadm.wakenudge.domain.scheduling.SleepPlanner
 import com.riyadm.wakenudge.domain.scheduling.SnoozePolicy
@@ -49,9 +50,24 @@ class PoliciesTest {
         assertNull(EditLockPolicy.lockedMinutes(locked(15), null, now, false))
     }
 
-    @Test fun `edit lock holds while the alarm is ringing or snoozed`() {
-        assertEquals(15, EditLockPolicy.lockedMinutes(locked(15), null, 0, activeOrSnoozed = true))
+    @Test fun `edit lock holds while the alarm is ringing or snoozed, until the ring is over`() {
+        assertEquals(EditLock(0, whileRinging = true), EditLockPolicy.lockOf(locked(15), null, 0, activeOrSnoozed = true))
         assertNull(EditLockPolicy.lockedMinutes(locked(0), null, 0, activeOrSnoozed = true))
+        // With a mission the ring or snooze is locked even with no window: deleting it would skip the mission.
+        val mission = locked(0).copy(missions = listOf(com.riyadm.wakenudge.domain.model.MissionConfig(com.riyadm.wakenudge.domain.model.MissionType.MATH)))
+        assertEquals(EditLock(0, whileRinging = true), EditLockPolicy.lockOf(mission, null, 0, activeOrSnoozed = true))
+        assertFalse(EditLockPolicy.lockOf(mission, null, 0, activeOrSnoozed = true)!!.canOverride)
+    }
+
+    @Test fun `edit lock gives a just-saved alarm ten minutes, and reaches twelve hours`() {
+        val now = 1_000_000_000L
+        val saved = locked(720).copy(updatedAt = now - 9 * 60_000)
+        assertNull(EditLockPolicy.lockOf(saved, now + 11 * 3_600_000L, now, false))
+        assertEquals(EditLock(660, false), EditLockPolicy.lockOf(saved.copy(updatedAt = now - 10 * 60_000), now + 11 * 3_600_000L, now, false))
+        // A save "in the future" (the clock was moved back) gives no grace.
+        assertEquals(EditLock(660, false), EditLockPolicy.lockOf(saved.copy(updatedAt = now + 60_000), now + 11 * 3_600_000L, now, false))
+        // But a ring or snooze has no grace at all.
+        assertEquals(EditLock(0, true), EditLockPolicy.lockOf(saved, null, now, activeOrSnoozed = true))
     }
 
     @Test fun `sleep planner counts back whole 90 minute cycles plus fall-asleep time`() {

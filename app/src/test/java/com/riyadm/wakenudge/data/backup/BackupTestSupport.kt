@@ -67,10 +67,10 @@ class RecordingScheduler : AlarmScheduler {
     }
 
     override suspend fun schedule(alarmId: Long, afterMillis: Long) = Unit
-    override suspend fun cancel(alarmId: Long) = Unit
+    override suspend fun cancel(alarmId: Long, byUser: Boolean) = Unit
     val rearmed = mutableListOf<Pair<Long, Long>>()
     override suspend fun rearm(alarmId: Long, atMillis: Long): Boolean = rearmed.add(alarmId to atMillis)
-    override suspend fun cancelFollowUps(alarmId: Long) = Unit
+    override suspend fun cancelFollowUps(alarmId: Long, byUser: Boolean) = Unit
     override suspend fun nextAlarm(): NextAlarm? = null
     override suspend fun nextTriggerOf(alarmId: Long): Long? = null
     override suspend fun refreshBedtime() = Unit
@@ -114,7 +114,10 @@ class BackupRig(initial: BackupFile = BackupFile()) {
     val surfaces = CountingSurfaces()
     val log = SilentLog()
     val runtime = realRuntime()
-    val manager = BackupManager(mockk<Context>(relaxed = true), store, scheduler, surfaces, FixedTime(), log, runtime)
+    /** What edit protection says about a restore right now; null lets it through. */
+    var lock: com.riyadm.wakenudge.domain.scheduling.EditLock? = null
+    val global = mockk<com.riyadm.wakenudge.domain.usecase.GlobalChanges> { io.mockk.coEvery { restoreLock() } answers { lock } }
+    val manager = BackupManager(mockk<Context>(relaxed = true), store, scheduler, surfaces, FixedTime(), log, runtime, global)
 }
 
 /** A backup with every kind of content, all of it already valid so a restore must reproduce it exactly. */

@@ -325,6 +325,7 @@ class Notifier @Inject constructor(
             Intent(context, WakeCheckActivity::class.java)
                 .putExtra(Actions.EXTRA_ID, alarm.id)
                 .putExtra(WakeCheckActivity.EXTRA_DEADLINE, deadlineAt)
+                .putExtra(WakeCheckActivity.EXTRA_PROOF, alarm.wakeCheck.requireProof)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
@@ -345,8 +346,13 @@ class Notifier @Inject constructor(
             .setTimeoutAfter((deadlineAt - System.currentTimeMillis()).coerceAtLeast(1_000))
             .setContentIntent(full)
             .setFullScreenIntent(full, true)
-            .addAction(0, context.getString(R.string.action_im_awake), broadcast(Actions.WAKE_CHECK_OK, alarm.id))
-            .addAction(0, context.getString(R.string.action_cancel_check), broadcast(Actions.WAKE_CHECK_CANCEL, alarm.id))
+        if (alarm.wakeCheck.requireProof) {
+            // Nothing a sleeper can tap from the shade: the check is answered on its screen, with a round of Focus Tap.
+            b.setContentText(context.getString(R.string.notif_wake_check_text_proof))
+        } else {
+            b.addAction(0, context.getString(R.string.action_im_awake), broadcast(Actions.WAKE_CHECK_OK, alarm.id))
+                .addAction(0, context.getString(R.string.action_cancel_check), broadcast(Actions.WAKE_CHECK_CANCEL, alarm.id))
+        }
         post(NotificationIds.wakeCheck(alarm.id), b.build())
     }
 

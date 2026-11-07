@@ -55,6 +55,17 @@ class RuntimeState @Inject constructor(@DeviceProtected private val context: Con
         get() = prefs.getLong(K_LAST_WATCHDOG, 0)
         set(value) = prefs.edit { putLong(K_LAST_WATCHDOG, value) }
 
+    /**
+     * The step counter's total when a "Still awake?" check that needs proof started, per alarm. Not in a backup: it
+     * means nothing on another phone, or after a restart.
+     */
+    fun wakeProofBaseline(alarmId: Long): Float? =
+        prefs.getFloat(K_WAKE_PROOF_PREFIX + alarmId, Float.NaN).takeUnless { it.isNaN() }
+
+    fun setWakeProofBaseline(alarmId: Long, total: Float?) = prefs.edit {
+        if (total == null) remove(K_WAKE_PROOF_PREFIX + alarmId) else putFloat(K_WAKE_PROOF_PREFIX + alarmId, total)
+    }
+
     /** Times (epoch millis) at which the app died while an alarm was ringing; only recent ones matter. */
     fun ringCrashTimes(): List<Long> =
         prefs.getString(K_RING_CRASHES, "").orEmpty().split(',').mapNotNull { it.toLongOrNull() }
@@ -168,6 +179,7 @@ class RuntimeState @Inject constructor(@DeviceProtected private val context: Con
         const val K_TONIGHT_CHECKED = "tonight_checked_for"
         const val K_RING_LEDGER = "ring_ledger"
         const val SNAPSHOT_PREFIX = "alarm_snapshot_"
+        const val K_WAKE_PROOF_PREFIX = "wake_proof_baseline_"
         const val MAX_CRASHES_KEPT = 10
     }
 }

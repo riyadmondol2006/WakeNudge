@@ -12,6 +12,7 @@ import com.riyadm.wakenudge.domain.model.AppSettings
 import com.riyadm.wakenudge.domain.repository.AlarmRepository
 import com.riyadm.wakenudge.domain.repository.GroupRepository
 import com.riyadm.wakenudge.domain.repository.SettingsRepository
+import com.riyadm.wakenudge.domain.scheduling.EditLock
 import com.riyadm.wakenudge.domain.scheduling.NextTriggerCalculator
 import com.riyadm.wakenudge.domain.usecase.ActionResult
 import com.riyadm.wakenudge.domain.usecase.AlarmActions
@@ -35,19 +36,19 @@ data class EditUiState(
     val loaded: Boolean = false,
     val draft: Alarm = Alarm(),
     val isNew: Boolean = true,
-    /** Minutes of last-minute protection left on the stored alarm, or null when editable. */
-    val lockedMinutes: Int? = null,
+    /** Last-minute protection on the stored alarm, or null when editable. */
+    val lock: EditLock? = null,
     val lockOverridden: Boolean = false,
     val dirty: Boolean = false,
     /** The next few rings for the draft, shown under the time picker. */
     val upcoming: List<ZonedDateTime> = emptyList(),
 ) {
-    val readOnly: Boolean get() = lockedMinutes != null && !lockOverridden
+    val readOnly: Boolean get() = lock != null && !lockOverridden
 }
 
 sealed interface SaveOutcome {
     data object Saved : SaveOutcome
-    data class Locked(val minutes: Int) : SaveOutcome
+    data class Locked(val lock: EditLock) : SaveOutcome
 
     /** The alarm was deleted while the editor was open: it rang and deleted itself after use, or was removed elsewhere. */
     data object Gone : SaveOutcome
@@ -91,12 +92,12 @@ class AlarmEditViewModel @Inject constructor(
             val existing = if (route.alarmId != 0L) alarms.getAlarm(route.alarmId) else null
             stored = existing
             val base = restored ?: existing ?: newAlarm(settingsRepo.current())
-            val locked = existing?.let { actions.lockedMinutes(it) }
+            val locked = existing?.let { actions.lockOf(it) }
             // A new alarm that arrives filled in (from the sleep planner, an assistant or another app) is the user's
             // request already: leaving without saving should ask, like any other unsaved change.
             val prefilled = existing == null && route.hour in 0..23
             _state.value = EditUiState(
-                loaded = true, draft = base, isNew = existing == null, lockedMinutes = locked,
+                loaded = true, draft = base, isNew = existing == null, lock = locked,
                 dirty = restored != null || prefilled,
             )
             refreshUpcoming(base)
@@ -136,8 +137,11 @@ class AlarmEditViewModel @Inject constructor(
         }
     }
 
+    /** The user proved they are awake (sums, or the alarm's own mission); never lifts a lock while it rings or is snoozed. */
     fun overrideLock() {
-        _state.value = _state.value.copy(lockOverridden = true)
+        val s = _state.value
+        if (s.lock?.canOverride == false) return
+        _state.value = s.copy(lockOverridden = true)
     }
 
     /**
@@ -170,8 +174,8 @@ class AlarmEditViewModel @Inject constructor(
             // The edit lock is checked against the alarm now: an editor opened at 06:25 is still locked at 06:50.
             return when (val result = actions.save(toSave, overrideLock = s.lockOverridden)) {
                 is ActionResult.Locked -> {
-                    _state.value = _state.value.copy(lockedMinutes = result.minutes, lockOverridden = false)
-                    SaveOutcome.Locked(result.minutes)
+                    _state.value = _state.value.copy(lock = result.lock, lockOverridden = false)
+                    SaveOutcome.Locked(result.lock)
                 }
                 is ActionResult.Done -> {
                     finished = true
@@ -194,8 +198,8 @@ class AlarmEditViewModel @Inject constructor(
             val stored = alarms.getAlarm(s.draft.id)
             return when (val r = actions.delete(s.draft.id, overrideLock = s.lockOverridden)) {
                 is ActionResult.Locked -> {
-                    _state.value = _state.value.copy(lockedMinutes = r.minutes, lockOverridden = false)
-                    SaveOutcome.Locked(r.minutes)
+                    _state.value = _state.value.copy(lock = r.lock, lockOverridden = false)
+                    SaveOutcome.Locked(r.lock)
                 }
                 else -> {
                     if (r is ActionResult.Done) stored?.let(deletedRelay::post)

@@ -65,6 +65,7 @@ import java.time.ZoneOffset
 /** Days that repeating alarms skip: typed-in dates and, optionally, all-day events from calendars on the phone. */
 @Composable
 fun ExceptionsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: ExceptionsViewModel = hiltViewModel()) {
+    com.riyadm.wakenudge.ui.util.LockNotices(viewModel.lockNotices)
     val state by viewModel.state.collectAsStateWithLifecycle()
     var picking by remember { mutableStateOf(false) }
     var pickResume by remember { mutableStateOf(false) }

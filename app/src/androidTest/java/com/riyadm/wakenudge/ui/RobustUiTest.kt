@@ -159,7 +159,7 @@ class RobustUiTest {
     @Test fun alarmCardCopesWithAHostileLabelAndHugeFonts() {
         val item = AlarmItem(
             alarm = Alarm(label = "مرحبا ".repeat(40) + "👩‍👩‍👧‍👦".repeat(10) + "x".repeat(400), hour = 7, minute = 5),
-            group = null, nextAt = ZonedDateTime.now().plusHours(5), suppression = null, lockedMinutes = null,
+            group = null, nextAt = ZonedDateTime.now().plusHours(5), suppression = null, lock = null,
         )
         compose.setContent {
             val base = LocalDensity.current

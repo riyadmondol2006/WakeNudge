@@ -7,7 +7,9 @@ import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.ToggleableStateKey
 import com.riyadm.wakenudge.R
+import com.riyadm.wakenudge.domain.scheduling.EditLock
 import com.riyadm.wakenudge.domain.usecase.ActionResult
+import com.riyadm.wakenudge.ui.util.LockText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -16,10 +18,9 @@ internal val AlarmIdKey = ActionParameters.Key<Long>("alarm_id")
 /** The ring the widget showed when the button was drawn, so a double tap cannot skip the one after it. */
 internal val OccurrenceKey = ActionParameters.Key<Long>("occurrence_at")
 
-/** Last-minute edit protection said no: tell the user how long the lock lasts. */
-private suspend fun Context.toastLocked(minutes: Int) = withContext(Dispatchers.Main) {
-    val text = resources.getQuantityString(R.plurals.widget_locked_minutes, minutes, minutes)
-    Toast.makeText(applicationContext, text, Toast.LENGTH_LONG).show()
+/** Last-minute edit protection said no: the same message as in the app. */
+internal suspend fun Context.toastLocked(lock: EditLock) = withContext(Dispatchers.Main) {
+    Toast.makeText(applicationContext, LockText.message(resources, lock), Toast.LENGTH_LONG).show()
 }
 
 /**
@@ -39,7 +40,7 @@ class SkipNextCallback : ActionCallback {
             return
         }
         val result = entry.alarmActions().skipNext(alarmId, occurrenceAt = parameters[OccurrenceKey])
-        if (result is ActionResult.Locked) context.toastLocked(result.minutes)
+        if (result is ActionResult.Locked) context.toastLocked(result.lock)
         NextAlarmWidget().update(context, glanceId)
     }
 }
@@ -78,7 +79,7 @@ class ToggleAlarmCallback : ActionCallback {
         val alarmId = parameters[AlarmIdKey] ?: return
         val enabled = parameters[ToggleableStateKey] ?: return
         val result = context.surfaceEntry().alarmActions().setEnabled(alarmId, enabled)
-        if (result is ActionResult.Locked) context.toastLocked(result.minutes)
+        if (result is ActionResult.Locked) context.toastLocked(result.lock)
         AlarmListWidget().update(context, glanceId)
     }
 }

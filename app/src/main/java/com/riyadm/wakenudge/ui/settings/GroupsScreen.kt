@@ -45,6 +45,7 @@ import com.riyadm.wakenudge.ui.components.TextInputDialog
 /** Profiles (groups): switch whole sets of alarms on or off together, e.g. "Work week" vs "Weekend". */
 @Composable
 fun GroupsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: GroupsViewModel = hiltViewModel()) {
+    com.riyadm.wakenudge.ui.util.LockNotices(viewModel.lockNotices)
     val groups by viewModel.state.collectAsStateWithLifecycle()
     var creating by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf<AlarmGroup?>(null) }

@@ -223,7 +223,7 @@ class AuditFixesInstrumentedTest {
 
         wakeCheckRepo.save(com.riyadm.wakenudge.domain.model.WakeCheck(id, 1, com.riyadm.wakenudge.domain.model.WakeCheck.Phase.WAITING, time.nowMillis() + 60_000, 0))
         // Cancelled from the check's own prompt: the check is over, and the used alarm goes.
-        wakeCheckController.cancel(id)
+        wakeCheckController.cancelByUser(id)
         assertNull(alarms.getAlarm(id))
     }
 

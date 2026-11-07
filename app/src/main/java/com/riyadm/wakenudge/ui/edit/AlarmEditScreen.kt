@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.riyadm.wakenudge.R
+import com.riyadm.wakenudge.ui.util.LockText
 import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.ui.components.AlarmTimePicker
 import com.riyadm.wakenudge.ui.components.ConfirmDialog
@@ -123,7 +124,7 @@ fun AlarmEditScreen(
                             scope.launch {
                                 when (val r = viewModel.save()) {
                                     SaveOutcome.Saved -> { haptics.confirm(); onClose() }
-                                    is SaveOutcome.Locked -> snackbar.showSnackbar(resources.getString(R.string.snackbar_locked, r.minutes))
+                                    is SaveOutcome.Locked -> snackbar.showSnackbar(LockText.message(resources, r.lock))
                                     SaveOutcome.Gone -> {
                                         val choice = snackbar.showSnackbar(
                                             resources.getString(R.string.edit_alarm_gone),
@@ -160,8 +161,9 @@ fun AlarmEditScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding() + 48.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            if (state.lockedMinutes != null && !state.lockOverridden) {
-                item { LockBanner(state.lockedMinutes!!, onUnlock = { showOverride = true }) }
+            val lock = state.lock
+            if (lock != null && !state.lockOverridden) {
+                item { LockBanner(lock, byMission = alarm.overridesLockByMission, onUnlock = { showOverride = true }) }
             }
             item { TimeCard(alarm, state.upcoming, is24, enabled, update) }
             item { ScheduleCard(alarm, firstDay, enabled, update) }
@@ -222,7 +224,7 @@ fun AlarmEditScreen(
                         SaveOutcome.Saved, SaveOutcome.Gone -> onClose()
                         is SaveOutcome.Locked -> {
                             confirmDelete = false
-                            snackbar.showSnackbar(resources.getString(R.string.snackbar_locked, r.minutes))
+                            snackbar.showSnackbar(LockText.message(resources, r.lock))
                         }
                         SaveOutcome.Busy -> Unit
                     }
@@ -232,13 +234,19 @@ fun AlarmEditScreen(
             destructive = true,
         )
     }
-    if (showOverride) {
-        EditLockOverrideDialog(onSolved = viewModel::overrideLock, onDismiss = { showOverride = false })
+    if (showOverride && state.lock?.canOverride == true) {
+        val alarm = state.draft
+        if (alarm.overridesLockByMission) {
+            EditLockMissionOverride(alarm, onSolved = viewModel::overrideLock, onDismiss = { showOverride = false })
+        } else {
+            EditLockOverrideDialog(onSolved = viewModel::overrideLock, onDismiss = { showOverride = false })
+        }
     }
 }
 
 @Composable
-private fun LockBanner(minutes: Int, onUnlock: () -> Unit) {
+private fun LockBanner(lock: com.riyadm.wakenudge.domain.scheduling.EditLock, byMission: Boolean, onUnlock: () -> Unit) {
+    val resources = LocalResources.current
     Surface(
         color = MaterialTheme.colorScheme.tertiaryContainer,
         shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
@@ -248,9 +256,16 @@ private fun LockBanner(minutes: Int, onUnlock: () -> Unit) {
             Icon(Icons.Outlined.Lock, null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
             Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
                 Text(stringResource(R.string.lock_banner_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
-                Text(stringResource(R.string.lock_banner_body, minutes), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                Text(
+                    if (lock.whileRinging) stringResource(R.string.lock_banner_body_ringing)
+                    else stringResource(R.string.lock_banner_body, LockText.duration(resources, lock.minutes)),
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onTertiaryContainer,
+                )
             }
-            TextButton(onClick = onUnlock) { Text(stringResource(R.string.lock_banner_unlock)) }
+            // While it rings or is snoozed nothing lifts the lock: the ring itself is how it ends.
+            if (lock.canOverride) {
+                TextButton(onClick = onUnlock) { Text(stringResource(if (byMission) R.string.lock_banner_unlock_mission else R.string.lock_banner_unlock)) }
+            }
         }
     }
 }

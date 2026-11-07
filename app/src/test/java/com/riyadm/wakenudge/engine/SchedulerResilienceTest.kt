@@ -144,4 +144,36 @@ class SchedulerResilienceTest {
         verify { pending.setAlarmClock(TriggerKind.BACKUP, a.id, soon, 1, any(), any()) }
         verify { pending.setAlarmClock(TriggerKind.SNOOZE, a.id, soon, 0, any(), any()) }
     }
+
+    // ---- a ring or snooze of an alarm with a mission is not closed from outside -----------------------------------
+
+    private fun snoozedMissionAlarm(): Pair<Alarm, AlarmEvent> = runBlocking {
+        val a = alarms.add(Alarm(label = "m", hour = 7, repeatDaysMask = Alarm.EVERY_DAY_MASK, missions = listOf(com.riyadm.wakenudge.domain.model.MissionConfig(com.riyadm.wakenudge.domain.model.MissionType.MATH))))
+        val id = history.start(AlarmEvent(alarmId = a.id, label = "m", scheduledAt = clock.now - 60_000, firedAt = clock.now - 60_000, outcome = com.riyadm.wakenudge.domain.model.AlarmOutcome.RINGING, snoozeUntil = clock.now + 300_000))
+        every { pending.isScheduled(TriggerKind.SNOOZE, a.id) } returns true
+        a to history.get(id)!!
+    }
+
+    @Test fun `switching off or deleting a snoozed alarm with a mission from outside keeps its snooze`() = runBlocking {
+        val (a, event) = snoozedMissionAlarm()
+        val s = scheduler()
+        s.cancelFollowUps(a.id, byUser = true)
+        s.cancel(a.id, byUser = true)
+        assertEquals("the snooze still rings, and the ring is not closed as dismissed", event, history.get(event.id))
+        verify(exactly = 0) { pending.cancel(TriggerKind.SNOOZE, a.id) }
+    }
+
+    @Test fun `the engine's own clean-up still closes it`() = runBlocking {
+        val (a, event) = snoozedMissionAlarm()
+        scheduler().cancelFollowUps(a.id)
+        assertEquals(0L, history.get(event.id)!!.snoozeUntil)
+        verify { pending.cancel(TriggerKind.SNOOZE, a.id) }
+    }
+
+    @Test fun `a snoozed alarm without a mission is closed as before`() = runBlocking {
+        val (a, event) = snoozedMissionAlarm()
+        alarms.rows[a.id] = a.copy(missions = emptyList())
+        scheduler().cancelFollowUps(a.id, byUser = true)
+        assertEquals(0L, history.get(event.id)!!.snoozeUntil)
+    }
 }

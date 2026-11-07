@@ -6,6 +6,7 @@ import com.riyadm.wakenudge.domain.repository.AlarmRepository
 import com.riyadm.wakenudge.domain.repository.DiagnosticsLog
 import com.riyadm.wakenudge.domain.repository.GroupRepository
 import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
+import com.riyadm.wakenudge.domain.scheduling.EditLock
 import com.riyadm.wakenudge.domain.scheduling.EditLockPolicy
 import com.riyadm.wakenudge.domain.scheduling.SurfaceRefresher
 import javax.inject.Inject
@@ -13,8 +14,10 @@ import javax.inject.Singleton
 
 sealed interface ActionResult<out T> {
     data class Done<T>(val value: T) : ActionResult<T>
-    /** Refused by last-minute edit protection; [minutes] is the remaining lock. */
-    data class Locked(val minutes: Int) : ActionResult<Nothing>
+    /** Refused by last-minute edit protection. */
+    data class Locked(val lock: EditLock) : ActionResult<Nothing> {
+        val minutes: Int get() = lock.minutes
+    }
     data object NotFound : ActionResult<Nothing>
 }
 
@@ -29,20 +32,46 @@ class AlarmActions @Inject constructor(
     private val ringState: ActiveRingQuery,
     private val diagnostics: DiagnosticsLog,
 ) {
-    /** Remaining edit-lock minutes for [alarm], or null when it may be changed. */
-    suspend fun lockedMinutes(alarm: Alarm): Int? {
+    /** The edit lock on [alarm] as it is stored, or null when it may be changed. */
+    suspend fun lockOf(alarm: Alarm): EditLock? {
         if (alarm.id == 0L) return null
         val stored = alarms.getAlarm(alarm.id) ?: return null
-        return EditLockPolicy.lockedMinutes(
-            alarm = stored,
-            nextTriggerAt = scheduler.nextTriggerOf(stored.id),
-            nowMillis = time.nowMillis(),
-            activeOrSnoozed = ringState.isActiveOrSnoozed(stored.id),
-        )
+        return lockOfStored(stored)
+    }
+
+    private suspend fun lockOfStored(stored: Alarm): EditLock? = EditLockPolicy.lockOf(
+        alarm = stored,
+        nextTriggerAt = scheduler.nextTriggerOf(stored.id),
+        nowMillis = time.nowMillis(),
+        activeOrSnoozed = ringState.isActiveOrSnoozed(stored.id),
+    )
+
+    /** The lock that refuses a change; proving to be awake ([overrideLock]) lifts it, except while the alarm rings or is snoozed. */
+    private suspend fun refusal(alarm: Alarm, overrideLock: Boolean): EditLock? =
+        lockOf(alarm)?.takeIf { !overrideLock || !it.canOverride }
+
+    /** Remaining edit-lock minutes for [alarm], or null when it may be changed. */
+    suspend fun lockedMinutes(alarm: Alarm): Int? = lockOf(alarm)?.minutes
+
+    /**
+     * The lock that refuses a change reaching beyond one alarm (vacation, a group or profile, an exception day, a restore,
+     * a setting written onto every alarm), or null when none of the alarms it [affects] is locked. A change that could
+     * stop or soften a locked alarm is refused as a whole, with the same message as changing that alarm directly. The
+     * soonest lock is returned, a ring or snooze first.
+     */
+    suspend fun guardGlobalChange(affects: suspend (alarm: Alarm, lock: EditLock) -> Boolean): EditLock? {
+        var found: EditLock? = null
+        for (alarm in alarms.getAlarms()) {
+            val lock = lockOfStored(alarm) ?: continue
+            if (!affects(alarm, lock)) continue
+            if (lock.whileRinging) return lock
+            if (found == null || lock.minutes < found.minutes) found = lock
+        }
+        return found
     }
 
     suspend fun save(alarm: Alarm, overrideLock: Boolean = false): ActionResult<Long> {
-        if (!overrideLock) lockedMinutes(alarm)?.let { return ActionResult.Locked(it) }
+        refusal(alarm, overrideLock)?.let { return ActionResult.Locked(it) }
         val stored = if (alarm.id != 0L) alarms.getAlarm(alarm.id) else null
         val hour = alarm.hour.coerceIn(0, 23)
         val minute = alarm.minute.coerceIn(0, 59)
@@ -76,24 +105,26 @@ class AlarmActions @Inject constructor(
      */
     suspend fun setEnabled(id: Long, enabled: Boolean, overrideLock: Boolean = false): ActionResult<String?> {
         val alarm = alarms.getAlarm(id) ?: return ActionResult.NotFound
-        if (!enabled && !overrideLock) lockedMinutes(alarm)?.let { return ActionResult.Locked(it) }
+        if (!enabled) refusal(alarm, overrideLock)?.let { return ActionResult.Locked(it) }
         val group = if (enabled) alarm.groupId?.let { gid -> groups.getGroups().firstOrNull { it.id == gid } } else null
         val groupTurnedOn = group != null && !group.enabled
         if (groupTurnedOn) groups.setEnabled(group!!.id, true)
-        alarms.setEnabled(id, enabled)
-        if (enabled) alarms.setSkipDay(id, null)
+        // Only a real change is written: each write restarts the grace after a save, and switching on an alarm that is
+        // already on must not open its lock.
+        if (alarm.enabled != enabled) alarms.setEnabled(id, enabled)
+        if (enabled && alarm.skipEpochDay != null) alarms.setSkipDay(id, null)
         if (groupTurnedOn) scheduler.rescheduleAll("group switched on with alarm $id") else scheduler.schedule(id)
         // Switching an alarm off means "stop bothering me": a pending snooze or backup must not ring afterwards.
-        if (!enabled) scheduler.cancelFollowUps(id)
+        if (!enabled) scheduler.cancelFollowUps(id, byUser = true)
         surfaces.refreshAll()
         return ActionResult.Done(if (groupTurnedOn) group!!.name else null)
     }
 
     suspend fun delete(id: Long, overrideLock: Boolean = false): ActionResult<Unit> {
         val alarm = alarms.getAlarm(id) ?: return ActionResult.NotFound
-        if (!overrideLock) lockedMinutes(alarm)?.let { return ActionResult.Locked(it) }
+        refusal(alarm, overrideLock)?.let { return ActionResult.Locked(it) }
         alarms.delete(id)
-        scheduler.cancel(id)
+        scheduler.cancel(id, byUser = true)
         surfaces.refreshAll()
         return ActionResult.Done(Unit)
     }
@@ -107,7 +138,7 @@ class AlarmActions @Inject constructor(
      */
     suspend fun skipNext(id: Long, occurrenceAt: Long? = null, overrideLock: Boolean = false): ActionResult<Long?> {
         val alarm = alarms.getAlarm(id) ?: return ActionResult.NotFound
-        if (!overrideLock) lockedMinutes(alarm)?.let { return ActionResult.Locked(it) }
+        refusal(alarm, overrideLock)?.let { return ActionResult.Locked(it) }
         if (!alarm.isRepeating) {
             alarms.setEnabled(id, false)
             scheduler.schedule(id)
@@ -128,6 +159,8 @@ class AlarmActions @Inject constructor(
     }
 
     suspend fun clearSkip(id: Long) {
+        // Nothing to clear is no write, so it cannot restart the grace after a save.
+        if (alarms.getAlarm(id)?.skipEpochDay == null) return
         alarms.setSkipDay(id, null)
         scheduler.schedule(id)
         surfaces.refreshAll()

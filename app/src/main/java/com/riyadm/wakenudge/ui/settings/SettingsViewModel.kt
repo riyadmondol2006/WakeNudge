@@ -8,12 +8,12 @@ import com.riyadm.wakenudge.domain.model.AlarmGroup
 import com.riyadm.wakenudge.domain.model.AppSettings
 import com.riyadm.wakenudge.domain.model.ExceptionDate
 import com.riyadm.wakenudge.domain.model.VacationMode
-import com.riyadm.wakenudge.domain.model.withGlobalsOf
-import com.riyadm.wakenudge.domain.repository.AlarmRepository
 import com.riyadm.wakenudge.domain.repository.ExceptionRepository
 import com.riyadm.wakenudge.domain.repository.GroupRepository
 import com.riyadm.wakenudge.domain.repository.SettingsRepository
-import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
+import com.riyadm.wakenudge.domain.scheduling.EditLock
+import com.riyadm.wakenudge.domain.usecase.ActionResult
+import com.riyadm.wakenudge.domain.usecase.GlobalChanges
 import com.riyadm.wakenudge.engine.CalendarHolidayProvider
 import com.riyadm.wakenudge.engine.DeviceCalendar
 import com.riyadm.wakenudge.engine.audio.AlarmVibrator
@@ -23,6 +23,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -35,11 +38,15 @@ import kotlinx.coroutines.withContext
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repo: SettingsRepository,
-    private val alarms: AlarmRepository,
-    private val scheduler: AlarmScheduler,
+    private val global: GlobalChanges,
     val soundPreviewer: SoundPreviewer,
     val vibrator: AlarmVibrator,
 ) : ViewModel() {
+    private val locks = Channel<EditLock>(Channel.BUFFERED)
+
+    /** Changes refused by edit protection, to be said on screen. */
+    val lockNotices: Flow<EditLock> = locks.receiveAsFlow()
+
     /**
      * Null until the stored settings are read. The pages wait for them instead of showing the defaults for a moment,
      * where a quick tap would act on a switch that is about to flip.
@@ -59,12 +66,7 @@ class SettingsViewModel @Inject constructor(
      * sets them for every alarm and for new ones, so the choice made here is the one that rings.
      */
     fun updateRingingForAllAlarms(block: (AppSettings) -> AppSettings) = persist {
-        repo.update { s -> block(s).let { n -> n.copy(defaults = n.defaults.copy(antiOversleep = n.defaults.antiOversleep.withGlobalsOf(n))) } }
-        val now = repo.current()
-        for (alarm in alarms.getAlarms()) {
-            val copied = alarm.antiOversleep.withGlobalsOf(now)
-            if (copied != alarm.antiOversleep) alarms.save(alarm.copy(antiOversleep = copied))
-        }
+        (global.applyRingingToAll(block) as? ActionResult.Locked)?.let { locks.send(it.lock) }
     }
 
     fun updateDefaults(transform: (Alarm) -> Alarm) = viewModelScope.launch {
@@ -76,8 +78,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setVacation(enabled: Boolean, resumeEpochDay: Long?) = persist {
-        repo.update { it.copy(vacation = it.vacation.copy(enabled = enabled, resumeEpochDay = resumeEpochDay)) }
-        scheduler.rescheduleAll("vacation")
+        (global.setVacation(enabled, resumeEpochDay) as? ActionResult.Locked)?.let { locks.send(it.lock) }
     }
 
     override fun onCleared() {
@@ -89,8 +90,11 @@ class SettingsViewModel @Inject constructor(
 @HiltViewModel
 class GroupsViewModel @Inject constructor(
     private val groups: GroupRepository,
-    private val scheduler: AlarmScheduler,
+    private val global: GlobalChanges,
 ) : ViewModel() {
+    private val locks = Channel<EditLock>(Channel.BUFFERED)
+    val lockNotices: Flow<EditLock> = locks.receiveAsFlow()
+
     val state: StateFlow<List<AlarmGroup>> = groups.observeGroups().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun create(name: String) = viewModelScope.launch {
@@ -102,13 +106,11 @@ class GroupsViewModel @Inject constructor(
     }
 
     fun setEnabled(group: AlarmGroup, enabled: Boolean) = persist {
-        groups.setEnabled(group.id, enabled)
-        scheduler.rescheduleAll("group-toggle")
+        (global.setGroupEnabled(group.id, enabled) as? ActionResult.Locked)?.let { locks.send(it.lock) }
     }
 
     fun delete(group: AlarmGroup) = persist {
-        groups.delete(group.id)
-        scheduler.rescheduleAll("group-delete")
+        (global.deleteGroup(group.id) as? ActionResult.Locked)?.let { locks.send(it.lock) }
     }
 }
 
@@ -130,8 +132,11 @@ class ExceptionsViewModel @Inject constructor(
     private val exceptions: ExceptionRepository,
     private val settings: SettingsRepository,
     private val calendar: CalendarHolidayProvider,
-    private val scheduler: AlarmScheduler,
+    private val global: GlobalChanges,
 ) : ViewModel() {
+    private val locks = Channel<EditLock>(Channel.BUFFERED)
+    val lockNotices: Flow<EditLock> = locks.receiveAsFlow()
+
     private val _calendarState = MutableStateFlow(ExceptionsUiState())
     val state: StateFlow<ExceptionsUiState> = _calendarState.asStateFlow()
 
@@ -162,30 +167,20 @@ class ExceptionsViewModel @Inject constructor(
     }
 
     fun setVacation(enabled: Boolean, resumeEpochDay: Long?) = persist {
-        settings.update { it.copy(vacation = it.vacation.copy(enabled = enabled, resumeEpochDay = resumeEpochDay)) }
-        scheduler.rescheduleAll("vacation")
+        (global.setVacation(enabled, resumeEpochDay) as? ActionResult.Locked)?.let { locks.send(it.lock) }
     }
 
     fun addDate(epochDay: Long, label: String) = persist {
-        exceptions.add(ExceptionDate(epochDay, label.trim().take(40)))
-        scheduler.rescheduleAll("exceptions")
+        (global.addExceptionDate(epochDay, label) as? ActionResult.Locked)?.let { locks.send(it.lock) }
     }
 
-    fun removeDate(epochDay: Long) = persist {
-        exceptions.remove(epochDay)
-        scheduler.rescheduleAll("exceptions")
-    }
+    fun removeDate(epochDay: Long) = persist { global.removeExceptionDate(epochDay) }
 
     fun setCalendarEnabled(enabled: Boolean) = persist {
-        settings.update { it.copy(calendarExceptions = it.calendarExceptions.copy(enabled = enabled)) }
-        scheduler.rescheduleAll("calendar-exceptions")
+        (global.setCalendarExceptions(enabled) as? ActionResult.Locked)?.let { locks.send(it.lock) }
     }
 
     fun toggleCalendar(id: Long, selected: Boolean) = persist {
-        settings.update {
-            val ids = it.calendarExceptions.calendarIds
-            it.copy(calendarExceptions = it.calendarExceptions.copy(calendarIds = if (selected) ids + id else ids - id))
-        }
-        scheduler.rescheduleAll("calendar-exceptions")
+        (global.selectCalendar(id, selected) as? ActionResult.Locked)?.let { locks.send(it.lock) }
     }
 }

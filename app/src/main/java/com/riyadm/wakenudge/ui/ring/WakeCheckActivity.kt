@@ -40,9 +40,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.domain.model.AppSettings
-import com.riyadm.wakenudge.domain.model.WakeCheckStatus
 import com.riyadm.wakenudge.domain.repository.SettingsRepository
+import com.riyadm.wakenudge.domain.model.Difficulty
+import com.riyadm.wakenudge.domain.model.MissionConfig
+import com.riyadm.wakenudge.domain.model.MissionType
 import com.riyadm.wakenudge.engine.WakeCheckController
+import com.riyadm.wakenudge.engine.WakeProof
+import com.riyadm.wakenudge.engine.audio.SoundPreviewer
+import com.riyadm.wakenudge.missions.MissionHost
 import com.riyadm.wakenudge.engine.notify.Actions
 import com.riyadm.wakenudge.ui.components.WavyCircularProgress
 import com.riyadm.wakenudge.ui.theme.ClockType
@@ -53,11 +58,16 @@ import javax.inject.Inject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** "Still awake?" prompt: one big button and a countdown. Unanswered, the alarm rings again when time runs out. */
+/**
+ * "Still awake?" prompt: one big button and a countdown. Unanswered, the alarm rings again when time runs out. On an
+ * alarm that asks for proof there is no button and no Cancel: one round of Focus Tap answers it, and a tone plays on the
+ * alarm stream while the screen waits, so it is heard on a phone set to silent.
+ */
 @AndroidEntryPoint
 class WakeCheckActivity : ComponentActivity() {
     @Inject lateinit var wakeChecks: WakeCheckController
     @Inject lateinit var settingsRepo: SettingsRepository
+    @Inject lateinit var previewer: SoundPreviewer
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -78,12 +88,26 @@ class WakeCheckActivity : ComponentActivity() {
             WakeNudgeTheme(s.themeMode, s.dynamicColor, s.haptics) {
                 // Keyed by the prompt: a second alarm's check arriving while this screen is open starts afresh.
                 key(current) {
-                    WakeCheckScreen(
-                        deadlineMillis = current.deadline,
-                        onAwake = { finishAfter { wakeChecks.answer(current.alarmId) } },
-                        onCancel = { finishAfter { wakeChecks.abandon(current.alarmId, WakeCheckStatus.CANCELLED) } },
-                        onExpired = { finishAndRemoveTask() },
-                    )
+                    if (current.proof) {
+                        LaunchedEffect(Unit) {
+                            while (true) {
+                                previewer.playBundled(PROMPT_TONE, toggle = false)
+                                delay(PROMPT_REPEAT_MS)
+                            }
+                        }
+                        ProofCheckScreen(
+                            deadlineMillis = current.deadline,
+                            onProof = { finishAfter { wakeChecks.answer(current.alarmId, WakeProof.FOCUS_TAP) } },
+                            onExpired = { finishAndRemoveTask() },
+                        )
+                    } else {
+                        WakeCheckScreen(
+                            deadlineMillis = current.deadline,
+                            onAwake = { finishAfter { wakeChecks.answer(current.alarmId) } },
+                            onCancel = { finishAfter { wakeChecks.cancelByUser(current.alarmId) } },
+                            onExpired = { finishAndRemoveTask() },
+                        )
+                    }
                 }
             }
         }
@@ -111,15 +135,28 @@ class WakeCheckActivity : ComponentActivity() {
         }
     }
 
-    private data class Prompt(val alarmId: Long, val deadline: Long)
+    override fun onDestroy() {
+        previewer.stop()
+        super.onDestroy()
+    }
 
-    private var prompt by mutableStateOf(Prompt(0, 0))
+    private data class Prompt(val alarmId: Long, val deadline: Long, val proof: Boolean)
 
-    private fun promptOf(intent: Intent) =
-        Prompt(intent.getLongExtra(Actions.EXTRA_ID, 0), intent.getLongExtra(EXTRA_DEADLINE, System.currentTimeMillis() + 60_000))
+    private var prompt by mutableStateOf(Prompt(0, 0, false))
+
+    private fun promptOf(intent: Intent) = Prompt(
+        intent.getLongExtra(Actions.EXTRA_ID, 0),
+        intent.getLongExtra(EXTRA_DEADLINE, System.currentTimeMillis() + 60_000),
+        intent.getBooleanExtra(EXTRA_PROOF, false),
+    )
 
     companion object {
         const val EXTRA_DEADLINE = "deadline"
+
+        /** The alarm asks for proof: the screen shows Focus Tap instead of its button. The engine checks again on answering. */
+        const val EXTRA_PROOF = "proof"
+        private const val PROMPT_TONE = "beacon"
+        private const val PROMPT_REPEAT_MS = 15_000L
     }
 }
 
@@ -167,5 +204,32 @@ private fun WakeCheckScreen(deadlineMillis: Long, onAwake: () -> Unit, onCancel:
             ) { Text(stringResource(R.string.action_im_awake), style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center) }
             TextButton(onClick = onCancel, modifier = Modifier.padding(top = 8.dp)) { Text(stringResource(R.string.action_cancel_check)) }
         }
+    }
+}
+
+/** The check that needs proof: its countdown, and one round of Focus Tap, which works with a screen reader too. */
+@Composable
+private fun ProofCheckScreen(deadlineMillis: Long, onProof: () -> Unit, onExpired: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val remainingMs by produceState((deadlineMillis - System.currentTimeMillis()).coerceAtLeast(0)) {
+        while (true) {
+            value = (deadlineMillis - System.currentTimeMillis()).coerceAtLeast(0)
+            if (value == 0L) break
+            delay(200)
+        }
+    }
+    LaunchedEffect(remainingMs) { if (remainingMs == 0L) onExpired() }
+    val round = remember { listOf(MissionConfig(MissionType.FOCUS_TAP, Difficulty.MEDIUM, count = 1)) }
+    Column(Modifier.fillMaxSize().background(scheme.tertiaryContainer).safeDrawingPadding().padding(16.dp)) {
+        Text(
+            stringResource(R.string.wake_check_screen_title), style = MaterialTheme.typography.headlineMedium,
+            color = scheme.onTertiaryContainer, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            stringResource(R.string.wake_check_proof_body) + "  " + "${(remainingMs + 999) / 1000}",
+            style = MaterialTheme.typography.bodyLarge, color = scheme.onTertiaryContainer,
+            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp),
+        )
+        MissionHost(round, Modifier.weight(1f).fillMaxWidth(), onComplete = onProof)
     }
 }

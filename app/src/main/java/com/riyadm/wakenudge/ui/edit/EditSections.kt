@@ -466,14 +466,16 @@ fun AntiOversleepSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> A
             )
         }
         item { shape ->
-            val steps = listOf(0, 5, 10, 15, 30, 45, 60)
+            // Up to 12 hours, so the lock can cover the night before as well as the last minutes.
+            val steps = listOf(0, 5, 10, 15, 30, 60, 120, 240, 480, 720)
+            val res = androidx.compose.ui.platform.LocalResources.current
             ChipChoiceRow(
                 title = stringResource(R.string.ao_edit_lock),
                 subtitle = stringResource(R.string.ao_edit_lock_hint),
                 options = steps,
                 selected = steps.minByOrNull { kotlin.math.abs(it - a.editLockMinutes) } ?: 0,
                 onSelect = { m -> set { it.copy(editLockMinutes = m) } },
-                optionLabel = { if (it == 0) stringResource(R.string.state_off) else minutesLabel(it) },
+                optionLabel = { if (it == 0) stringResource(R.string.state_off) else com.riyadm.wakenudge.ui.util.LockText.duration(res, it) },
                 shape = shape, enabled = enabled,
             )
         }

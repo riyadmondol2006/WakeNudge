@@ -41,6 +41,7 @@ class BackupManager @Inject constructor(
     private val time: TimeSource,
     private val diagnostics: DiagnosticsLog,
     private val runtime: RuntimeState,
+    private val global: com.riyadm.wakenudge.domain.usecase.GlobalChanges,
 ) {
 
     /** The whole configuration as pretty-printed JSON; [includeHistory] adds every logged alarm event. */
@@ -62,6 +63,9 @@ class BackupManager @Inject constructor(
     suspend fun import(json: String): ImportResult {
         if (json.length > MAX_CHARS) return ImportResult.Failure(ImportFailure.TooLarge)
         if (DurableRingStore(runtime, diagnostics).ring() != null) return ImportResult.Failure(ImportFailure.RingInProgress)
+        // A failed check is not a reason to refuse: the restore itself is one transaction and the lock is a nicety around it.
+        val lock = try { global.restoreLock() } catch (c: CancellationException) { throw c } catch (_: Throwable) { null }
+        if (lock != null) return ImportResult.Failure(ImportFailure.Locked(lock))
         return try {
             restore(json)
         } catch (cancelled: CancellationException) {

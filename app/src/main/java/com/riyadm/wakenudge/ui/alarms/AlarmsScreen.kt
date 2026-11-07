@@ -105,7 +105,7 @@ fun AlarmsScreen(
         viewModel.events.collect { event ->
             snackbar.currentSnackbarData?.dismiss()
             when (event) {
-                is AlarmsEvent.Locked -> snackbar.showSnackbar(resources.getString(R.string.snackbar_locked, event.minutes))
+                is AlarmsEvent.Locked -> snackbar.showSnackbar(com.riyadm.wakenudge.ui.util.LockText.message(resources, event.lock))
                 is AlarmsEvent.Skipped -> snackbar.showSnackbar(
                     resources.getString(if (event.epochDay == null) R.string.snackbar_switched_off else R.string.snackbar_skipped),
                 )

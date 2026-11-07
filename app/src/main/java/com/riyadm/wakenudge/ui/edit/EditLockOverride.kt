@@ -1,6 +1,8 @@
 package com.riyadm.wakenudge.ui.edit
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
@@ -15,6 +17,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -85,3 +88,44 @@ private fun newProblem(rnd: Random): Pair<String, Int> {
 }
 
 private const val REQUIRED = 3
+
+/** Whether this alarm's lock is lifted by doing its own mission rather than three sums. */
+val com.riyadm.wakenudge.domain.model.Alarm.overridesLockByMission: Boolean
+    get() = antiOversleep.lockOverrideMission && missions.isNotEmpty()
+
+/**
+ * The stricter override: the alarm's own missions, as the morning would ask for them. Doing them proves the user is
+ * awake, so plans can still change before the ring. A mission this phone cannot do is replaced by a backup mission, as
+ * during a ring, never skipped.
+ */
+@Composable
+fun EditLockMissionOverride(alarm: com.riyadm.wakenudge.domain.model.Alarm, onSolved: () -> Unit, onDismiss: () -> Unit) {
+    val haptics = LocalWakeHaptics.current
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        androidx.compose.material3.Surface(Modifier.fillMaxWidth().fillMaxHeight(), color = MaterialTheme.colorScheme.surface) {
+            Column(Modifier.fillMaxWidth().fillMaxHeight()) {
+                Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.lock_override_mission_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                    )
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+                }
+                com.riyadm.wakenudge.missions.MissionHost(
+                    missions = alarm.missions,
+                    modifier = Modifier.weight(1f),
+                    backup = remember(alarm.antiOversleep) { com.riyadm.wakenudge.missions.MissionBackup(alarm.antiOversleep) },
+                    onComplete = {
+                        haptics.confirm()
+                        onSolved()
+                        onDismiss()
+                    },
+                )
+            }
+        }
+    }
+}

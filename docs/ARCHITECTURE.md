@@ -222,12 +222,41 @@ Snooze, backup rings and the wake-up check are **persisted** (`AlarmEvent.snooze
 `WakeCheck` rows), not just held as OS alarms. After a reboot, app update or process kill, `restoreFollowUps`,
 `restoreWakeChecks` and `restoreTimers` re-arm them, and skip follow-ups whose alarm no longer exists. One that came due
 while the phone was off still rings within an hour, or within the alarm's own resume window if that is longer.
-Disabling or deleting an alarm cancels its snooze, backups and wake-check (`cancelFollowUps`).
+Disabling or deleting an alarm cancels its snooze, backups and wake-check (`cancelFollowUps`), except that a ring or snooze
+of an alarm with a mission is locked (see "Edit protection").
+
+### Still awake?
+
+`WakeCheckController` keeps the check in the database and in triggers. With `requireProof` it cannot be answered by a
+sleeper: the notification has no buttons, `answer` ignores an answer without a `WakeProof`, `cancelByUser` refuses, and
+`WakeCheckActivity` shows one round of Focus Tap instead of its button, with a tone on the alarm stream every 15 s while it
+waits. At the dismissal the hardware step counter's total is kept (`StepTotal`, `RuntimeState.wakeProofBaseline`); when the
+prompt is due, 30 steps more pass the check without a prompt (`WakeProofPolicy`). Only the counter is used: the step
+detector counts only while listened to, and the accelerometer is what shaking fools. The prompt comes up to 3 minutes after
+the delay, at random. A re-ring passes its count to `MissionRotation`, so it asks for the next mission.
 
 `MissedAlarmRecovery` runs after boot and app updates. For alarms that were due while the phone was off it rings now if
 the alarm was due within the last 10 minutes or its `resumeWindowMinutes`, whichever is longer (from its saved copy if the
 database cannot be read); that ring is an ordinary first ring. Otherwise it records the alarm as missed, posts a "missed alarm"
 notification and turns a one-time alarm off. A separate pass resets timers stuck in `RINGING`.
+
+## Edit protection
+
+`EditLockPolicy.lockOf` is pure: an alarm inside its `editLockMinutes` window before its next ring (up to 12 hours) is
+locked, unless it was saved less than 10 minutes ago (`updatedAt`, so a typo in a just-saved alarm can be fixed). A ring
+or snooze locks it too, and for an alarm with a mission even with no window; that lock has no override. `AlarmActions`
+refuses switching off, skipping, editing and deleting a locked alarm; proving to be awake (three sums, or the alarm's own
+mission with `lockOverrideMission`) lifts a window, never a ring or snooze lock. It writes only real changes, so switching
+on an alarm that is on, or clearing a skip that is not there, cannot restart the grace.
+
+Changes that reach beyond one alarm go through `GlobalChanges`, which asks `AlarmActions.guardGlobalChange` whether any
+alarm the change would stop or soften is locked: starting or lengthening a vacation (also from the tile), switching a
+group or profile off, deleting a group, an exception day on a locked ring's date, calendar exceptions, the ringing settings
+written onto every alarm, and a restore (`BackupManager.import`). Changes that only bring alarms back are never refused.
+Every refusal shows `LockText.message`, the same words wherever it was tried. `LockCoverageTest` lists every public method
+of these classes and the view models in front of them, so a new way to change an alarm has to be classified. Below that,
+`AlarmScheduler.cancel` and `cancelFollowUps` with `byUser` leave a ring or snooze of an alarm with a mission as it is, so a
+future path that forgets the lock still cannot close one as dismissed.
 
 ## Direct Boot
 

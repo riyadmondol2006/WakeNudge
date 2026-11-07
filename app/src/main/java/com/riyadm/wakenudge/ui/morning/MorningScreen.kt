@@ -121,7 +121,9 @@ fun MorningScreen(modifier: Modifier = Modifier, viewModel: MorningViewModel = h
                                     style = MaterialTheme.typography.bodyMedium, color = scheme.onTertiaryContainer,
                                 )
                             }
-                            TextButton(onClick = { viewModel.cancelCheck(pending.check.alarmId) }) { Text(stringResource(R.string.action_cancel_check)) }
+                            if (pending.cancellable) {
+                                TextButton(onClick = { viewModel.cancelCheck(pending.check.alarmId) }) { Text(stringResource(R.string.action_cancel_check)) }
+                            }
                         }
                     }
                 }

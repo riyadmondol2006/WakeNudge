@@ -276,7 +276,7 @@ object BackupSanitizer {
             holdToDismissSeconds = int(a.holdToDismissSeconds, 0..30),
             backupDelayMinutes = int(a.backupDelayMinutes, 1..60),
             backupCount = int(a.backupCount, 0..RingIds.MAX_BACKUPS),
-            editLockMinutes = int(a.editLockMinutes, 0..120),
+            editLockMinutes = int(a.editLockMinutes, 0..com.riyadm.wakenudge.domain.scheduling.EditLockPolicy.MAX_WINDOW_MINUTES),
             // 0 is the "Never" choice, not a value to clamp; anything else out of range becomes a real timeout.
             ringTimeoutMinutes = if (a.ringTimeoutMinutes == AntiOversleepSettings.RING_TIMEOUT_NEVER) a.ringTimeoutMinutes else int(a.ringTimeoutMinutes, 1..60),
             volumeFloorPercent = int(a.volumeFloorPercent, 0..100),

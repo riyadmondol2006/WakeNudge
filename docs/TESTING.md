@@ -4,7 +4,7 @@ An alarm clock is judged on the one morning it fails, so testing is split by wha
 
 | Layer | Where it runs | What it proves |
 |---|---|---|
-| **JVM unit tests** (841) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
+| **JVM unit tests** (868) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
 | **Fuzz tests** (14, part of the JVM tests) | Your computer | 20,000 seeded random alarm/clock/zone combinations never crash the scheduler or yield a time in the past; corrupted and hostile backup files are rejected or sanitised, never half-applied; random commands from stale buttons, keys and forged claims never end a ring whose missions are unfinished |
 | **Instrumented engine tests** (about 130, with the migration tests) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
 | **Instrumented UI tests** (about 70, 25 of them for the update popup and the About screen) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions getting a backup mission (never Continue), Emergency and the way out by click action at font scale 2.0 |
@@ -98,6 +98,19 @@ began life as a question; the ones that found real bugs are marked ✱ and were 
   `VolumeFloorTest`: the floor against the hearing cap (the cap wins). `MuteAndCalmTest`: the mute budget spent one at a
   time and saved through a restart without the mute coming back, a mute that ends after 20 s without progress however much
   the screen is touched, a key silence spending the same budget, and touches that no longer calm an alarm.
+- `LockCoverageTest`: a Hard alarm at 23:30 for a 07:00 ring cannot be switched off, skipped, edited or deleted, nor
+  defused by a vacation (app or tile), a group or profile switch, a deleted group, an exception day, calendar exceptions,
+  the ringing settings written onto every alarm or a restore, each refused with the same lock; all of it works before the
+  window; a just-saved alarm stays editable for 10 minutes and a write that changes nothing does not reopen that; a ring or
+  snooze of an alarm with a mission is locked with no window and no override. It also lists every public method of the
+  classes that change alarms, groups, vacation and exception days, so a new one fails until it is classified. Each fix was
+  broken on purpose and the test watched failing. `SchedulerResilienceTest` adds that a change from outside never closes a
+  snoozed mission alarm as dismissed, while the engine's own clean-up still does. `AbuseInstrumentedTest`
+  (`aSnoozedStrictAlarmSurvivesEverySideDoorAndStillRings`, compiled, not yet run on a device) does the same against the
+  real database and `AlarmManager`.
+- `WakeProofTest`: a "Still awake?" check that asks for proof ignores a plain answer and Cancel, passes on its own after 30
+  steps on the counter and not after 29, takes no proof from a missing counter or one reset by a restart, counts the steps
+  of each check from its own start, and comes 0 to 3 minutes after its delay (a check without proof stays on time).
 - The app force-killed mid-ring (chaos test): the backup alarm still rings.
 - Rapid snooze/dismiss mashing, double-delivered triggers, concurrent settings writes, missions that cannot be completed
   on this phone, permission revoked mid-flow, huge and hostile labels, 200 % font, RTL, time-zone jumps, DST gaps.
@@ -170,6 +183,8 @@ These could not be done safely or at all in the development setup. They are the 
 | **Coming back to the ring screen** on a real phone: Home, Recents, a swiped card, Clear all, split screen, opening the app, a ring back from a kill or a restart, both navigation modes, the screen switched off, a 5-press SOS, the camera double-press, Circle to Search under `FLAG_SECURE` | `ResurfacePolicyTest` covers the rules on the JVM; `RingServiceInstrumentedTest` (Home, Recents and a swipe in Recents with the permission granted by `appops`, and the screen staying away without it) is compiled, not yet run on a device. Whether Android allows the start during Overview, and whether a re-alert disturbs the lock-screen Emergency dialer, were not observed |
 | The **volume lock** and **forced speaker** on a real phone: keys, the shade slider and Settings turning the alarm down, headphones with the hearing cap | `VolumeFloorTest` covers the floor and the cap; the heartbeat that holds it and the routed-device check were not observed with real audio |
 | **Focus Tap** half asleep, and **mission rotation** over real mornings | `FocusGameTest`, `MissionRotationTest` (a month, across daylight-saving changes) and `RotationRingTest` cover the rules; `FocusTapUiTest` (touch, screen reader, RTL, font scale 2.0) is compiled but not yet run on a device. Whether it takes under a minute first thing in the morning, or can be done on reflex, was not tried |
+| **Edit protection by hand**: each side door on a real phone, including the Quick Settings tile and the widgets, an alarm 5 minutes away and one 8 hours away | `LockCoverageTest` and `AbuseInstrumentedTest` (compiled, not yet run on a device) cover the rules; the toasts and snackbars were not seen |
+| **"Still awake?" with proof** on a real phone: the step counter after 30 real steps, the prompt's tone on a phone set to silent, Focus Tap on the prompt screen over the lock screen, a re-ring asking for the next mission | `WakeProofTest` covers the rules with a pretend counter. Whether the counter answers at once when listened to (it may wait for the next step on some phones, which then counts as no proof), and whether shaking the phone by hand makes it count, were not observed |
 | **NFC** tag read over the lock screen | The mission logic is tested; no tag was scanned |
 | **QR/barcode** decode with a printed code; **photo match** against a detailed real scene | Decoder/matcher tested on generated images only |
 | **TalkBack** end to end | Content descriptions and large-text/RTL are tested; a TalkBack walkthrough was not done |

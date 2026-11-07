@@ -12,11 +12,13 @@ import com.riyadm.wakenudge.domain.repository.ExceptionRepository
 import com.riyadm.wakenudge.domain.repository.GroupRepository
 import com.riyadm.wakenudge.domain.repository.SettingsRepository
 import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
+import com.riyadm.wakenudge.domain.scheduling.EditLock
 import com.riyadm.wakenudge.domain.scheduling.EditLockPolicy
 import com.riyadm.wakenudge.domain.scheduling.NextTriggerCalculator
 import com.riyadm.wakenudge.domain.usecase.ActionResult
 import com.riyadm.wakenudge.domain.usecase.ActiveRingQuery
 import com.riyadm.wakenudge.domain.usecase.AlarmActions
+import com.riyadm.wakenudge.domain.usecase.GlobalChanges
 import com.riyadm.wakenudge.engine.SchedulingContextProvider
 import com.riyadm.wakenudge.ui.util.persist
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -43,8 +45,9 @@ data class AlarmItem(
     val nextAt: ZonedDateTime?,
     /** Why the ring that would normally come next is suppressed, if it is. */
     val suppression: NextTriggerCalculator.Suppression?,
-    val lockedMinutes: Int?,
+    val lock: EditLock?,
 ) {
+    val lockedMinutes: Int? get() = lock?.minutes
     val effectivelyEnabled: Boolean get() = alarm.enabled && (group?.enabled ?: true)
 }
 
@@ -60,7 +63,7 @@ data class AlarmsUiState(
 )
 
 sealed interface AlarmsEvent {
-    data class Locked(val minutes: Int) : AlarmsEvent
+    data class Locked(val lock: EditLock) : AlarmsEvent
     data class Deleted(val alarm: Alarm) : AlarmsEvent
     data class Skipped(val epochDay: Long?) : AlarmsEvent
 
@@ -86,8 +89,8 @@ class AlarmsViewModel @Inject constructor(
     groups: GroupRepository,
     exceptions: ExceptionRepository,
     private val settings: SettingsRepository,
-    private val groupRepo: GroupRepository,
     private val actions: AlarmActions,
+    private val global: GlobalChanges,
     private val scheduler: AlarmScheduler,
     private val calculator: NextTriggerCalculator,
     private val contextProvider: SchedulingContextProvider,
@@ -130,7 +133,7 @@ class AlarmsViewModel @Inject constructor(
             val sc = ctx.forAlarm(alarm)
             val next = calculator.next(alarm, now, sc)
             val suppression = if (alarm.enabled) calculator.suppressionOfNaturalNext(alarm, now, sc) else null
-            val locked = EditLockPolicy.lockedMinutes(
+            val locked = EditLockPolicy.lockOf(
                 alarm, next?.toInstant()?.toEpochMilli(), now.toInstant().toEpochMilli(), ringQuery.isActiveOrSnoozed(alarm.id),
             )
             AlarmItem(alarm, alarm.groupId?.let(byGroup::get), next, suppression, locked)
@@ -155,7 +158,7 @@ class AlarmsViewModel @Inject constructor(
     fun toggle(item: AlarmItem, enabled: Boolean) = viewModelScope.launch {
         // AlarmActions also switches the alarm's group on when it is off, and re-arms the whole group.
         when (val r = actions.setEnabled(item.alarm.id, enabled)) {
-            is ActionResult.Locked -> _events.send(AlarmsEvent.Locked(r.minutes))
+            is ActionResult.Locked -> _events.send(AlarmsEvent.Locked(r.lock))
             is ActionResult.Done -> if (enabled) _events.send(AlarmsEvent.TurnedOn(scheduler.nextTriggerOf(item.alarm.id), r.value))
             ActionResult.NotFound -> Unit
         }
@@ -163,7 +166,7 @@ class AlarmsViewModel @Inject constructor(
 
     fun delete(item: AlarmItem) = viewModelScope.launch {
         when (val r = actions.delete(item.alarm.id)) {
-            is ActionResult.Locked -> _events.send(AlarmsEvent.Locked(r.minutes))
+            is ActionResult.Locked -> _events.send(AlarmsEvent.Locked(r.lock))
             is ActionResult.Done -> _events.send(AlarmsEvent.Deleted(item.alarm))
             ActionResult.NotFound -> Unit
         }
@@ -173,7 +176,7 @@ class AlarmsViewModel @Inject constructor(
 
     fun skipNext(item: AlarmItem) = viewModelScope.launch {
         when (val r = actions.skipNext(item.alarm.id, occurrenceAt = item.nextAt?.toInstant()?.toEpochMilli())) {
-            is ActionResult.Locked -> _events.send(AlarmsEvent.Locked(r.minutes))
+            is ActionResult.Locked -> _events.send(AlarmsEvent.Locked(r.lock))
             is ActionResult.Done -> _events.send(AlarmsEvent.Skipped(r.value))
             ActionResult.NotFound -> Unit
         }
@@ -185,38 +188,37 @@ class AlarmsViewModel @Inject constructor(
         actions.duplicate(item.alarm.id)?.let { _events.send(AlarmsEvent.Duplicated(it)) }
     }
 
+    // Each of these can silence alarms other than the one on a card, so each goes through the same lock as a card's switch.
+
     fun setGroupEnabled(groupId: Long, enabled: Boolean) = persist {
-        groupRepo.setEnabled(groupId, enabled)
-        scheduler.rescheduleAll("group-toggle")
+        (global.setGroupEnabled(groupId, enabled) as? ActionResult.Locked)?.let { _events.send(AlarmsEvent.Locked(it.lock)) }
     }
 
     /** Switches to a profile: turns this group on and every other group off. */
     fun activateProfileOnly(groupId: Long) = persist {
-        val groups = groupRepo.getGroups()
-        val target = groups.firstOrNull { it.id == groupId } ?: return@persist
-        groups.forEach { groupRepo.setEnabled(it.id, it.id == groupId) }
-        scheduler.rescheduleAll("profile-switch")
-        // One tap can silence whole profiles of alarms, so it is said out loud and can be taken back.
-        _events.send(AlarmsEvent.ProfileOnly(target.name, groups.associate { it.id to it.enabled }))
+        when (val r = global.activateProfileOnly(groupId)) {
+            is ActionResult.Locked -> _events.send(AlarmsEvent.Locked(r.lock))
+            // One tap can silence whole profiles of alarms, so it is said out loud and can be taken back.
+            is ActionResult.Done -> _events.send(AlarmsEvent.ProfileOnly(r.value.first, r.value.second))
+            ActionResult.NotFound -> Unit
+        }
     }
 
     fun undoProfileOnly(previous: Map<Long, Boolean>) = persist {
-        val existing = groupRepo.getGroups().map { it.id }.toSet()
-        previous.forEach { (id, enabled) -> if (id in existing) groupRepo.setEnabled(id, enabled) }
-        scheduler.rescheduleAll("profile-switch undone")
+        (global.restoreGroupStates(previous) as? ActionResult.Locked)?.let { _events.send(AlarmsEvent.Locked(it.lock)) }
     }
 
     fun setVacation(enabled: Boolean, resumeEpochDay: Long? = null) = persist {
-        val before = settings.current().vacation
-        settings.update { it.copy(vacation = it.vacation.copy(enabled = enabled, resumeEpochDay = if (enabled) resumeEpochDay else null)) }
-        scheduler.rescheduleAll("vacation")
-        // One tap silences every alarm, so it can be taken back as easily.
-        if (enabled && !before.enabled) _events.send(AlarmsEvent.Paused(before))
+        when (val r = global.setVacation(enabled, resumeEpochDay)) {
+            is ActionResult.Locked -> _events.send(AlarmsEvent.Locked(r.lock))
+            // One tap silences every alarm, so it can be taken back as easily.
+            is ActionResult.Done -> if (enabled && !r.value.enabled) _events.send(AlarmsEvent.Paused(r.value))
+            ActionResult.NotFound -> Unit
+        }
     }
 
     fun undoPause(previous: VacationMode) = persist {
-        settings.update { it.copy(vacation = previous) }
-        scheduler.rescheduleAll("vacation undone")
+        (global.replaceVacation(previous) as? ActionResult.Locked)?.let { _events.send(AlarmsEvent.Locked(it.lock)) }
     }
 
     private companion object {

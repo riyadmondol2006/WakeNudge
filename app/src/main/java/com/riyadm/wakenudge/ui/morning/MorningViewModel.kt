@@ -7,7 +7,6 @@ import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.model.AlarmEvent
 import com.riyadm.wakenudge.domain.model.AppSettings
 import com.riyadm.wakenudge.domain.model.WakeCheck
-import com.riyadm.wakenudge.domain.model.WakeCheckStatus
 import com.riyadm.wakenudge.domain.repository.AlarmRepository
 import com.riyadm.wakenudge.domain.repository.HistoryRepository
 import com.riyadm.wakenudge.domain.repository.SettingsRepository
@@ -28,7 +27,8 @@ import kotlinx.coroutines.launch
 
 data class DayBar(val date: LocalDate, val dismissMinutes: Float?, val snoozes: Int, val successful: Boolean, val hasData: Boolean)
 
-data class PendingCheck(val check: WakeCheck, val label: String)
+/** [cancellable] is false for a check that needs proof: only its screen answers it. */
+data class PendingCheck(val check: WakeCheck, val label: String, val cancellable: Boolean = true)
 
 data class MorningUiState(
     val loaded: Boolean = false,
@@ -68,17 +68,18 @@ class MorningViewModel @Inject constructor(
             DayBar(d, day?.dismissDurationMs?.let { it / 60_000f }, day?.snoozes ?: 0, day?.successful == true, day != null)
         }
         val labels = alarms.associate { it.id to it.label }
+        val needsProof = alarms.filter { it.wakeCheck.requireProof }.map { it.id }.toSet()
         return MorningUiState(
             loaded = true, settings = s, stats = stats,
             today = events.filter { java.time.Instant.ofEpochMilli(it.firedAt).atZone(zone).toLocalDate() == today },
             recent = events.sortedByDescending { it.firedAt }.take(30),
             week = week,
-            pendingChecks = checks.map { PendingCheck(it, labels[it.alarmId].orEmpty()) },
+            pendingChecks = checks.map { PendingCheck(it, labels[it.alarmId].orEmpty(), cancellable = it.alarmId !in needsProof) },
             now = now,
         )
     }
 
-    fun cancelCheck(alarmId: Long) = viewModelScope.launch { checkController.abandon(alarmId, WakeCheckStatus.CANCELLED) }
+    fun cancelCheck(alarmId: Long) = viewModelScope.launch { checkController.cancelByUser(alarmId) }
     fun clearHistory() = viewModelScope.launch { history.clear() }
 
     private companion object {

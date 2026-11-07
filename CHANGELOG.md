@@ -4,6 +4,28 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 Releases are built and published automatically from `main` and numbered `MAJOR.MINOR.N`, where `N` is the commit count
 (see [docs/RELEASING.md](docs/RELEASING.md)); the notes of each GitHub release list the commits it contains.
 
+## No side doors before the alarm, and a still-awake check a sleeper cannot answer
+
+- **Edit protection now covers every way round it.** While an alarm is inside its "Lock before it rings" window, pausing
+  every alarm (vacation, also from the Quick Settings tile), switching its group or profile off, deleting its group, adding
+  the day as an exception, switching calendar exceptions on, restoring a backup and the "While an alarm rings" settings that
+  write onto every alarm are refused, as switching the alarm off, skipping, editing or deleting it already were, by the
+  app, a widget or a notification. Each says the same thing. Anything that only brings alarms back (ending a vacation,
+  switching a group on, removing an exception day) always works
+- **The window can be up to 12 hours**, so it can cover the night before; a lock is shown in hours and minutes. Restored
+  backups keep windows up to 12 hours (they were cut to 2)
+- **A just-saved alarm stays editable for 10 minutes**, so saving one inside its own window does not lock a typo in
+- **While an alarm with a mission rings or is snoozed it cannot be changed at all**, even with no window: deleting or
+  switching off a snoozed alarm used to end it without the mission. The sums that unlock the editor are not offered then;
+  the ring itself is how it ends. The engine also refuses to close such a ring as dismissed when it is changed from outside
+- An alarm set to be unlocked by its own mission (a setting the levels will use) asks for that mission instead of the sums
+- **"Still awake?" can ask for proof** (a per-alarm setting the levels will use): its notification has no buttons, it
+  cannot be cancelled, and its screen asks for one round of Focus Tap instead of a button. If the phone's step counter has
+  counted 30 steps since you dismissed, it passes on its own without asking. It comes up to 3 minutes later than set, at
+  random, and plays a tone on the alarm stream while it waits, so it is heard on a phone set to silent. A ring it causes
+  asks for the next mission when missions change each morning. Shaking the phone may fool the step counter
+- Checks without proof are unchanged
+
 ## The alarm comes back, the volume stays up, and the ring screen is easier half asleep
 
 The engine and the ring screen now do all of this. Some of it depends on per-alarm settings that the alarm editor gets

@@ -58,7 +58,7 @@ data class ImportWarning(@AnyRes val message: Int, val count: Int? = null, val a
 
 /** Why a file was refused. Nothing is changed in the app when an import fails. */
 sealed class ImportFailure(@StringRes val message: Int, val args: List<Any> = emptyList()) {
-    fun text(context: Context): String = context.getString(message, *args.toTypedArray())
+    open fun text(context: Context): String = context.getString(message, *args.toTypedArray())
 
     /** The text is not JSON at all (a wrong file, a truncated download, a binary). */
     data object NotJson : ImportFailure(R.string.backup_fail_not_json)
@@ -83,6 +83,11 @@ sealed class ImportFailure(@StringRes val message: Int, val args: List<Any> = em
 
     /** An alarm is ringing, or was when the app last stopped. Replacing the alarms under it would pull the rug from under it. */
     data object RingInProgress : ImportFailure(R.string.backup_fail_ring_active)
+
+    /** An alarm is inside its edit protection: a restore replaces every alarm, so it would be a way round the lock. */
+    data class Locked(val lock: com.riyadm.wakenudge.domain.scheduling.EditLock) : ImportFailure(R.string.lock_message_ringing) {
+        override fun text(context: Context): String = com.riyadm.wakenudge.ui.util.LockText.message(context.resources, lock)
+    }
 }
 
 sealed interface ImportResult {

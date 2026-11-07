@@ -179,7 +179,11 @@ private fun statusLine(item: AlarmItem, now: ZonedDateTime): Status {
     val alarm = item.alarm
     return when {
         item.lockedMinutes != null && alarm.enabled ->
-            Status(stringResource(R.string.card_locked, item.lockedMinutes), Icons.Outlined.Lock, Status.Emphasis.WARNING)
+            Status(
+                if (item.lock?.whileRinging == true) stringResource(R.string.card_locked_ringing)
+                else stringResource(R.string.card_locked, com.riyadm.wakenudge.ui.util.LockText.duration(androidx.compose.ui.platform.LocalResources.current, item.lockedMinutes ?: 0)),
+                Icons.Outlined.Lock, Status.Emphasis.WARNING,
+            )
         !alarm.enabled -> Status(stringResource(R.string.state_off), null, Status.Emphasis.NORMAL)
         item.group?.enabled == false -> Status(stringResource(R.string.card_group_off, item.group.name), Icons.Outlined.Task, Status.Emphasis.NORMAL)
         item.suppression is NextTriggerCalculator.Suppression.SkippedOnce ->

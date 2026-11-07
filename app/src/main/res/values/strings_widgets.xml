@@ -37,10 +37,6 @@
     <string name="widget_alarm_icon_description">Alarm</string>
     <string name="widget_add_icon_description">Add alarm</string>
     <string name="widget_switch_description">Alarm at %1$s</string>
-    <plurals name="widget_locked_minutes">
-        <item quantity="one">Protected: this alarm is locked for %d more minute.</item>
-        <item quantity="other">Protected: this alarm is locked for %d more minutes.</item>
-    </plurals>
 
     <!-- Alarm list widget -->
     <string name="widget_list_title">Alarms</string>

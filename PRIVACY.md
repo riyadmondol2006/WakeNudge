@@ -44,7 +44,9 @@ Each permission is requested only when the feature that needs it is used. See th
 [permission list](https://github.com/riyadmondol2006/WakeNudge/blob/main/docs/PERMISSIONS.md) for every one and why.
 In short: the **camera** is used only while a QR or photo mission is on screen, frames are processed in memory and are
 never saved or sent; **activity recognition / step counter** and the **accelerometer** are used only during the steps,
-shake and squats missions; **calendar** access is optional and read-only, used only to find which days are all-day
+shake and squats missions, and the step counter's total is also read twice for a "Still awake?" check that asks for
+proof (when it starts and when it is due), to see whether you have walked about; only that number is kept, on the phone,
+until the check ends; **calendar** access is optional and read-only, used only to find which days are all-day
 events (for example public holidays) in the calendars you pick, and the app reads neither event titles nor
 descriptions; **NFC** is used only for the NFC mission. The app never asks for your location, contacts, microphone,
 phone, SMS or files.

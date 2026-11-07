@@ -59,6 +59,7 @@ class AbuseInstrumentedTest {
     @get:Rule val hilt = HiltAndroidRule(this)
 
     @Inject lateinit var alarms: AlarmRepository
+    @Inject lateinit var groups: com.riyadm.wakenudge.domain.repository.GroupRepository
     @Inject lateinit var history: HistoryRepository
     @Inject lateinit var wakeChecks: WakeCheckRepository
     @Inject lateinit var timers: TimerRepository
@@ -73,6 +74,7 @@ class AbuseInstrumentedTest {
     @Inject lateinit var time: TimeSource
     @Inject lateinit var backup: BackupManager
     @Inject lateinit var dataStore: DataStore<Preferences>
+    @Inject lateinit var global: com.riyadm.wakenudge.domain.usecase.GlobalChanges
 
     private val originalZone: TimeZone = TimeZone.getDefault()
 
@@ -169,6 +171,55 @@ class AbuseInstrumentedTest {
         actions.setEnabled(id, false)
         assertFalse("turning it off must stop the snooze from ringing", pending.isScheduled(TriggerKind.SNOOZE, id))
         assertTrue(history.get(session.eventId)!!.outcome != AlarmOutcome.RINGING)
+    }
+
+    /**
+     * A snoozed alarm with a mission ends on its ring screen, with its mission. Every side door is refused, with or without
+     * an edit-lock window, and the snooze still rings.
+     */
+    @Test fun aSnoozedStrictAlarmSurvivesEverySideDoorAndStillRings() = runBlocking {
+        val groupId = groups.save(com.riyadm.wakenudge.domain.model.AlarmGroup(name = "abuse"))
+        val id = alarms.save(
+            alarmIn(1) {
+                copy(
+                    groupId = groupId, repeatDaysMask = Alarm.EVERY_DAY_MASK,
+                    missions = listOf(com.riyadm.wakenudge.domain.model.MissionConfig(com.riyadm.wakenudge.domain.model.MissionType.MATH)),
+                    snooze = SnoozeSettings(minutes = 5, maxCount = 3),
+                )
+            },
+        )
+        val session = fireAndBegin(id)
+        ring.snooze(RingTarget.of(session), com.riyadm.wakenudge.engine.policy.RingProof.Gesture)
+        assertTrue(pending.isScheduled(TriggerKind.SNOOZE, id))
+
+        val tries = listOf(
+            "delete" to actions.delete(id),
+            "disable" to actions.setEnabled(id, false),
+            "skip" to actions.skipNext(id),
+            "edit" to actions.save(alarms.getAlarm(id)!!.copy(label = "changed")),
+            "delete with the sums done" to actions.delete(id, overrideLock = true),
+            "vacation" to global.setVacation(true, null),
+            "group off" to global.setGroupEnabled(groupId, false),
+            "group delete" to global.deleteGroup(groupId),
+            "exception day" to global.addExceptionDate(time.now().toLocalDate().toEpochDay(), "x"),
+            "calendar exceptions" to global.setCalendarExceptions(true),
+        )
+        for ((door, result) in tries) assertTrue("$door must be refused: $result", result is ActionResult.Locked)
+        assertNotNull("restore", global.restoreLock())
+        assertTrue(backup.import("{}") is ImportResult.Failure)
+        scheduler.cancelFollowUps(id, byUser = true)
+
+        assertNotNull(alarms.getAlarm(id))
+        assertTrue("the snooze still rings", pending.isScheduled(TriggerKind.SNOOZE, id))
+        assertEquals(AlarmOutcome.RINGING, history.get(session.eventId)!!.outcome)
+        assertFalse(settings.current().vacation.enabled)
+
+        // And it does ring again when the snooze fires.
+        val back = ring.onSnoozeExpired(id, session.eventId)
+        assertNotNull("the snoozed ring comes back", back)
+        val again = ring.begin(back!!)
+        assertEquals(id, again!!.alarm.id)
+        groups.delete(groupId)
     }
 
     @Test fun deletingAnAlarmDuringItsWakeCheckEndsTheCheck() = runBlocking {

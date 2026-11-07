@@ -22,14 +22,19 @@ interface AlarmScheduler {
      */
     suspend fun rearm(alarmId: Long, atMillis: Long): Boolean
 
-    /** Removes every pending trigger belonging to the alarm, including snooze, backups and still-awake checks. */
-    suspend fun cancel(alarmId: Long)
+    /**
+     * Removes every pending trigger belonging to the alarm, including snooze, backups and still-awake checks. With
+     * [byUser] (a delete from the app or a widget) a ring or snooze of an alarm with a mission is left as it is: it ends
+     * on the ring screen, never by being closed as dismissed from outside.
+     */
+    suspend fun cancel(alarmId: Long, byUser: Boolean = false)
 
     /**
      * Silences what a ring left pending (snooze, backups, still-awake check and their notifications) without touching
-     * the alarm's next regular ring. Used when the user switches the alarm off or removes it mid-flight.
+     * the alarm's next regular ring. Used when the user switches the alarm off or removes it mid-flight; [byUser] as for
+     * [cancel].
      */
-    suspend fun cancelFollowUps(alarmId: Long)
+    suspend fun cancelFollowUps(alarmId: Long, byUser: Boolean = false)
 
     /** The soonest ring across all enabled alarms, honouring vacation, exceptions and skipped occurrences. */
     suspend fun nextAlarm(): NextAlarm?

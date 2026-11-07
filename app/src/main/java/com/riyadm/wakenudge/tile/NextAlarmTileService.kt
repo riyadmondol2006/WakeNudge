@@ -10,6 +10,10 @@ import android.util.Log
 import android.widget.Toast
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.domain.model.VacationMode
+import com.riyadm.wakenudge.domain.scheduling.EditLock
+import com.riyadm.wakenudge.domain.usecase.ActionResult
+import com.riyadm.wakenudge.domain.usecase.GlobalChanges
+import com.riyadm.wakenudge.ui.util.LockText
 import com.riyadm.wakenudge.widget.AlarmOutlook
 import com.riyadm.wakenudge.widget.SurfaceEntryPoint
 import com.riyadm.wakenudge.widget.SurfaceText
@@ -84,9 +88,7 @@ class NextAlarmTileService : TileService() {
                 // Finishes even if the system unbinds the tile half-way: a vacation flag saved without the reschedule
                 // that goes with it would leave alarms that look paused but are armed, or the other way round.
                 val locked = withContext(NonCancellable) { toggleVacation(surfaceEntry()) }
-                if (locked != null) {
-                    Toast.makeText(applicationContext, resources.getQuantityString(R.plurals.widget_locked_minutes, locked, locked), Toast.LENGTH_LONG).show()
-                }
+                if (locked != null) Toast.makeText(applicationContext, LockText.message(resources, locked), Toast.LENGTH_LONG).show()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (t: Throwable) {
@@ -167,19 +169,13 @@ class NextAlarmTileService : TileService() {
  * Flips vacation mode, keeping the user's chosen resume day. A resume day that has already passed would make
  * "vacation on" a silent no-op, so enabling clears it (meaning "until I switch it off").
  *
- * Pausing is refused while an alarm is inside its last-minute edit protection, as switching that alarm off would be
- * from the app or a widget; the result is then the minutes left on the lock, otherwise null.
+ * Pausing goes through the same guard as the app ([GlobalChanges]): refused while an alarm is inside its edit
+ * protection, or rings or is snoozed; the result is then the lock, otherwise null.
  */
-internal suspend fun toggleVacation(entry: SurfaceEntryPoint): Int? {
+internal suspend fun toggleVacation(entry: SurfaceEntryPoint): EditLock? {
     val today = entry.time().now().toLocalDate().toEpochDay()
-    val pausing = !entry.settings().current().vacation.activeOn(today)
-    if (pausing) {
-        val actions = entry.alarmActions()
-        val locked = entry.alarms().getAlarms().filter { it.enabled && !it.ignoreVacation }.firstNotNullOfOrNull { actions.lockedMinutes(it) }
-        if (locked != null) return locked
-    }
-    entry.settings().update { it.copy(vacation = it.vacation.toggled(today)) }
-    entry.scheduler().rescheduleAll("tile")
+    val result = entry.globalChanges().replaceVacation(entry.settings().current().vacation.toggled(today))
+    if (result is ActionResult.Locked) return result.lock
     entry.surfaces().refreshAll()
     return null
 }

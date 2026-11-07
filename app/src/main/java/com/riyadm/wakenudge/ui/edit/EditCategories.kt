@@ -288,7 +288,7 @@ fun categorySummary(category: AlarmCategory, alarm: Alarm, perAlarm: Boolean): S
             val a = alarm.antiOversleep
             val hold = if (a.holdToDismissSeconds > 0) stringResource(R.string.cat_hold, stringResource(R.string.unit_seconds, a.holdToDismissSeconds)) else null
             val backup = if (a.backupEnabled) stringResource(R.string.cat_backup_in, minutesLabel(a.backupDelayMinutes)) else null
-            val lock = if (a.editLockMinutes > 0) stringResource(R.string.cat_edit_lock, minutesLabel(a.editLockMinutes)) else null
+            val lock = if (a.editLockMinutes > 0) stringResource(R.string.cat_edit_lock, com.riyadm.wakenudge.ui.util.LockText.duration(androidx.compose.ui.platform.LocalResources.current, a.editLockMinutes)) else null
             val noEmergency = if (!a.emergencyStopEnabled) stringResource(R.string.cat_no_emergency_stop) else null
             listOfNotNull(noEmergency, backup, hold, lock).ifEmpty { listOf(stringResource(R.string.cat_standard)) }.joinToString(separator)
         }

@@ -128,6 +128,7 @@ fun AppearanceSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, 
 /** What the phone does while an alarm is on screen: buttons and screen. */
 @Composable
 fun RingingSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
+    com.riyadm.wakenudge.ui.util.LockNotices(viewModel.lockNotices)
     val s = viewModel.settings.collectAsStateWithLifecycle().value ?: return
     SettingsPage(stringResource(R.string.settings_ringing), onBack, modifier, intro = stringResource(R.string.settings_ringing_intro)) {
         item {

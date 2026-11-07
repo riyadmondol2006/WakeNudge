@@ -18,6 +18,7 @@ abstract class EngineModule {
     @Binds abstract fun surfaces(impl: SurfaceRefresherImpl): SurfaceRefresher
     @Binds abstract fun activeRing(impl: ActiveRingQueryImpl): ActiveRingQuery
     @Binds abstract fun battery(impl: SystemBatteryGauge): BatteryGauge
+    @Binds abstract fun steps(impl: HardwareStepTotal): StepTotal
 }
 
 /** Kept in its own module so instrumented tests can swap the real service launcher for a recording fake. */

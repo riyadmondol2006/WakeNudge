@@ -82,6 +82,7 @@ interface SurfaceEntryPoint {
     fun settings(): SettingsRepository
     fun outlook(): AlarmOutlookProvider
     fun alarmActions(): AlarmActions
+    fun globalChanges(): com.riyadm.wakenudge.domain.usecase.GlobalChanges
     fun scheduler(): AlarmScheduler
     fun surfaces(): SurfaceRefresher
     fun time(): TimeSource
