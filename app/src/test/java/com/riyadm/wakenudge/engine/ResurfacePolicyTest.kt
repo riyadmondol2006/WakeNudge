@@ -61,6 +61,21 @@ class ResurfacePolicyTest {
         assertEquals(1 to PULL_BACK, run(3) { input() }.first())
     }
 
+    @Test fun `showing a ring's screen for the first time does not spend the backoff`() {
+        // The phone was in use when the alarm went off: the first start shows the screen, it is not a pull-back.
+        assertEquals(listOf(1), run(1) { input() }.filter { it.second == PULL_BACK }.map { it.first })
+        assertEquals(0, policy.pullBackStreak)
+        onScreen(3)
+        val times = run(30) { input() }.filter { it.second == PULL_BACK }.map { it.first }
+        assertEquals("then three quick returns as for any ring, then 5 and 10 s", listOf(1, 2, 3, 8, 18, 28), times)
+    }
+
+    @Test fun `a screen Android never lets in front still backs off`() {
+        val times = run(30) { input() }.filter { it.second == PULL_BACK }.map { it.first }
+        // Only the first start is free; after it the same 1, 1, 1, 5, 10 s as for a screen the user leaves.
+        assertEquals(listOf(1, 2, 3, 4, 9, 19, 29), times)
+    }
+
     @Test fun `without the overlay permission, or not set to force, it only alerts every 20 s`() {
         for (state in listOf(input(overlays = false), input(force = false))) {
             val policy = ResurfacePolicy()
@@ -124,8 +139,8 @@ class ResurfacePolicyTest {
         assertEquals(3 to WAKE, run(4) { input(screenOn = false) }.first())
     }
 
-    @Test fun `split screen or a dialog over the screen count as left`() {
-        // The service passes "resumed and not in multi-window" as in front; anything else is left.
+    @Test fun `split screen, the Overview or another app's dialog over the screen count as left`() {
+        // The service passes RingScreenFront's answer (on top, with input, not in multi-window, not behind the Overview).
         assertEquals(1 to PULL_BACK, run(2) { input(inFront = false) }.first())
     }
 }

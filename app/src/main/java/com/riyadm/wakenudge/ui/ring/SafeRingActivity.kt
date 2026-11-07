@@ -19,6 +19,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.lifecycleScope
 import com.riyadm.wakenudge.R
+import com.riyadm.wakenudge.core.TimeSource
 import com.riyadm.wakenudge.domain.model.Difficulty
 import com.riyadm.wakenudge.engine.RingController
 import com.riyadm.wakenudge.engine.RingPhase
@@ -43,6 +44,7 @@ import kotlinx.coroutines.launch
 class SafeRingActivity : ComponentActivity() {
     @Inject lateinit var controller: RingController
     @Inject lateinit var store: RingSessionStore
+    @Inject lateinit var time: TimeSource
 
     private val generator = MathProblemGenerator()
     private var problem: MathProblem? = null
@@ -85,11 +87,26 @@ class SafeRingActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        store.setUiResumed(true, isInMultiWindowMode)
+        store.setUiResumed(this, true, isInMultiWindowMode)
+        // Before Android 10 only one activity is resumed at a time, so resumed is on top.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) store.setUiTopResumed(this, true)
+        // One ring, one card in the Overview: an older ring screen task left behind goes.
+        RingTasks.removeOthers(this, taskId)
+    }
+
+    /** Whether this is the activity the user sees and types into, not one resumed behind the Overview or beside another app. */
+    override fun onTopResumedActivityChanged(isTopResumedActivity: Boolean) {
+        super.onTopResumedActivityChanged(isTopResumedActivity)
+        store.setUiTopResumed(this, isTopResumedActivity)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        store.setUiFocused(this, hasFocus, time.elapsedMillis())
     }
 
     override fun onPause() {
-        store.setUiResumed(false, isInMultiWindowMode)
+        store.setUiResumed(this, false, isInMultiWindowMode)
         super.onPause()
     }
 

@@ -2,6 +2,7 @@ package com.riyadm.wakenudge.engine
 
 import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.scheduling.SnoozePolicy
+import com.riyadm.wakenudge.engine.policy.RingScreenFront
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -135,19 +136,39 @@ class RingSessionStore @Inject constructor() {
     }
 
     /**
-     * Whether the ring screen is really in front: resumed, and not sharing the window with another app (in split screen
-     * the other pane can reach Settings while the ring screen stays resumed). What the pull-back looks at.
+     * Whether the ring screen is really in front, as [RingScreenFront] decides: on top, with input, not beside another app
+     * and not behind the Overview. What the pull-back looks at. The ring screens report their lifecycle and focus here, the
+     * ring service the Overview. Each report names the screen it comes from ([owner], its identity): the screen that resumed
+     * last owns the state, so an older one being taken down (see RingTasks) cannot mark the new one as gone.
      */
-    @Volatile var isUiResumed: Boolean = false
-        private set
-    @Volatile var isUiInMultiWindow: Boolean = false
-        private set
-    val isUiInFront: Boolean get() = isUiResumed && !isUiInMultiWindow
+    private val front = RingScreenFront()
+    private var owner = 0
+    val isUiInFront: Boolean get() = synchronized(front) { front.inFront }
 
-    fun setUiResumed(resumed: Boolean, inMultiWindow: Boolean) {
-        isUiResumed = resumed
-        isUiInMultiWindow = inMultiWindow
+    /** A short description for the diagnostics. */
+    val uiFrontState: String get() = synchronized(front) {
+        "resumed=${front.resumed} top=${front.topResumed} focused=${front.focused} multiWindow=${front.inMultiWindow} overview=${front.behindOverview}"
     }
+
+    fun setUiResumed(owner: Any, resumed: Boolean, inMultiWindow: Boolean) = synchronized(front) {
+        val id = System.identityHashCode(owner)
+        if (resumed && id != this.owner) {
+            this.owner = id
+            front.onNewScreen()
+        }
+        if (id == this.owner) front.onResumed(resumed, inMultiWindow)
+    }
+
+    /** From `onTopResumedActivityChanged` (Android 10+); before that only one activity is ever resumed. */
+    fun setUiTopResumed(owner: Any, topResumed: Boolean) = synchronized(front) {
+        if (System.identityHashCode(owner) == this.owner) front.onTopResumed(topResumed)
+    }
+
+    fun setUiFocused(owner: Any, focused: Boolean, now: Long) = synchronized(front) {
+        if (System.identityHashCode(owner) == this.owner) front.onFocus(focused, now)
+    }
+
+    fun noteRecentsOpened(now: Long) = synchronized(front) { front.onRecentsOpened(now) }
 
     /** Until when (elapsed clock) a mission's permission dialog or settings trip keeps the ring screen from being pulled back. */
     @Volatile var systemDialogExpectedUntil: Long = 0

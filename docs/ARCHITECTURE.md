@@ -85,13 +85,24 @@ UI observe.
 
 ### Coming back to the ring screen
 
-`RingService` looks once a second (and on `SCREEN_OFF`) and asks `ResurfacePolicy`, which is pure and tested on a fake
-clock. "In front" is the ring screen resumed and not in multi-window (`RingSessionStore.isUiInFront`, set by `RingActivity`
-and `SafeRingActivity`); `RingActivity` is also `resizeableActivity="false"`, so on a phone it cannot share the screen.
+`RingService` looks four times a second (and on `SCREEN_OFF`) and asks `ResurfacePolicy`, which is pure and tested on a
+fake clock. "In front" (`RingSessionStore.isUiInFront`, decided by the pure `RingScreenFront`) is the ring screen resumed,
+the top resumed activity, not in multi-window and not behind the Overview. Resumed alone is not enough: on a Pixel with
+gesture navigation the Overview opened over the ring screen leaves it resumed and on top as far as the app is told (the
+live tile), and only its window loses input to the launcher. The system announces the Overview
+(`ACTION_CLOSE_SYSTEM_DIALOGS` with reason `recentapps`, for the Recents key and the swipe-up gesture alike), so a window
+that loses input around that announcement is behind the Overview. Input lost without it (the shade, the power menu with its
+Emergency button, the ring screen's own dialogs) still counts as in front, so the screen is never pulled back over them.
+`RingActivity` and `SafeRingActivity` report their lifecycle and focus, the service the announcement; the screen that
+resumed last owns the state. `RingActivity` is also `resizeableActivity="false"`, so on a phone it cannot share the screen.
+A ring screen that resumes removes any other ring screen task of the app (`RingTasks`), so one ring has one card in the
+Overview. A pull-back is counted, and logged with its time, only once the screen is really in front; a start that leaves it
+elsewhere is logged as such and retried on the backoff.
 
 - Left while unlocked (Home, Recents, a swiped card, Clear all, split screen, another app, or a ring that came back from a
   kill or a restart and never had a screen): an alarm with `forceReturn` is started again by the service 1 s later, then
-  with a backoff of 1, 1, 5 and 10 s that resets after a minute on the ring screen. Android allows a background start only
+  with a backoff of 1, 1, 5 and 10 s that resets after a minute on the ring screen. The first start of a ring that never had
+  a screen does not count towards the backoff. Android allows a background start only
   with "Display over other apps" (`SYSTEM_ALERT_WINDOW`); without it, or without `forceReturn`, the notification alerts
   again every 20 s as a heads-up, and Alarm Health says the screen cannot come back. Each pull-back is counted.
 - Locked: only that heads-up, never a full-screen launch, so the lock screen's Emergency call is never covered.
@@ -172,8 +183,8 @@ One rule: **persistence, the notification and the ring screen never decide wheth
   in front of the platform's uncaught-exception handler: if a ring is on it arms a `RING_RETRY` two seconds ahead
   (alarm-clock trigger, exempt from background-start limits) and the platform handler then ends the process. The new
   process rings the same event again (`RingController.onRetry` refuses if it was handled meanwhile or something already
-  rings). After two crashes in ten minutes the notification stops launching the screen and carries Snooze/Dismiss itself
-  (`RingSession.safeMode`) and opens `SafeRingActivity` instead: plain Views, no camera, no sensors. An alarm that ends with
+  rings). After two crashes in ten minutes (`RingSession.safeMode`) the notification's full-screen and content intents open
+  `SafeRingActivity` instead of the screen that kept crashing: plain Views, no camera, no sensors. An alarm that ends with
   one tap keeps its buttons there and on the notification; any other is ended with `RingPolicy.safeSums` plain sums on a
   keypad, counted by the controller (`noteSafeSum`), so safe mode is never a one-tap way out of a mission. After five it stops rescuing, except for an alarm that keeps coming back
   (`AntiOversleepSettings.keepsComingBack`), whose rescues back off to once a minute instead.

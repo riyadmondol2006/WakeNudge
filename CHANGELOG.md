@@ -106,6 +106,11 @@ with the new levels; until then an existing alarm behaves as before except where
   other apps", which Alarm Health now shows with a shortcut when an alarm needs it; nothing is drawn over other apps. Without
   it, and for every other alarm, the notification reappears as before. It never covers a call, a call ringing in, an
   Emergency pause, the lock screen's Emergency call or a permission dialog a mission opened
+- **Recents now really brings the alarm back**, found on a Pixel 6 with gesture navigation: the Overview left the alarm
+  screen running behind it, so the app thought it was still in front and never brought it back, while its notes said it
+  had. The app now tells the Overview apart (and still leaves the notification shade, the power menu and its own dialogs
+  alone), brings the screen back from Home or Recents in about 1.2 seconds, records a return only once the screen is really
+  back, and keeps one alarm card per ring. Showing the alarm screen for the first time no longer counts towards the backoff
 - **Opening the app while an alarm rings shows the alarm**, not the alarm list
 - **Switching the screen off** while an alarm rings lights it again after 3 seconds. Pressing the power button quickly
   several times (SOS) is left alone for a minute

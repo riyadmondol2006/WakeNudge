@@ -26,6 +26,7 @@ import com.riyadm.wakenudge.domain.repository.DiagnosticsLog
 import com.riyadm.wakenudge.domain.repository.HistoryRepository
 import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
 import com.riyadm.wakenudge.engine.audio.AlarmAudioEngine
+import com.riyadm.wakenudge.engine.policy.ResurfacePolicy
 import com.riyadm.wakenudge.engine.policy.RingProof
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -70,6 +71,7 @@ class RingServiceInstrumentedTest {
     @Inject lateinit var starter: RecordingStarter
     @Inject lateinit var time: TimeSource
     @Inject lateinit var systemEvents: SystemEventHandler
+    @Inject lateinit var diagnostics: DiagnosticsLog
 
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context: Context = instrumentation.targetContext
@@ -78,10 +80,14 @@ class RingServiceInstrumentedTest {
 
     @Before fun setUp() {
         hilt.inject()
+        runtime.clearDurableRing()
+        // A run killed mid-ring (a crash, a force stop, the runner ending) leaves the stream at the ring's level with the
+        // user's own level saved. Taking that as the original would make this class put the wrong level back for good and
+        // forget the right one, so the saved level goes back first, as the app does on its next start.
+        instrumentation.runOnMainSync { audio.restoreSystemVolumeIfStale() }
         originalAlarmVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
         runtime.setRegisteredTriggers(emptyMap())
         runtime.clearRingCrashes()
-        runtime.clearDurableRing()
     }
 
     @After fun tearDown() = runBlocking {
@@ -200,38 +206,88 @@ class RingServiceInstrumentedTest {
         )
         startService(RingRequest(RingIds.TEST_ALARM_ID, -1, time.nowMillis(), RingKind.TEST))
         await("the service to start sounding") { store.current != null && audio.isAudible }
-        await("the ring screen in front", 5_000) { store.isUiInFront }
+        await("the ring screen in front", 5_000) { reallyInFront() && store.isUiInFront }
     }
 
-    /** Leaves the ring screen with [leave], then returns how long it took to be in front again. */
-    private fun timeToComeBack(leave: () -> Unit): Long {
+    /**
+     * What the system says is in front, not what the app believes: the top resumed activity and the window with input. A
+     * ring screen resumed behind the Overview passes neither. Returns the ring screen's task id, or null.
+     */
+    private fun ringTaskInFront(): Int? {
+        val top = shell("dumpsys activity activities").lines().firstOrNull { it.contains("topResumedActivity") }.orEmpty()
+        val focus = shell("dumpsys window").lines().firstOrNull { it.contains("mCurrentFocus") }.orEmpty()
+        if (!top.contains("ui.ring.RingActivity") || !focus.contains("ui.ring.RingActivity")) return null
+        return Regex(""" t(\d+)\}""").find(top)?.groupValues?.get(1)?.toInt() ?: -1
+    }
+
+    private fun reallyInFront(): Boolean = ringTaskInFront() != null
+
+    /**
+     * Leaves the ring screen with [leave], then returns how long it took to be really in front again, and in which task. The
+     * leave is seen by the app (cheap enough to poll while leaving) and must be confirmed by the system unless the screen was
+     * already back by then; the return is the system's word, and the app must agree.
+     */
+    private fun timeToComeBack(leave: () -> Unit): Pair<Long, Int> {
+        var left = -1L
+        val watcher = Thread {
+            val end = SystemClock.elapsedRealtime() + 3_000
+            while (left < 0 && SystemClock.elapsedRealtime() < end) {
+                if (!store.isUiInFront) left = SystemClock.elapsedRealtime()
+                Thread.sleep(10)
+            }
+        }.apply { start() }
         leave()
-        await("the ring screen to leave the front", 3_000) { !store.isUiInFront }
-        val left = SystemClock.elapsedRealtime()
-        await("the ring screen back in front", 6_000) { store.isUiInFront }
-        return SystemClock.elapsedRealtime() - left
+        watcher.join()
+        assertTrue("the app saw the ring screen leave the front", left >= 0)
+        var task: Int? = null
+        await("the ring screen back in front", 6_000) { ringTaskInFront().also { task = it } != null }
+        val took = SystemClock.elapsedRealtime() - left
+        await("the app to agree it is in front", 1_000) { store.isUiInFront }
+        return took to task!!
     }
 
+    /**
+     * Home, Recents and Home again come back within 2 s each (the three quick returns). A card swiped away in the Overview
+     * needs longer than the 1 s before a quick return to swipe, so it is tried fourth, inside the 5 s backoff, as a person
+     * would manage it: a new ring screen comes back within that backoff and 2 s, in one task, with no second card.
+     */
     @Test fun withDisplayOverOtherAppsHomeAndRecentsBringTheRingScreenBackWithinTwoSeconds() = runBlocking {
         val nav = shell("settings get secure navigation_mode").trim()
         allowOverlays(true)
         try {
             startReturningRing()
+            var task = ringTaskInFront()
             for ((how, leave) in listOf<Pair<String, () -> Unit>>(
                 "Home" to { device.pressHome() },
                 "Recents" to { device.pressRecentApps() },
+                "Home again" to { device.pressHome() },
                 "Recents, then a swipe up on the card in the middle" to {
                     device.pressRecentApps()
-                    Thread.sleep(600)
-                    device.swipe(device.displayWidth / 2, device.displayHeight / 2, device.displayWidth / 2, device.displayHeight / 10, 12)
+                    Thread.sleep(1_500)
+                    // On a Pixel the first swipe on the live card only turns it into a screenshot; the second removes it.
+                    repeat(2) {
+                        val x = device.displayWidth / 2
+                        shell("input swipe $x ${device.displayHeight * 54 / 100} $x ${device.displayHeight / 8} 300")
+                        Thread.sleep(600)
+                    }
                 },
             )) {
-                val took = timeToComeBack(leave)
-                assertTrue("$how (navigation mode $nav): back after $took ms", took <= 2_000)
+                val swiped = how.contains("swipe")
+                val (took, nowTask) = timeToComeBack(leave)
+                val limit = if (swiped) ResurfacePolicy.backoffMs(3) + 2_000 else 2_000
+                assertTrue("$how (navigation mode $nav): back after $took ms, allowed $limit", took <= limit)
                 assertTrue("$how: the sound never stopped", audio.isAudible)
-                // Stay a little, as someone would, so the next try is not counted against the backoff.
-                Thread.sleep(1_500)
+                if (swiped) assertTrue("$how: the card was really swiped away (task $task, now $nowTask)", nowTask != task)
+                task = nowTask
+                Thread.sleep(500)
+                assertEquals("$how: one ring, one ring screen task", 1, com.riyadm.wakenudge.ui.ring.RingTasks.count(context))
+                val inRecents = shell("dumpsys activity recents").lines().count { it.contains("Recent #") && it.contains("ui.ring.RingActivity") }
+                assertEquals("$how: one alarm card in the Overview", 1, inRecents)
+                android.util.Log.i("RingServiceTest", "$how (navigation mode $nav): back in front after $took ms in task $nowTask; ring tasks in recents: $inRecents")
+                Thread.sleep(1_000)
             }
+            val notes = diagnostics.recent(100).map { it.message }
+            assertTrue("each return is recorded once the screen is really back: $notes", notes.count { it.startsWith("the ring screen is back in front") } >= 4)
         } finally {
             allowOverlays(false)
             shell("appops set ${context.packageName} SYSTEM_ALERT_WINDOW default")
@@ -251,7 +307,7 @@ class RingServiceInstrumentedTest {
             await("the service to start sounding") { store.current != null && audio.isAudible }
             device.pressHome()
             Thread.sleep(4_000)
-            assertFalse("Android does not let it start the screen from the background", store.isUiInFront)
+            assertFalse("Android does not let it start the screen from the background", store.isUiInFront || reallyInFront())
             assertTrue(audio.isAudible)
         } finally {
             shell("appops set ${context.packageName} SYSTEM_ALERT_WINDOW default")

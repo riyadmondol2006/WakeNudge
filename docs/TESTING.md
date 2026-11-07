@@ -88,6 +88,10 @@ began life as a question; the ones that found real bugs are marked ✱ and were 
   Easy putting missions aside. A reflection test over `AntiOversleepSettings`, `VolumeSettings`, `WakeCheckSettings` and
   `SnoozeSettings` fails when a field is added that is neither owned by the levels nor listed as not owned. The table
   check was watched failing with one value changed. `MainViewModelTest`: an alarm set by voice without the editor is Easy.
+- ✱ Found running every instrumented class on a Pixel 6: **timer commands arriving together** (start, pause and add a
+  minute from the notification and the screen at once) could leave a running timer with no trigger, or a paused one with
+  a trigger still armed. Commands now run one at a time (`TimerCommandRaceTest`, which fails without the lock, and the
+  instrumented `parallelTimerCommandsNeverLeaveAnOrphanTrigger`).
 - `RingTrapTest` takes each level's settings (taken from `HardnessPresets`, plus a Custom one at a restored file's
   extremes) and every mission through its real exits after any number of restarts, and every
   limit a restored file can hold through restarts to the end: it fails if a ring has no way to end. It also takes every
@@ -119,7 +123,11 @@ began life as a question; the ones that found real bugs are marked ✱ and were 
   comes back.
 - `ResurfacePolicyTest`: the pull-back table second by second (1, 1, 1, 5, 10 s backoff and its reset after a minute, a
   ring that never had a screen, only a heads-up without the permission or while locked, nothing over a call, a pause or a
-  permission dialog, the screen lit 3 s after it goes off, an SOS of three presses holding everything off for a minute).
+  permission dialog, the screen lit 3 s after it goes off, an SOS of three presses holding everything off for a minute,
+  the first showing of a ring's screen not spending the backoff). `RingScreenFrontTest`: what "in front" means, in the order
+  a Pixel 6 reported its callbacks (the Overview over a resumed screen only takes its input away and is announced; the
+  shade, the power menu and the screen's own dialogs are not leaving; split screen; resumed but not on top), and an older
+  ring screen being taken down not marking the new one as gone.
   `VolumeFloorTest`: the floor against the hearing cap (the cap wins). `MuteAndCalmTest`: the mute budget spent one at a
   time and saved through a restart without the mute coming back, a mute that ends after 20 s without progress however much
   the screen is touched, a key silence spending the same budget, and touches that no longer calm an alarm.
@@ -169,6 +177,14 @@ Hardware: **Google Pixel 6 Pro, Android 17 (API 37)**. No other physical device 
 - Widgets and the Quick Settings tile are **registered** with Android (three `AppWidgetProvider`s and the tile service
   resolve). Their layouts are covered by JVM tests of the data they show.
 
+- **After the coming-back fixes, on a Pixel 6 (Android 17, gesture navigation): every instrumented class, one at a time,
+  209 tests, all passing**, with the alarm volume checked before and after each class (unchanged every time). All 209 also
+  passed in a single instrumentation run, one test fix before the final build. Fixed on the way: Recents left the ring screen resumed behind the Overview
+  (see the coming-back row below); four tests that encoded behaviour Phase 3 changed or relied on what an earlier class
+  left behind (a ring dated 1970, the renamed way-out switch, safe mode's plain screen, update settings, a scroll helper
+  that assumed the old scroll-to-node position, `1.0.7` matching the app's own version 1.0.71); a test that took the level
+  a killed ring left behind as the user's volume and then kept it (reproduced by force-stopping a ring, then fixed); and
+  the timer race above.
 - **After the usability changes and the merge into one build: the full instrumented suite, 181 tests, on the device.**
   The first run shared the phone with another project's instrumented tests, which held the UI-automation connection
   and the screen: 161 passed. Of the 20 failures, 19 never reached an assertion ("no compose hierarchies", "UiAutomation
@@ -219,7 +235,7 @@ These could not be done safely or at all in the development setup. They are the 
 | **"I can't do timed or physical missions"** with Switch Access and Voice Access | The setting and the services' detection by package are code-reviewed and partly UI-tested; neither service was run |
 | The **backup mission** on a real phone: camera permission revoked before a locked ring, NFC off, the lens covered for a minute, a dead sensor | `FallbackChainTest`, `SensorAndCameraWatchTest` and `RingTrapTest` cover the rules; `RingAndMissionUiTest` and `RobustUiTest` (no Continue node, a keypad appears) are compiled, not yet run on a device. The permission dialog over the lock screen was not observed |
 | **Emergency** on a real phone: the phone app or the lock-screen Emergency call button, a real incoming call during a ring, the safe ring screen after two crashes | The pause, its count and the call budget are JVM-tested (`WayOutAndEmergencyTest`, `CallPauseTest`); opening the dialer, the bouncer and `AudioManager` mode changes were not observed, nor `SafeRingActivity` on the lock screen |
-| **Coming back to the ring screen** on a real phone: Home, Recents, a swiped card, Clear all, split screen, opening the app, a ring back from a kill or a restart, both navigation modes, the screen switched off, a 5-press SOS, the camera double-press, Circle to Search under `FLAG_SECURE` | `ResurfacePolicyTest` covers the rules on the JVM; `RingServiceInstrumentedTest` (Home, Recents and a swipe in Recents with the permission granted by `appops`, and the screen staying away without it) is compiled, not yet run on a device. Whether Android allows the start during Overview, and whether a re-alert disturbs the lock-screen Emergency dialer, were not observed |
+| **Coming back to the ring screen** on a real phone: Home, Recents, a swiped card, Clear all, split screen, opening the app, a ring back from a kill or a restart, both navigation modes, the screen switched off, a 5-press SOS, the camera double-press, Circle to Search under `FLAG_SECURE` | `ResurfacePolicyTest` and `RingScreenFrontTest` cover the rules on the JVM. On a Pixel 6 (Android 17, gesture navigation) `RingServiceInstrumentedTest` passes, measuring front by the system's top resumed activity and input focus: Home 1.2 s, Recents 1.2 s (Android does let the screen leave the Overview once the app notices it), Home again 1.3 s, a card swiped away (two swipes: the first only turns the live card into a screenshot) back 5.2 s later inside the 5 s backoff, in a new task, with one ring task in `dumpsys activity recents` each time; and the screen staying away without the permission. Clear all, split screen, three-button navigation, the screen switched off, SOS, the camera double-press, Circle to Search, and whether a re-alert disturbs the lock-screen Emergency dialer were not observed |
 | The **volume lock** and **forced speaker** on a real phone: keys, the shade slider and Settings turning the alarm down, headphones with the hearing cap | `VolumeFloorTest` covers the floor and the cap; the heartbeat that holds it and the routed-device check were not observed with real audio |
 | **Focus Tap** half asleep, and **mission rotation** over real mornings | `FocusGameTest`, `MissionRotationTest` (a month, across daylight-saving changes) and `RotationRingTest` cover the rules; `FocusTapUiTest` (touch, screen reader, RTL, font scale 2.0) is compiled but not yet run on a device. Whether it takes under a minute first thing in the morning, or can be done on reflex, was not tried |
 | **Edit protection by hand**: each side door on a real phone, including the Quick Settings tile and the widgets, an alarm 5 minutes away and one 8 hours away | `LockCoverageTest` and `AbuseInstrumentedTest` (compiled, not yet run on a device) cover the rules; the toasts and snackbars were not seen |

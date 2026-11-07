@@ -9,7 +9,7 @@ data class ResurfaceInput(
     val returnToAlarm: Boolean,
     /** The alarm wants it back at once, not only an alert (`forceReturn`). */
     val forceReturn: Boolean,
-    /** The ring screen is resumed and not sharing the window with another app. */
+    /** The ring screen is really in front: on top, with input, not beside another app or behind the Overview (RingScreenFront). */
     val uiInFront: Boolean,
     val screenOn: Boolean,
     val keyguardLocked: Boolean,
@@ -42,7 +42,8 @@ enum class ResurfaceAction {
  *
  * - Unlocked and left (Home, Recents, a swiped card, Clear all, split screen, another app): with [ResurfaceInput.forceReturn]
  *   and the overlay permission the screen is started again, 1 s after leaving, then with a backoff of 1, 1, 5 and 10 s that
- *   resets after a minute on the ring screen. Without the permission, or without forceReturn, only a heads-up every 20 s.
+ *   resets after a minute on the ring screen. A ring that never had a screen gets it the same way, and that first start
+ *   does not count towards the backoff. Without the permission, or without forceReturn, only a heads-up every 20 s.
  * - Never over an active or incoming call, an Emergency pause, or a permission dialog a mission opened.
  * - Locked: only a heads-up, never a full-screen launch, so the lock screen's Emergency call is never covered.
  * - Screen off with the power button: lit again after 3 s. Three screen-offs within 6 s look like an emergency SOS: then
@@ -52,6 +53,8 @@ class ResurfacePolicy {
     private var leftAt = -1L
     private var inFrontSince = -1L
     private var streak = 0
+    private var everInFront = false
+    private var firstShowUsed = false
     private var lastAlertAt = Long.MIN_VALUE / 2
     private var lastWakeAt = Long.MIN_VALUE / 2
     private var screenOffAt = -1L
@@ -76,6 +79,7 @@ class ResurfacePolicy {
             return ResurfaceAction.NONE
         }
         if (input.uiInFront) {
+            everInFront = true
             if (inFrontSince < 0) inFrontSince = now
             if (now - inFrontSince >= STAY_RESETS_MS) streak = 0
             leftAt = -1
@@ -96,7 +100,9 @@ class ResurfacePolicy {
         }
         if (!input.keyguardLocked && input.forceReturn && input.canDrawOverlays) {
             if (now - leftAt >= backoffMs(streak)) {
-                streak++
+                // Showing the screen of a ring that never had one (the phone was in use when it went off) is not the user
+                // leaving it: that first start does not count towards the backoff. Every start after it does.
+                if (everInFront || firstShowUsed) streak++ else firstShowUsed = true
                 leftAt = now
                 return ResurfaceAction.PULL_BACK
             }

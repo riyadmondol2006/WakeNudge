@@ -239,12 +239,19 @@ class RingService : Service() {
             }
         }
         ticker = scope.launch {
+            var quarter = 0
             while (isActive) {
-                delay(1_000)
+                delay(1_000L / RESURFACE_CHECKS_PER_SECOND)
+                // The ring screen is looked for four times a second, so a screen that was left is seen within 250 ms and
+                // its 1 s pull-back is not stretched by up to another second of waiting for the next tick.
+                guard("ring screen") {
+                    resurfaceIfAbandoned()
+                    checkPullBack()
+                }
+                if (++quarter % RESURFACE_CHECKS_PER_SECOND != 0) continue
                 guard("ring timer") {
                     controller.tick()
                     store.current?.takeIf { ringingStarted }?.let { applyQuiet(it, time.elapsedMillis()) }
-                    resurfaceIfAbandoned()
                 }
                 guard("wake lock") { locks.onRingTick() }
             }
@@ -374,29 +381,67 @@ class RingService : Service() {
         }
     }
 
-    /** Starts the ring screen from the background, which Android allows with "Display over other apps". */
+    /**
+     * Starts the ring screen from the background, which Android allows with "Display over other apps". Whether that really
+     * brought it to the front is only known once the screen says so ([checkPullBack]); until then nothing claims it did.
+     */
     private fun pullBack(s: RingSession): Boolean {
         val started = runCatching { startActivity(notifier.ringScreenIntent(s.safeMode)) }
-            .onFailure { diagnostics.warn("Service", "the ring screen could not be brought back: ${it.message}") }
+            .onFailure { diagnostics.warn("Service", "the ring screen could not be started again: ${it.message}") }
             .isSuccess
         if (started) {
-            controller.notePullBack()
-            diagnostics.info("Service", "brought the ring screen back (${resurface.pullBackStreak} in a row)")
+            if (pullBackAskedAt < 0) pullBackAskedAt = time.elapsedMillis()
+            pullBackUnconfirmedNoted = false
         }
         return started
     }
 
+    /**
+     * After a pull-back, four times a second: once the ring screen is really in front it counts, and the diagnostics say how
+     * long it took. Still not in front a few seconds later (Android may keep it behind the Overview), the diagnostics say so
+     * once, and the policy keeps trying on its backoff because the screen is still away.
+     */
+    private fun checkPullBack() {
+        val asked = pullBackAskedAt.takeIf { it >= 0 } ?: return
+        val now = time.elapsedMillis()
+        if (store.current == null) {
+            pullBackAskedAt = -1
+            return
+        }
+        if (store.isUiInFront) {
+            pullBackAskedAt = -1
+            controller.notePullBack()
+            diagnostics.info("Service", "the ring screen is back in front ${now - asked} ms after it was started again (${resurface.pullBackStreak} in a row)")
+        } else if (now - asked >= PULL_BACK_CONFIRM_MS && !pullBackUnconfirmedNoted) {
+            pullBackUnconfirmedNoted = true
+            diagnostics.warn("Service", "the ring screen was started again but is still not in front after ${now - asked} ms (${store.uiFrontState}); trying again")
+        }
+    }
+
+    private var pullBackAskedAt = -1L
+    private var pullBackUnconfirmedNoted = false
+
     private fun canDrawOverlays(): Boolean = runCatching { Settings.canDrawOverlays(this) }.getOrDefault(false)
 
-    /** Follows the power button: a screen switched off mid-ring is lit again, and fast repeated presses (SOS) are left alone. */
+    /**
+     * Follows the power button: a screen switched off mid-ring is lit again, and fast repeated presses (SOS) are left alone.
+     * Also hears the system announce the Overview, which is how a ring screen left behind it is told apart (RingScreenFront).
+     */
     private fun watchScreen() {
         if (screenReceiver != null) return
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                if (intent.action == Intent.ACTION_SCREEN_OFF) resurface.onScreenOff(time.elapsedMillis())
+                when (intent.action) {
+                    Intent.ACTION_SCREEN_OFF -> resurface.onScreenOff(time.elapsedMillis())
+                    // The Overview opened (Recents key or the swipe-up gesture); see RingScreenFront.
+                    @Suppress("DEPRECATION")
+                    Intent.ACTION_CLOSE_SYSTEM_DIALOGS -> if (intent.getStringExtra(EXTRA_REASON) == REASON_RECENTS) store.noteRecentsOpened(time.elapsedMillis())
+                }
             }
         }
-        if (runCatching { ContextCompat.registerReceiver(this, receiver, IntentFilter(Intent.ACTION_SCREEN_OFF), ContextCompat.RECEIVER_NOT_EXPORTED) }.isSuccess) {
+        @Suppress("DEPRECATION")
+        val filter = IntentFilter(Intent.ACTION_SCREEN_OFF).apply { addAction(Intent.ACTION_CLOSE_SYSTEM_DIALOGS) }
+        if (runCatching { ContextCompat.registerReceiver(this, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED) }.isSuccess) {
             screenReceiver = receiver
         }
     }
@@ -500,6 +545,10 @@ class RingService : Service() {
     }
 
     companion object {
+        private const val PULL_BACK_CONFIRM_MS = 3_000L
+        private const val RESURFACE_CHECKS_PER_SECOND = 4
+        private const val EXTRA_REASON = "reason"
+        private const val REASON_RECENTS = "recentapps"
         const val ACTION_BEGIN = "com.riyadm.wakenudge.action.RING_BEGIN"
         const val EXTRA_ALARM_ID = "alarm_id"
         const val EXTRA_EVENT_ID = "event_id"
