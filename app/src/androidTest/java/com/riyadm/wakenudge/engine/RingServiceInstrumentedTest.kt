@@ -76,22 +76,32 @@ class RingServiceInstrumentedTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context: Context = instrumentation.targetContext
     private val audioManager: AudioManager = context.getSystemService(AudioManager::class.java)
-    private var originalAlarmVolume = 0
+
+    companion object {
+        /** The user's alarm volume, read before the first ring of the class. */
+        private var userAlarmVolume = -1
+    }
 
     @Before fun setUp() {
         hilt.inject()
+        // The previous test's service can still be on its way down, holding the stream at its ring's level until it is gone.
+        awaitNoRingService()
         runtime.clearDurableRing()
         // A run killed mid-ring (a crash, a force stop, the runner ending) leaves the stream at the ring's level with the
         // user's own level saved. Taking that as the original would make this class put the wrong level back for good and
         // forget the right one, so the saved level goes back first, as the app does on its next start.
         instrumentation.runOnMainSync { audio.restoreSystemVolumeIfStale() }
-        originalAlarmVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+        // Read once for the class, before any ring of it: a level read between two tests could be a ring's, and writing
+        // that back at the end of every later test would keep it as the user's level and wipe the one the app saved.
+        if (userAlarmVolume < 0) userAlarmVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
         runtime.setRegisteredTriggers(emptyMap())
         runtime.clearRingCrashes()
     }
 
     @After fun tearDown() = runBlocking {
         context.stopService(Intent(context, RingService::class.java))
+        // Its onDestroy is where the app puts the volume back; the class waits for it rather than racing it.
+        awaitNoRingService()
         store.set(null)
         locks.releaseAll()
         runtime.clearDurableRing()
@@ -101,9 +111,20 @@ class RingServiceInstrumentedTest {
         runtime.testAlarmJson = null
         runtime.setRegisteredTriggers(emptyMap())
         runtime.clearRingCrashes()
-        // The last test's service can be cut off before it restores the volume, and this phone is someone's alarm clock.
-        audioManager.setStreamVolume(AudioManager.STREAM_ALARM, originalAlarmVolume, 0)
+        val leftByTheApp = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+        // This phone is someone's alarm clock: the level goes back whatever the app did, and only then is it judged.
+        audioManager.setStreamVolume(AudioManager.STREAM_ALARM, userAlarmVolume, 0)
         runtime.savedAlarmVolume = -1
+        assertEquals("the app put the alarm volume back once its ring service was gone", userAlarmVolume, leftByTheApp)
+    }
+
+    /** Waits until no ring service of this app is running, so nothing still holds the alarm stream at a ring's level. */
+    @Suppress("DEPRECATION") // getRunningServices still returns the caller's own services
+    private fun awaitNoRingService() {
+        val activityManager = context.getSystemService(android.app.ActivityManager::class.java)
+        await("the ring service to be gone") {
+            !audio.isPlaying && activityManager.getRunningServices(Int.MAX_VALUE).none { it.service.className == RingService::class.java.name }
+        }
     }
 
     /** A ring set to Never can outlast the ring lock's timeout, so the service renews it; renewing must push the timeout back. */
