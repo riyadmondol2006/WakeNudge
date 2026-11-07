@@ -37,9 +37,10 @@ class RingPolicyTest {
         safeMode: Boolean = false,
         snoozeCount: Int = 0,
         mutesUsed: Int = 0,
+        resumes: Int = 0,
     ) = RingSession(
         alarm, kind, phase, eventId = 5, scheduledAt = 1, startedAt = 1, snoozeCount = snoozeCount, missionsDone = missionsDone,
-        safeMode = safeMode, mutesUsed = mutesUsed, timerId = if (kind == RingKind.TIMER) 2 else 0,
+        safeMode = safeMode, mutesUsed = mutesUsed, resumes = resumes, timerId = if (kind == RingKind.TIMER) 2 else 0,
     )
 
     private val all = RingProof.entries.toSet()
@@ -87,6 +88,23 @@ class RingPolicyTest {
             Snooze to all, Dismiss to all, HoldStop to setOf(Hold), WayOutDone to setOf(WayOutComplete), Timeout to all, KeySilence to all,
             MissionMute to setOf(Gesture), EmergencyPause to setOf(Gesture),
         )),
+        "back after a restart, nothing else changed" to (session(resumes = 1) to mapOf(
+            Dismiss to all, HoldStop to setOf(Hold), WayOutDone to setOf(WayOutComplete), Timeout to all, KeySilence to all, EmergencyPause to setOf(Gesture),
+        )),
+        "back after a restart, missions not done" to (session(Alarm(id = 1, missions = math), missionsDone = 1, resumes = 3) to mapOf(
+            HoldStop to setOf(Hold), WayOutDone to setOf(WayOutComplete), Timeout to all, KeySilence to all, MissionMute to setOf(Gesture), EmergencyPause to setOf(Gesture),
+        )),
+        "back after a restart, missions all done" to (session(Alarm(id = 1, missions = math), missionsDone = 2, resumes = 1) to mapOf(
+            Dismiss to setOf(MissionsComplete), HoldStop to setOf(Hold), WayOutDone to setOf(WayOutComplete), Timeout to all, KeySilence to all,
+            MissionMute to setOf(Gesture), EmergencyPause to setOf(Gesture),
+        )),
+        "back after a restart, with a mission to snooze" to (session(Alarm(id = 1, snoozeMissions = math), resumes = 1) to mapOf(
+            Dismiss to all, HoldStop to setOf(Hold), WayOutDone to setOf(WayOutComplete), Timeout to all, KeySilence to all, EmergencyPause to setOf(Gesture),
+        )),
+        "back after a restart, in safe mode" to (session(Alarm(id = 1, missions = math), safeMode = true, resumes = 1) to mapOf(
+            Dismiss to all, HoldStop to setOf(Hold), WayOutDone to setOf(WayOutComplete), Timeout to all, KeySilence to all,
+            MissionMute to setOf(Gesture), EmergencyPause to setOf(Gesture),
+        )),
         "a timer" to (session(Alarm(id = -1001, antiOversleep = AntiOversleepSettings(ringTimeoutMinutes = 3)), kind = RingKind.TIMER) to mapOf(
             Dismiss to all, HoldStop to setOf(Hold), WayOutDone to setOf(WayOutComplete), Timeout to all, KeySilence to all, EmergencyPause to setOf(Gesture),
         )),
@@ -101,6 +119,14 @@ class RingPolicyTest {
                 val decision = RingPolicy.decide(shape, command, proof)
                 assertEquals("$name: $command with $proof gave $decision", expected, decision is RingDecision.Allow)
             }
+        }
+    }
+
+    @Test fun `what the session offers as a snooze is what the policy allows`() {
+        for ((name, row) in table) {
+            val shape = row.first
+            if (shape.phase != RingPhase.RINGING) continue
+            assertEquals(name, RingPolicy.decide(shape, Snooze, Gesture) is RingDecision.Allow || RingPolicy.decide(shape, Snooze, MissionsComplete) is RingDecision.Allow, shape.canSnooze)
         }
     }
 

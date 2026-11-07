@@ -334,8 +334,7 @@ private fun Controls(
                     )
                     return@Column
                 }
-                val canSnooze = SnoozePolicy.canSnooze(alarm.snooze, session.snoozeCount)
-                if (canSnooze) {
+                if (session.canSnooze) {
                     val minutes = SnoozePolicy.nextIntervalMinutes(alarm.snooze, session.snoozeCount)
                     val left = SnoozePolicy.remaining(alarm.snooze, session.snoozeCount)
                     FilledTonalButton(

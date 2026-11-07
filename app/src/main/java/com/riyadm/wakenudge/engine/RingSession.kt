@@ -1,6 +1,7 @@
 package com.riyadm.wakenudge.engine
 
 import com.riyadm.wakenudge.domain.model.Alarm
+import com.riyadm.wakenudge.domain.scheduling.SnoozePolicy
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,7 +61,7 @@ data class RingSession(
     val scheduledAt: Long,
     val startedAt: Long,
     val snoozeCount: Int = 0,
-    /** Set after 40 s without interaction, or immediately for a backup alarm. */
+    /** Set after 40 s without interaction, or immediately for a backup alarm or a ring back from a restart. */
     val intensified: Boolean = false,
     /** The user pressed a volume key to quiet the alarm for a moment. On the [com.riyadm.wakenudge.core.TimeSource.elapsedMillis] clock. */
     val silencedUntil: Long = 0,
@@ -82,6 +83,16 @@ data class RingSession(
     val isTimer: Boolean get() = kind == RingKind.TIMER
     val isTest: Boolean get() = kind == RingKind.TEST
     val hasMissions: Boolean get() = !isTimer && alarm.missions.isNotEmpty()
+
+    /** A ring that came back from a restart has lost its snooze; restarting the phone must not be a way to get another. */
+    val canSnooze: Boolean get() = !isTimer && resumes == 0 && SnoozePolicy.canSnooze(alarm.snooze, snoozeCount)
+
+    /**
+     * The alarm as the sound engine should play it: after a restart, the whole stream at once, whatever the alarm is set to.
+     * Only a headset's hearing cap still applies. [alarm] itself stays as it is, since that is what gets saved and restored.
+     */
+    val soundAlarm: Alarm
+        get() = if (resumes > 0) alarm.copy(volume = alarm.volume.copy(rampSeconds = 0, useMaxSystemVolume = true)) else alarm
 
     /** The request that would start this very session again, e.g. after the service had to be restarted. */
     fun toRequest() = RingRequest(alarm.id, eventId, scheduledAt, kind, snoozeCount, phase, timerId)

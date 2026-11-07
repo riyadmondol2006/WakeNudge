@@ -3,6 +3,7 @@ package com.riyadm.wakenudge.engine
 import com.riyadm.wakenudge.BuildConfig
 import com.riyadm.wakenudge.core.WakeJson
 import com.riyadm.wakenudge.domain.model.Alarm
+import com.riyadm.wakenudge.domain.model.AntiOversleepSettings
 import com.riyadm.wakenudge.domain.repository.DiagnosticsLog
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -83,9 +84,6 @@ sealed interface ResumeDecision {
 enum class GiveUpReason { TooManyRestarts, WindowPassed, ForceStopped }
 
 object ResumePolicy {
-    /** Anyone who has restarted their phone this many times in one ring is awake, and a stuck phone needs a way out. */
-    const val MAX_RESUMES = 3
-
     /**
      * How long, in one boot, an alarm that does not keep coming back stays worth ringing again. Nothing brings it back but
      * something else happening to start the app, which could be hours later; it should not ring out of nowhere by then.
@@ -96,7 +94,7 @@ object ResumePolicy {
         if (bootCount >= 0 && record.bootCount >= 0) bootCount != record.bootCount else elapsed < record.elapsedAtWrite
 
     /**
-     * Only a restart of the phone uses up a resume and is held to the window: a process that merely died (the system, or
+     * Only a restart of the phone uses up one of the alarm's [maxResumes] and is held to the window: a process that merely died (the system, or
      * Stop in Active apps) comes back for as long as the ring is unresolved if the alarm [keepsComingBack], and for
      * [SAME_BOOT_LIMIT_MS] or its window if not. [triggersWiped] says Android has forgotten every trigger of this app with
      * no restart and no update, which is what a force-stop looks like.
@@ -104,6 +102,7 @@ object ResumePolicy {
     fun afterProcessStart(
         record: DurableRingRecord,
         window: Int,
+        maxResumes: Int,
         keepsComingBack: Boolean,
         now: Long,
         elapsed: Long,
@@ -112,7 +111,8 @@ object ResumePolicy {
         triggersWiped: Boolean,
     ): ResumeDecision {
         if (rebooted(record, bootCount, elapsed)) {
-            if (record.resumes >= MAX_RESUMES) return ResumeDecision.GiveUp(GiveUpReason.TooManyRestarts)
+            // There is always a limit and it is never 0: a stuck phone needs a way out, and a restart always comes back once.
+            if (record.resumes >= maxResumes.coerceIn(1, AntiOversleepSettings.MAX_RESUMES_LIMIT)) return ResumeDecision.GiveUp(GiveUpReason.TooManyRestarts)
             // A clock set back makes the age negative: that is no reason to lose the alarm.
             if (now - record.startedAtWall > window * 60_000L) return ResumeDecision.GiveUp(GiveUpReason.WindowPassed)
             return ResumeDecision.Resume(record.copy(resumes = record.resumes + 1, bootCount = bootCount, elapsedAtWrite = elapsed, versionCode = versionCode))

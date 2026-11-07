@@ -68,6 +68,19 @@ class MigrationDefaultsTest {
         assertEquals(expected.toSet(), added)
     }
 
+    @Test fun `version 5 adds three columns that default to what version 4 does`() {
+        val v5 = Migrations.V4_TO_V5_STATEMENTS.mapNotNull { addColumn.matchEntire(it) }
+            .associate { it.groupValues[2] to it.groupValues[4] }
+        assertEquals("every statement is a new column", Migrations.V4_TO_V5_STATEMENTS.size, v5.size)
+        assertEquals(columns(5, "alarms") - columns(4, "alarms"), v5.keys)
+        assertEquals(setOf("ao_maxResumes", "ao_rotateMissions", "ao_wayOutRemoved"), v5.keys)
+        assertEquals("history gains nothing", columns(4, "alarm_events"), columns(5, "alarm_events"))
+        val model = AntiOversleepSettings()
+        assertEquals(sqlOf(model.maxResumes), v5["ao_maxResumes"])
+        assertEquals(sqlOf(model.rotateMissions), v5["ao_rotateMissions"])
+        assertEquals(sqlOf(model.wayOutRemoved), v5["ao_wayOutRemoved"])
+    }
+
     @Test fun `only a strict alarm has anything changed by the migration`() {
         val writes = Migrations.V3_TO_V4_STATEMENTS.filter { !it.startsWith("ALTER TABLE") }
         assertEquals(listOf("UPDATE alarms SET ao_wayOutDelayMinutes = 3 WHERE ao_emergencyStopEnabled = 0"), writes)

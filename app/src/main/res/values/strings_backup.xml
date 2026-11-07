@@ -59,6 +59,10 @@
         <item quantity="one">%d alarm uses a sound file or ringtone from the old device that may not exist here. If it is missing, a built-in tone plays instead.</item>
         <item quantity="other">%d alarms use sound files or ringtones from the old device that may not exist here. Where one is missing, a built-in tone plays instead.</item>
     </plurals>
+    <plurals name="backup_warn_way_out_restored">
+        <item quantity="one">%d alarm had its way out removed on the phone this came from. It has one again here: removing it is a choice to make on each phone.</item>
+        <item quantity="other">%d alarms had their way out removed on the phone this came from. They have one again here: removing it is a choice to make on each phone.</item>
+    </plurals>
     <plurals name="backup_warn_too_many_alarms">
         <item quantity="one">Only the first %d alarm was restored.</item>
         <item quantity="other">Only the first %d alarms were restored.</item>

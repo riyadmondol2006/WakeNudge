@@ -58,5 +58,18 @@ object Migrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(V1_TO_V2, V2_TO_V3, V3_TO_V4)
+    /** How many restarts a ring survives, and two settings nothing reads yet. Every alarm keeps what it does today. */
+    internal val V4_TO_V5_STATEMENTS: List<String> = listOf(
+        "ALTER TABLE alarms ADD COLUMN ao_maxResumes INTEGER NOT NULL DEFAULT 3",
+        "ALTER TABLE alarms ADD COLUMN ao_rotateMissions INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE alarms ADD COLUMN ao_wayOutRemoved INTEGER NOT NULL DEFAULT 0",
+    )
+
+    val V4_TO_V5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            V4_TO_V5_STATEMENTS.forEach(db::execSQL)
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(V1_TO_V2, V2_TO_V3, V3_TO_V4, V4_TO_V5)
 }

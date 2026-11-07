@@ -138,7 +138,7 @@ One rule: **persistence, the notification and the ring screen never decide wheth
 - **The OS refuses an alarm or a snooze**: see `PendingAlarms` above; a snooze that cannot be armed leaves the alarm
   ringing instead of silencing it.
 - **The clock changes** (`SystemEventHandler`): the time or time zone being set reschedules everything and then replays the
-  boot-time check, so an alarm that the jump made overdue rings (up to 10 minutes late) or is recorded as missed, instead
+  boot-time check, so an alarm that the jump made overdue rings (as late as `MissedAlarmRecovery` below allows) or is recorded as missed, instead
   of silently moving to tomorrow. An occurrence that already rang is never repeated (`findOccurrence`).
 
 ### A ring outlives its process
@@ -154,9 +154,11 @@ next to it. Reading it never throws: a corrupt record counts as no record, and s
   up the record, so strictness and progress return with the sound. `START_REDELIVER_INTENT` takes the same path. An alarm
   without a sentinel comes back only when something else starts the app, and is reported as missed after an hour.
 - **Restarted**: the boot broadcast, the app start and the watchdog all call `reviveDurableRing`. A new boot (`Settings.Global.BOOT_COUNT`,
-  or elapsed time going backwards when that is unavailable) uses up one of 3 resumes per ring and must be within the alarm's
-  `resumeWindowMinutes` of when the ring first started (`ResumePolicy`). The ring starts from a sentinel armed 2 seconds ahead,
-  not from the receiver, because an alarm trigger is where the system allows the service to start.
+  or elapsed time going backwards when that is unavailable) uses up one of the alarm's `maxResumes` (3 unless changed, never
+  more than 20) and must be within its `resumeWindowMinutes` of when the ring first started (`ResumePolicy`). The ring starts
+  from a sentinel armed 2 seconds ahead, not from the receiver, because an alarm trigger is where the system allows the service
+  to start. A ring back from a restart stays at full volume with no ramp (`RingSession.soundAlarm`; only a headset's hearing
+  cap still applies) and `RingPolicy` refuses it a snooze, so restarting never buys a quieter alarm or more sleep.
 - **Past the limit or the window**: no ring. The event closes as missed with its backups cleared, and a notification says so.
 - **Force-stopped**: Android cancels every trigger and starts nothing. At the next app start the watchdog being gone in the
   same boot, on the same version, marks this case: the ring is reported as missed. An app update looks similar but rings again.
@@ -176,7 +178,8 @@ while the phone was off still rings within an hour, or within the alarm's own re
 Disabling or deleting an alarm cancels its snooze, backups and wake-check (`cancelFollowUps`).
 
 `MissedAlarmRecovery` runs after boot and app updates. For alarms that were due while the phone was off it rings now if
-the alarm was due within the last 10 minutes; otherwise it records the alarm as missed, posts a "missed alarm"
+the alarm was due within the last 10 minutes or its `resumeWindowMinutes`, whichever is longer (from its saved copy if the
+database cannot be read); that ring is an ordinary first ring. Otherwise it records the alarm as missed, posts a "missed alarm"
 notification and turns a one-time alarm off. A separate pass resets timers stuck in `RINGING`.
 
 ## Direct Boot

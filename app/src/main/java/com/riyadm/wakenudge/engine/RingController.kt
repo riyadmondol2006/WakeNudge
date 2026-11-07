@@ -303,6 +303,9 @@ class RingController @Inject constructor(
         durable.writeQueue(queued.toList())
     }
 
+    /** The copy of this alarm saved outside the database, if it has one. For when the database cannot be read. Never throws. */
+    fun savedCopy(alarmId: Long): Alarm? = armedCopies.get(alarmId)
+
     /** A ring that begins is no longer waiting, whichever way it got here (its turn came, or Android redelivered it). */
     private fun forgetQueued(request: RingRequest) {
         queued.removeIf { it.alarmId == request.alarmId && it.eventId == request.eventId && it.timerId == request.timerId }
@@ -321,20 +324,32 @@ class RingController @Inject constructor(
         emergencySession(request)
     }
 
-    /** A session built from nothing but the request, for when loading the real alarm is impossible. */
+    /**
+     * A session built from the request and whatever was saved, for when loading the real alarm is impossible. The saved ring
+     * still speaks for itself here: it is about to be written over, and with it what it has counted, restarts included.
+     */
     private fun emergencySession(request: RingRequest): RingSession {
         store.current?.let { return it }
+        val restored = durable.ring()?.takeIf { it.matches(request) && request.phase == RingPhase.RINGING }
+        val alarm = restored?.alarm() ?: armedCopies.get(request.alarmId) ?: Alarm(id = request.alarmId, label = "Alarm")
         val session = RingSession(
-            alarm = armedCopies.get(request.alarmId) ?: Alarm(id = request.alarmId, label = "Alarm"),
+            alarm = alarm,
             kind = request.kind,
             phase = request.phase,
-            eventId = request.eventId,
+            eventId = request.eventId.takeIf { it > 0 } ?: restored?.eventId ?: request.eventId,
             scheduledAt = request.scheduledAt,
-            startedAt = time.nowMillis(),
-            snoozeCount = request.snoozeCount,
-            intensified = request.kind == RingKind.BACKUP,
+            startedAt = restored?.startedAtWall ?: time.nowMillis(),
+            snoozeCount = maxOf(request.snoozeCount, restored?.snoozeCount ?: 0),
+            intensified = request.kind == RingKind.BACKUP || (restored?.resumes ?: 0) > 0,
             lastInteractionAt = time.elapsedMillis(),
+            missionsDone = (restored?.missionsDone ?: 0).coerceIn(0, alarm.missions.size),
             timerId = request.timerId,
+            mutesUsed = restored?.mutesUsed ?: 0,
+            fallback = restored?.fallback ?: false,
+            wayOutProgress = restored?.wayOutProgress ?: 0,
+            pauses = restored?.pauses ?: 0,
+            resumes = restored?.resumes ?: 0,
+            pullBacks = restored?.pullBacks ?: 0,
         )
         store.set(session)
         rememberRing(session)
@@ -428,7 +443,8 @@ class RingController @Inject constructor(
             scheduledAt = request.scheduledAt,
             startedAt = restored?.startedAtWall ?: now,
             snoozeCount = maxOf(request.snoozeCount, restored?.snoozeCount ?: 0),
-            intensified = request.kind == RingKind.BACKUP,
+            // Back from a restart: straight to full volume, so that restarting the phone never buys a quieter alarm.
+            intensified = request.kind == RingKind.BACKUP || (restored?.resumes ?: 0) > 0,
             lastInteractionAt = elapsed,
             missionsDone = (restored?.missionsDone ?: 0).coerceIn(0, alarm.missions.size),
             timerId = request.timerId,
@@ -556,14 +572,15 @@ class RingController @Inject constructor(
         }
         val alarm = saved.alarm()
         val decision = ResumePolicy.afterProcessStart(
-            saved, alarm?.antiOversleep?.resumeWindowMinutes ?: 0, alarm?.antiOversleep?.keepsComingBack ?: false,
+            saved, alarm?.antiOversleep?.resumeWindowMinutes ?: 0, alarm?.antiOversleep?.maxResumes ?: AntiOversleepSettings.DEFAULT_MAX_RESUMES,
+            alarm?.antiOversleep?.keepsComingBack ?: false,
             time.nowMillis(), time.elapsedMillis(), runtime.bootCount(), BuildConfig.VERSION_CODE, triggersWiped,
         )
         when (decision) {
             is ResumeDecision.Resume -> {
                 if (decision.record != saved) durable.writeRing(decision.record)
                 if (decision.record != saved || !pending.isScheduled(TriggerKind.RING_SENTINEL, RingIds.SENTINEL_TRIGGER_ID)) {
-                    diagnostics.warn("Ring", "alarm ${saved.alarmId} was cut off; ringing it again (restart ${decision.record.resumes} of ${ResumePolicy.MAX_RESUMES})")
+                    diagnostics.warn("Ring", "alarm ${saved.alarmId} was cut off; ringing it again (restart ${decision.record.resumes} of ${alarm?.antiOversleep?.maxResumes})")
                     armSentinel(RingIds.RESUME_DELAY_MS)
                 }
                 true
@@ -616,7 +633,7 @@ class RingController @Inject constructor(
         val now = time.elapsedMillis()
         store.update { s ->
             if (now - s.lastInteractionAt < 1_000 && !s.intensified) return@update s
-            s.copy(lastInteractionAt = now, intensified = s.kind == RingKind.BACKUP)
+            s.copy(lastInteractionAt = now, intensified = s.kind == RingKind.BACKUP || s.resumes > 0)
         }
     }
 

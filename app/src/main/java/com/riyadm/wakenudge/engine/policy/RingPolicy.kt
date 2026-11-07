@@ -1,7 +1,6 @@
 package com.riyadm.wakenudge.engine.policy
 
 import com.riyadm.wakenudge.domain.model.AntiOversleepSettings
-import com.riyadm.wakenudge.domain.scheduling.SnoozePolicy
 import com.riyadm.wakenudge.engine.RingPhase
 import com.riyadm.wakenudge.engine.RingSession
 
@@ -57,7 +56,7 @@ object RingPolicy {
     }
 
     private fun snooze(s: RingSession, proof: RingProof): RingDecision {
-        if (s.isTimer || !SnoozePolicy.canSnooze(s.alarm.snooze, s.snoozeCount)) return deny(DenyReason.SnoozeUnavailable)
+        if (!s.canSnooze) return deny(DenyReason.SnoozeUnavailable)
         return when {
             // The ring screen would not launch itself any more: its notification carries the controls.
             s.safeMode -> RingDecision.Allow

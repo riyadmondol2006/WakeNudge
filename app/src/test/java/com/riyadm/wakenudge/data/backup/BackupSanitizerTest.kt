@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.data.backup
 
+import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.model.AlarmDefaults
 import com.riyadm.wakenudge.domain.model.AlarmEvent
@@ -16,6 +17,7 @@ import com.riyadm.wakenudge.domain.model.VolumeKeyAction
 import com.riyadm.wakenudge.domain.model.VolumeSettings
 import com.riyadm.wakenudge.domain.model.WakeCheckSettings
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -154,11 +156,11 @@ class BackupSanitizerTest {
     }
 
     @Test fun `the per-alarm ring settings are clamped to what the engine supports`() {
-        val low = AntiOversleepSettings(volumeFloorPercent = -5, muteBudget = -1, muteSeconds = 1, wayOutDelayMinutes = -1, wayOutCount = 0, fallbackCount = 0, resumeWindowMinutes = -9)
-        val high = AntiOversleepSettings(volumeFloorPercent = 900, muteBudget = 99, muteSeconds = 999, wayOutDelayMinutes = 99, wayOutCount = 99, fallbackCount = 99, resumeWindowMinutes = 99_999)
+        val low = AntiOversleepSettings(volumeFloorPercent = -5, muteBudget = -1, muteSeconds = 1, wayOutDelayMinutes = -1, wayOutCount = 0, fallbackCount = 0, resumeWindowMinutes = -9, maxResumes = -2)
+        val high = AntiOversleepSettings(volumeFloorPercent = 900, muteBudget = 99, muteSeconds = 999, wayOutDelayMinutes = 99, wayOutCount = 99, fallbackCount = 99, resumeWindowMinutes = 99_999, maxResumes = 500)
         val (a, b) = sanitize(BackupFile(alarms = listOf(Alarm(id = 1, antiOversleep = low), Alarm(id = 2, antiOversleep = high)))).file.alarms.map { it.antiOversleep }
-        assertEquals(AntiOversleepSettings(volumeFloorPercent = 0, muteBudget = 0, muteSeconds = 5, wayOutDelayMinutes = 0, wayOutCount = 3, fallbackCount = 1, resumeWindowMinutes = 0), a)
-        assertEquals(AntiOversleepSettings(volumeFloorPercent = 100, muteBudget = 5, muteSeconds = 60, wayOutDelayMinutes = 30, wayOutCount = 30, fallbackCount = 20, resumeWindowMinutes = 1_440), b)
+        assertEquals(AntiOversleepSettings(volumeFloorPercent = 0, muteBudget = 0, muteSeconds = 5, wayOutDelayMinutes = 0, wayOutCount = 3, fallbackCount = 1, resumeWindowMinutes = 0, maxResumes = 1), a)
+        assertEquals(AntiOversleepSettings(volumeFloorPercent = 100, muteBudget = 5, muteSeconds = 60, wayOutDelayMinutes = 30, wayOutCount = 30, fallbackCount = 20, resumeWindowMinutes = 1_440, maxResumes = 20), b)
     }
 
     @Test fun `the defaults for new alarms are clamped the same way`() {
@@ -166,6 +168,22 @@ class BackupSanitizerTest {
         val cleaned = sanitize(BackupFile(settings = settings)).file.settings.defaults.antiOversleep
         assertEquals(3, cleaned.wayOutCount)
         assertEquals(5, cleaned.muteSeconds)
+    }
+
+    @Test fun `removing the way out is never brought along by a restore, and the user is told`() {
+        val anti = AntiOversleepSettings(wayOutRemoved = true, maxResumes = 10)
+        val settings = Sample.settings.copy(defaults = AlarmDefaults(antiOversleep = AntiOversleepSettings(wayOutRemoved = true)))
+        val result = sanitize(BackupFile(settings = settings, alarms = listOf(Alarm(id = 1, antiOversleep = anti), Alarm(id = 2, antiOversleep = anti), Alarm(id = 3))))
+        assertTrue(result.file.alarms.none { it.antiOversleep.wayOutRemoved })
+        assertEquals("nothing else about them changes", 10, result.file.alarms.first().antiOversleep.maxResumes)
+        assertFalse(result.file.settings.defaults.antiOversleep.wayOutRemoved)
+        val warning = result.warnings.single { it.message == R.plurals.backup_warn_way_out_restored }
+        assertEquals("the defaults count as one too", 3, warning.count)
+    }
+
+    @Test fun `an alarm that kept its way out restores with no such warning`() {
+        val result = sanitize(BackupFile(alarms = listOf(Alarm(id = 1))))
+        assertTrue(result.warnings.none { it.message == R.plurals.backup_warn_way_out_restored })
     }
 
     @Test fun `a strict alarm is never restored without a way out it can finish`() {
@@ -181,7 +199,7 @@ class BackupSanitizerTest {
     @Test fun `a ring settings value already in range restores unchanged and without a warning`() {
         val anti = AntiOversleepSettings(
             volumeFloorPercent = 50, volumeKeyAction = VolumeKeyAction.NOTHING, returnToAlarm = false, forceReturn = true, muteBudget = 1, muteSeconds = 15,
-            wayOutDelayMinutes = 10, wayOutCount = 20, fallbackCount = 8, calmOnlyOnProgress = true, resumeWindowMinutes = 720, lockOverrideMission = true,
+            wayOutDelayMinutes = 10, wayOutCount = 20, fallbackCount = 8, calmOnlyOnProgress = true, resumeWindowMinutes = 720, maxResumes = 10, rotateMissions = true, lockOverrideMission = true,
             powerGuard = true, fullBrightness = true, forceSpeaker = true, torchWhenIgnored = true,
         )
         val file = BackupFile(alarms = listOf(Alarm(id = 1, antiOversleep = anti, wakeCheck = WakeCheckSettings(requireProof = true))))

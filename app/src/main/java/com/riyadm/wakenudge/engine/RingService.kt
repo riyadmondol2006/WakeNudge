@@ -268,7 +268,7 @@ class RingService : Service() {
     private fun startRinging(s: RingSession) {
         lastIntensified = s.intensified
         scope.launch {
-            guard("audio") { audio.start(s.alarm, settings.current(), s.kind, s.intensified) }
+            guard("audio") { audio.start(s.soundAlarm, settings.current(), s.kind, s.intensified) }
             guard("vibration") { if (s.alarm.vibration.enabled) vibrator.start(s.alarm.vibration, s.intensified) }
             guard("voice announcement") { if (s.alarm.voice.enabled && !s.isTimer) startVoice(s) }
         }

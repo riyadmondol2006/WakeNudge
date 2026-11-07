@@ -153,6 +153,57 @@ class DatabaseMigrationTest {
         db.close()
     }
 
+    @Test fun version4To5KeepsEveryAlarmAndDefaultsMatchVersion4() {
+        helper.createDatabase(TEST_DB, 4).apply {
+            insertAlarm(mapOf("id" to 1, "label" to "Plain", "hour" to 7, "minute" to 30, "ao_emergencyStopEnabled" to 1))
+            insertAlarm(mapOf("id" to 2, "label" to "Strict", "hour" to 6, "minute" to 0, "ao_emergencyStopEnabled" to 0, "ao_wayOutDelayMinutes" to 3, "ao_resumeWindowMinutes" to 720))
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 5, true, *Migrations.ALL)
+
+        db.query("SELECT label, hour, minute, ao_wayOutDelayMinutes, ao_resumeWindowMinutes, ao_maxResumes, ao_rotateMissions, ao_wayOutRemoved FROM alarms ORDER BY id").use { c ->
+            assertEquals("every alarm is kept", 2, c.count)
+            c.moveToFirst()
+            assertEquals("Plain", c.getString(0))
+            assertEquals(7, c.getInt(1)); assertEquals(30, c.getInt(2))
+            assertEquals(3, c.getInt(5)); assertEquals(0, c.getInt(6)); assertEquals(0, c.getInt(7))
+            c.moveToNext()
+            assertEquals("Strict", c.getString(0))
+            assertEquals(3, c.getInt(3)); assertEquals(720, c.getInt(4))
+            assertEquals("no alarm is made stricter by the update", 3, c.getInt(5))
+            assertEquals(0, c.getInt(6)); assertEquals(0, c.getInt(7))
+        }
+        db.close()
+    }
+
+    @Test fun version3To5KeepsEverythingAndAStrictAlarmGetsItsWayOut() {
+        helper.createDatabase(TEST_DB, 3).apply {
+            insertAlarm(mapOf("id" to 1, "label" to "Plain", "hour" to 7, "minute" to 30, "ao_emergencyStopEnabled" to 1))
+            insertAlarm(mapOf("id" to 2, "label" to "Strict", "hour" to 6, "minute" to 0, "ao_emergencyStopEnabled" to 0))
+            insertEvent(id = 9, alarmId = 1, label = "Plain")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 5, true, *Migrations.ALL)
+
+        db.query("SELECT label, ao_wayOutDelayMinutes, ao_maxResumes, ao_rotateMissions, ao_wayOutRemoved FROM alarms ORDER BY id").use { c ->
+            assertEquals(2, c.count)
+            c.moveToFirst()
+            assertEquals("Plain", c.getString(0))
+            assertEquals(0, c.getInt(1)); assertEquals(3, c.getInt(2)); assertEquals(0, c.getInt(3)); assertEquals(0, c.getInt(4))
+            c.moveToNext()
+            assertEquals("Strict", c.getString(0))
+            assertEquals(3, c.getInt(1)); assertEquals(3, c.getInt(2)); assertEquals(0, c.getInt(3)); assertEquals(0, c.getInt(4))
+        }
+        db.query("SELECT label, outcome FROM alarm_events").use { c ->
+            assertEquals("history is kept", 1, c.count)
+            c.moveToFirst()
+            assertEquals("DISMISSED", c.getString(1))
+        }
+        db.close()
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

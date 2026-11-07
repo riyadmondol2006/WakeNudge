@@ -22,11 +22,13 @@ import com.riyadm.wakenudge.domain.model.MissionConfig
 import com.riyadm.wakenudge.domain.model.MissionType
 import com.riyadm.wakenudge.domain.model.SnoozeSettings
 import com.riyadm.wakenudge.domain.model.TimerState
+import com.riyadm.wakenudge.domain.model.VolumeSettings
 import com.riyadm.wakenudge.domain.repository.ExceptionRepository
 import com.riyadm.wakenudge.domain.repository.GroupRepository
 import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
 import com.riyadm.wakenudge.domain.scheduling.NextTriggerCalculator
 import com.riyadm.wakenudge.engine.audio.AlarmAudioEngine
+import com.riyadm.wakenudge.engine.audio.VolumePlanner
 import com.riyadm.wakenudge.engine.notify.Notifier
 import com.riyadm.wakenudge.engine.policy.RingProof
 import com.riyadm.wakenudge.health.ExitReasons
@@ -35,6 +37,7 @@ import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.spyk
 import io.mockk.verify
 import java.io.IOException
 import kotlinx.coroutines.runBlocking
@@ -52,7 +55,7 @@ class DurableRingTest {
     private val history = MemoryHistory()
     private val timers = MemoryTimers()
     private val store = RingSessionStore()
-    private val prefs = MapPrefs()
+    private val prefs = spyk(MapPrefs())
     private val runtime = realRuntime(prefs).also { it.bootCountSource = { boots } }
     private var boots = 7
     private val notifier = mockk<Notifier>(relaxed = true)
@@ -357,11 +360,11 @@ class DurableRingTest {
         clearMocks(pending, answers = false)
     }
 
-    private fun resumeLimits(window: Int) = runBlocking {
-        val a = alarm { copy(snooze = SnoozeSettings(maxCount = 5), antiOversleep = anti(window).copy(emergencyStopEnabled = false), missions = twoMissions) }
+    private fun resumeLimits(window: Int, limit: Int) = runBlocking {
+        val a = alarm { copy(snooze = SnoozeSettings(maxCount = 5), antiOversleep = anti(window).copy(emergencyStopEnabled = false, maxResumes = limit), missions = twoMissions) }
         val s = ring(a)
         controller.noteMissionDone(1)
-        for (restart in 1..ResumePolicy.MAX_RESUMES) {
+        for (restart in 1..limit) {
             restarted()
             assertTrue("restart $restart comes back", controller.reviveDurableRing())
             verify { pending.setAlarmClock(TriggerKind.RING_SENTINEL, RingIds.SENTINEL_TRIGGER_ID, clock.now + RingIds.RESUME_DELAY_MS, any(), any(), any()) }
@@ -370,21 +373,137 @@ class DurableRingTest {
             assertEquals(restart, back.resumes)
         }
         restarted()
-        assertFalse("the 4th restart in one ring does not ring", controller.reviveDurableRing())
+        assertFalse("restart ${limit + 1} in one ring does not ring", controller.reviveDurableRing())
         assertNull(controller.onSentinelFired())
         assertNull(durable.ring())
         verify { notifier.showMissed(any(), s.scheduledAt) }
         val event = history.get(s.eventId)!!
         assertEquals(AlarmOutcome.MISSED, event.outcome)
-        assertEquals(ResumePolicy.MAX_RESUMES, event.resumes)
+        assertEquals(limit, event.resumes)
         assertEquals(1, event.missionsDone)
     }
 
-    @Test fun `three restarts come back and a fourth does not, on the Easy window`() = resumeLimits(10)
+    @Test fun `three restarts come back and a fourth does not, on Easy`() = resumeLimits(10, 3)
 
-    @Test fun `three restarts come back and a fourth does not, on the Normal window`() = resumeLimits(120)
+    @Test fun `three restarts come back and a fourth does not, on Normal`() = resumeLimits(120, 3)
 
-    @Test fun `three restarts come back and a fourth does not, on the Hard and No mercy window`() = resumeLimits(720)
+    @Test fun `five restarts come back and a sixth does not, on Hard`() = resumeLimits(720, 5)
+
+    @Test fun `ten restarts come back and an eleventh does not, on No mercy`() = resumeLimits(720, 10)
+
+    @Test fun `a saved ring from before the limit became a setting gets the old limit of three`() = runBlocking {
+        val a = hard()
+        ring(a)
+        val record = durable.ring()!!
+        val oldAlarm = record.alarmJson.replace(Regex(""""maxResumes":\d+,?"""), "")
+        assertFalse(oldAlarm.contains("maxResumes"))
+        durable.writeRing(record.copy(alarmJson = oldAlarm))
+        repeat(3) {
+            restarted()
+            assertTrue(controller.reviveDurableRing())
+            controller.begin(controller.onSentinelFired()!!)
+        }
+        restarted()
+        assertFalse(controller.reviveDurableRing())
+    }
+
+    @Test fun `a nonsense stored limit never means endless, and never means no restart at all`() {
+        val alarmJson = WakeJson.instance.encodeToString(Alarm.serializer(), Alarm(id = 1))
+        fun comesBack(limit: Int, resumes: Int) = ResumePolicy.afterProcessStart(
+            DurableRingRecord(alarmJson, alarmId = 1, resumes = resumes, startedAtWall = 0, bootCount = 1),
+            window = 720, maxResumes = limit, keepsComingBack = true, now = 0, elapsed = 1, bootCount = 2, versionCode = 1, triggersWiped = false,
+        ) is ResumeDecision.Resume
+        assertTrue(comesBack(limit = -4, resumes = 0))
+        assertFalse(comesBack(limit = -4, resumes = 1))
+        assertTrue(comesBack(limit = 99_999, resumes = AntiOversleepSettings.MAX_RESUMES_LIMIT - 1))
+        assertFalse(comesBack(limit = 99_999, resumes = AntiOversleepSettings.MAX_RESUMES_LIMIT))
+    }
+
+    // ---- a restart does not pay --------------------------------------------------------------------------------------
+
+    /** A ring cut off by [times] restarts, back on. */
+    private suspend fun resumed(a: Alarm, times: Int = 1): RingSession {
+        ring(a)
+        repeat(times) {
+            restarted()
+            assertTrue(controller.reviveDurableRing())
+            controller.begin(controller.onSentinelFired()!!)
+        }
+        return store.current!!
+    }
+
+    @Test fun `a ring that comes back after a restart is at full volume at once, with no ramp`() = runBlocking {
+        val a = alarm { copy(volume = VolumeSettings(level = 40, rampSeconds = 600), antiOversleep = anti(720)) }
+        val first = ring(a)
+        assertFalse(first.intensified)
+        assertEquals("a ring that has not been restarted plays as set", a.volume, first.soundAlarm.volume)
+        val back = run { restarted(); controller.reviveDurableRing(); controller.begin(controller.onSentinelFired()!!)!! }
+        assertTrue(back.intensified)
+        assertEquals(0, back.soundAlarm.volume.rampSeconds)
+        val plan = VolumePlanner.plan(back.soundAlarm.volume, streamMax = 7, currentStreamIndex = 1, headsetRoute = false, hearingCapEnabled = true, capPercent = 50, escalated = true, sourceLufs = null)
+        assertEquals("the whole stream", 7, plan.streamIndex)
+        assertEquals("the alarm as saved is not changed by how this ring sounds", a.volume, back.alarm.volume)
+        assertEquals(a.volume, durable.ring()!!.alarm()!!.volume)
+    }
+
+    @Test fun `full volume after a restart holds even for an alarm that does not get louder by itself`() = runBlocking {
+        val a = alarm { copy(volume = VolumeSettings(level = 30, escalateWhenIgnored = false), antiOversleep = anti(720)) }
+        val back = resumed(a)
+        val plan = VolumePlanner.plan(back.soundAlarm.volume, 7, 1, false, true, 50, back.intensified, null)
+        assertEquals(7, plan.streamIndex)
+    }
+
+    @Test fun `hearing protection on headphones still wins over the full volume of a restart`() = runBlocking {
+        val back = resumed(alarm { copy(antiOversleep = anti(720)) })
+        val plan = VolumePlanner.plan(back.soundAlarm.volume, 10, 1, headsetRoute = true, hearingCapEnabled = true, capPercent = 50, escalated = back.intensified, sourceLufs = null)
+        assertEquals(5, plan.streamIndex)
+        assertTrue(plan.cappedForHearing)
+    }
+
+    @Test fun `touching the screen does not calm a ring that came back after a restart`() = runBlocking {
+        val back = resumed(alarm { copy(antiOversleep = anti(720)) })
+        assertTrue(back.intensified)
+        clock.now += 5_000
+        controller.noteInteraction()
+        assertTrue(store.current!!.intensified)
+    }
+
+    @Test fun `a restart takes the snooze away`() = runBlocking {
+        val a = alarm { copy(snooze = SnoozeSettings(maxCount = 5), antiOversleep = anti(720)) }
+        assertTrue(ring(a).canSnooze)
+        val back = run { restarted(); controller.reviveDurableRing(); controller.begin(controller.onSentinelFired()!!)!! }
+        assertFalse(back.canSnooze)
+        assertEquals(SnoozeOutcome.NotAllowed, controller.snooze(RingTarget.of(back), RingProof.Gesture))
+        assertEquals(back.eventId, store.current!!.eventId)
+    }
+
+    @Test fun `a ring that was only killed comes back as it was, with its snooze and its ramp`() = runBlocking {
+        val a = alarm { copy(antiOversleep = anti(720), snooze = SnoozeSettings(maxCount = 5)) }
+        ring(a)
+        processDied()
+        val back = controller.begin(controller.onSentinelFired()!!)!!
+        assertEquals(0, back.resumes)
+        assertFalse(back.intensified)
+        assertTrue(back.canSnooze)
+    }
+
+    @Test fun `a ring started from nothing when the engine failed still knows it came back`() = runBlocking {
+        val a = hard()
+        ring(a)
+        controller.noteMissionDone(1)
+        restarted()
+        controller.reviveDurableRing()
+        val request = controller.onSentinelFired()!!
+        // Anything throwing inside begin lands on the emergency session: the saved ring has to speak for it.
+        every { prefs.getString("ring_crash_times", any()) } throws IllegalStateException("broken")
+        val session = controller.begin(request)!!
+        assertEquals(1, session.resumes)
+        assertEquals(1, session.missionsDone)
+        assertTrue(session.intensified)
+        assertFalse(session.canSnooze)
+        assertEquals(1, durable.ring()!!.resumes)
+        assertEquals(1, durable.ring()!!.missionsDone)
+    }
 
     private fun windowOf(window: Int, offForMinutes: Long, comesBack: Boolean) = runBlocking {
         val a = alarm { copy(antiOversleep = anti(window)) }

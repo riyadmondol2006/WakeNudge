@@ -132,6 +132,12 @@ data class AntiOversleepSettings(
     val fullBrightness: Boolean = false,
     val forceSpeaker: Boolean = false,
     val torchWhenIgnored: Boolean = false,
+    /** How many restarts of the phone one ring comes back from before it is recorded as missed. Always at least 1 and never endless. */
+    val maxResumes: Int = DEFAULT_MAX_RESUMES,
+    /** Whether a ring asks for one of the alarm's missions, a different one each morning, rather than all of them in turn. */
+    val rotateMissions: Boolean = false,
+    /** The user chose to have no way out without the mission. Never part of a level, and a restore always puts it back. */
+    val wayOutRemoved: Boolean = false,
 ) {
     /**
      * Whether a ring that gets cut off is brought back by every means there is: an alarm set to ring until it is dealt
@@ -143,6 +149,10 @@ data class AntiOversleepSettings(
     companion object {
         const val RING_TIMEOUT_NEVER = 0
         const val DEFAULT_RESUME_WINDOW_MINUTES = 10
+        const val DEFAULT_MAX_RESUMES = 3
+
+        /** The most restarts any alarm comes back from: someone with a broken screen needs this to end. */
+        const val MAX_RESUMES_LIMIT = 20
     }
 }
 

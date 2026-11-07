@@ -1,6 +1,7 @@
 package com.riyadm.wakenudge.engine
 
 import com.riyadm.wakenudge.core.TimeSource
+import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.model.AlarmEvent
 import com.riyadm.wakenudge.domain.model.AlarmOutcome
 import com.riyadm.wakenudge.domain.repository.AlarmRepository
@@ -16,8 +17,9 @@ import kotlinx.coroutines.sync.withLock
 
 /**
  * Alarms that should have gone off while the phone was powered down. Shortly after the scheduled time the alarm
- * simply rings (a reboot at 06:58 must not eat the 07:00 alarm); later than that it is recorded as missed and the
- * user is told, instead of silently re-arming a one-time alarm for tomorrow.
+ * simply rings (a reboot at 06:58 must not eat the 07:00 alarm), and an alarm that comes back from restarts for longer
+ * rings for that long too. Later than that it is recorded as missed and the user is told, instead of silently re-arming
+ * a one-time alarm for tomorrow.
  */
 @Singleton
 class MissedAlarmRecovery @Inject constructor(
@@ -52,28 +54,55 @@ class MissedAlarmRecovery @Inject constructor(
     }
 
     private suspend fun processOne(alarmId: Long, at: Long, now: Long) {
-        val alarm = alarms.getAlarm(alarmId) ?: return
-        if (!alarm.enabled && alarm.isRepeating) return
-        if (history.findOccurrence(alarmId, at) != null) return
-
         val lateBy = now - at
-        if (lateBy <= LATE_RING_WINDOW_MS) {
+        val alarm = try {
+            alarms.getAlarm(alarmId)
+        } catch (c: CancellationException) {
+            throw c
+        } catch (t: Throwable) {
+            // Storage never decides whether an alarm rings. Whether it may still ring is all that is needed from the alarm,
+            // and its saved copy can say; ringing it then copes with the database being gone.
+            diagnostics.error("Recovery", "could not read overdue alarm $alarmId; going by its saved copy", t)
+            if (lateBy <= lateRingWindow(ring.savedCopy(alarmId))) ring.onAlarmFired(alarmId, at)?.let(launcher::start)
+            return
+        }
+        if (alarm == null) return
+        if (!alarm.enabled && alarm.isRepeating) return
+        // When the history cannot say whether this one rang, it did not: a spurious ring beats a missed one.
+        if (guarded("looking up alarm $alarmId's history", null) { history.findOccurrence(alarmId, at) } != null) return
+
+        if (lateBy <= lateRingWindow(alarm)) {
             diagnostics.warn("Recovery", "alarm $alarmId was due ${lateBy / 1000}s ago while off: ringing now")
             ring.onAlarmFired(alarmId, at)?.let(launcher::start)
         } else {
             diagnostics.warn("Recovery", "alarm $alarmId was due ${lateBy / 60_000} min ago while off: marking missed")
-            history.start(
-                AlarmEvent(
-                    alarmId = alarmId, label = alarm.label, scheduledAt = at, firedAt = at, endedAt = now,
-                    outcome = AlarmOutcome.MISSED, missionsTotal = alarm.missions.size,
-                ),
-            )
+            guarded("recording alarm $alarmId as missed", Unit) {
+                history.start(
+                    AlarmEvent(
+                        alarmId = alarmId, label = alarm.label, scheduledAt = at, firedAt = at, endedAt = now,
+                        outcome = AlarmOutcome.MISSED, missionsTotal = alarm.missions.size,
+                    ),
+                )
+            }
             notifier.showMissed(alarm, at)
             if (!alarm.isRepeating) {
                 alarms.setEnabled(alarmId, false)
                 scheduler.schedule(alarmId)
             }
         }
+    }
+
+    /** Switching the phone off through the alarm only works for as long as the alarm has given up on coming back. */
+    private fun lateRingWindow(alarm: Alarm?): Long =
+        maxOf(LATE_RING_WINDOW_MS, (alarm?.antiOversleep?.resumeWindowMinutes ?: 0) * 60_000L)
+
+    private inline fun <T> guarded(what: String, fallback: T, block: () -> T): T = try {
+        block()
+    } catch (c: CancellationException) {
+        throw c
+    } catch (t: Throwable) {
+        diagnostics.error("Recovery", "$what failed; carrying on", t)
+        fallback
     }
 
     /** The boot broadcast and the app-start repair can both look at once; one after the other, the second sees the first's records. */

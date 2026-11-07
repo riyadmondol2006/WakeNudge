@@ -23,7 +23,6 @@ import com.riyadm.wakenudge.domain.model.TimerState
 import com.riyadm.wakenudge.di.AppScope
 import com.riyadm.wakenudge.domain.model.TimeFormat
 import com.riyadm.wakenudge.domain.repository.SettingsRepository
-import com.riyadm.wakenudge.domain.scheduling.SnoozePolicy
 import com.riyadm.wakenudge.engine.ActionReceiver
 import com.riyadm.wakenudge.engine.RingPhase
 import com.riyadm.wakenudge.engine.RingSession
@@ -173,7 +172,7 @@ class Notifier @Inject constructor(
         if (!session.safeMode) builder.setFullScreenIntent(open, true)
 
         if (session.phase == RingPhase.RINGING && session.safeMode && !session.isTimer) {
-            if (SnoozePolicy.canSnooze(alarm.snooze, session.snoozeCount)) {
+            if (session.canSnooze) {
                 builder.addAction(0, context.getString(R.string.action_snooze), broadcast(Actions.SNOOZE, alarm.id, eventId = session.eventId))
             }
             builder.addAction(0, context.getString(R.string.action_dismiss), broadcast(Actions.DISMISS, alarm.id, eventId = session.eventId))
@@ -182,8 +181,7 @@ class Notifier @Inject constructor(
                 builder.addAction(0, context.getString(R.string.action_add_minute), broadcast(Actions.TIMER_ADD_MINUTE, session.timerId))
                 builder.addAction(0, context.getString(R.string.action_stop), broadcast(Actions.TIMER_STOP, session.timerId))
             } else {
-                val canSnooze = SnoozePolicy.canSnooze(alarm.snooze, session.snoozeCount)
-                if (canSnooze) {
+                if (session.canSnooze) {
                     // An alarm with a mission is only snoozed from its screen; the notification takes you there.
                     val snoozeHere = alarm.missions.isEmpty() && alarm.snoozeMissions.isEmpty()
                     builder.addAction(

@@ -113,6 +113,7 @@ object BackupSanitizer {
         private var switchedOff = 0
         private var missionsDropped = 0
         private var deviceBoundSounds = 0
+        private var wayOutsRestored = 0
 
         fun warn(message: Int, vararg args: Any) {
             warnings += ImportWarning(message, args = args.toList())
@@ -128,6 +129,7 @@ object BackupSanitizer {
             if (switchedOff > 0) warnCount(R.plurals.backup_warn_switched_off, switchedOff)
             if (missionsDropped > 0) warnCount(R.plurals.backup_warn_missions_dropped, missionsDropped)
             if (deviceBoundSounds > 0) warnCount(R.plurals.backup_warn_device_sounds, deviceBoundSounds)
+            if (wayOutsRestored > 0) warnCount(R.plurals.backup_warn_way_out_restored, wayOutsRestored)
             if (clamped > 0) warnCount(R.plurals.backup_warn_clamped, clamped)
         }
 
@@ -264,7 +266,13 @@ object BackupSanitizer {
             maxReRings = int(w.maxReRings, 0..10),
         )
 
-        private fun antiOversleep(a: AntiOversleepSettings) = a.copy(
+        private fun antiOversleep(a: AntiOversleepSettings): AntiOversleepSettings {
+            // That choice was agreed to on one phone, after a rehearsal there. On this one it starts over.
+            if (a.wayOutRemoved) wayOutsRestored++
+            return ringSettings(a)
+        }
+
+        private fun ringSettings(a: AntiOversleepSettings) = a.copy(
             holdToDismissSeconds = int(a.holdToDismissSeconds, 0..30),
             backupDelayMinutes = int(a.backupDelayMinutes, 1..60),
             backupCount = int(a.backupCount, 0..RingIds.MAX_BACKUPS),
@@ -279,6 +287,8 @@ object BackupSanitizer {
             wayOutCount = int(a.wayOutCount, 3..30),
             fallbackCount = int(a.fallbackCount, 1..20),
             resumeWindowMinutes = int(a.resumeWindowMinutes, 0..1_440),
+            maxResumes = int(a.maxResumes, 1..AntiOversleepSettings.MAX_RESUMES_LIMIT),
+            wayOutRemoved = false,
         )
 
         private fun missions(label: String, owner: Alarm, source: List<MissionConfig>): List<MissionConfig> {

@@ -4,6 +4,17 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 Releases are built and published automatically from `main` and numbered `MAJOR.MINOR.N`, where `N` is the commit count
 (see [docs/RELEASING.md](docs/RELEASING.md)); the notes of each GitHub release list the commits it contains.
 
+## Restarting the phone no longer pays
+
+- **How many restarts a ring survives is now per alarm** (3 by default, no more than 20). Past that, or past its window, it
+  is recorded as missed and you are told
+- **A ring that comes back after a restart is at full volume at once, with no fade-in and no snooze**, and touching the screen
+  does not calm it. Hearing protection on headphones still applies
+- **An alarm due while the phone was off rings when it comes back** within 10 minutes or within the alarm's own window, whichever
+  is longer, and is reported as missed after that. This now also works if the database cannot be read
+- The database moves to version 5 and backups stay at format 1. Existing alarms keep their behaviour. A restored backup never
+  brings along an alarm with its way out removed: it gets one again, and you are told
+
 ## A ring that survives what happens to the phone
 
 - **A ring now outlives its process.** What it must not lose (the alarm as it fired, the snooze count, the missions done) is
