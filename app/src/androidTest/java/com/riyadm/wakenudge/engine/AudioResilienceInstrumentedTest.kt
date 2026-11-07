@@ -69,6 +69,7 @@ class AudioResilienceInstrumentedTest {
         audio.random = Random.Default
         audioManager.setStreamVolume(AudioManager.STREAM_ALARM, originalAlarmVolume, 0)
         runtime.savedAlarmVolume = -1
+        runtime.clearDurableRing()
     }
 
     // ---- helpers ---------------------------------------------------------------------------------------------
@@ -115,6 +116,34 @@ class AudioResilienceInstrumentedTest {
         onMain { audio.stop() }
         assertFalse("silent once stopped", audio.isAudible)
         assertEquals("alarm volume restored", originalAlarmVolume, audioManager.getStreamVolume(AudioManager.STREAM_ALARM))
+    }
+
+    @Test fun aRingThatComesBackAfterBeingKilledStillPutsTheOriginalVolumeBack() {
+        val original = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+        audioManager.setStreamVolume(AudioManager.STREAM_ALARM, 2, 0) // where the killed ring left it
+        runtime.savedAlarmVolume = original
+        runtime.durableRingJson = "{}" // it is coming back
+
+        audio.restoreSystemVolumeIfStale()
+        assertEquals("the returning ring owns the saved volume", original, runtime.savedAlarmVolume)
+        assertEquals("not put back under a ring about to start", 2, audioManager.getStreamVolume(AudioManager.STREAM_ALARM))
+
+        startRing()
+        await("sound") { audio.isAudible }
+        onMain { audio.stop() }
+        assertEquals("the user's level, not the level the killed ring left", original, audioManager.getStreamVolume(AudioManager.STREAM_ALARM))
+        assertEquals(-1, runtime.savedAlarmVolume)
+    }
+
+    @Test fun aVolumeLeftBehindIsPutBackOnceNoRingIsComing() {
+        val original = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+        audioManager.setStreamVolume(AudioManager.STREAM_ALARM, 2, 0)
+        runtime.savedAlarmVolume = original
+
+        audio.restoreSystemVolumeIfStale()
+
+        assertEquals(original, audioManager.getStreamVolume(AudioManager.STREAM_ALARM))
+        assertEquals(-1, runtime.savedAlarmVolume)
     }
 
     @Test fun aRingThatEndsWhileItsSoundIsStillLoadingNeverPlaysAfterwards() {

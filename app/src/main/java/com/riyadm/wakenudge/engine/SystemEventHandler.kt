@@ -43,6 +43,8 @@ class SystemEventHandler @Inject constructor(
                 // A ring cut off by the restart or the update comes back from an alarm trigger a moment from now, not from
                 // here: an alarm trigger is where the system allows the ring service to start and stay in front.
                 step("a ring that was cut off") { ring.reviveDurableRing() }
+                // If that ring is not coming back after all, nothing else will put the alarm volume back.
+                step("alarm volume") { audio.restoreSystemVolumeIfStale() }
                 // Also after an app update: an alarm that fell due while the update was installing may never have been
                 // delivered, and the reschedule just moved it to its next ring. One that did ring is in the history and
                 // is not repeated.

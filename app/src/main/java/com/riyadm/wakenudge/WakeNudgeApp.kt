@@ -47,6 +47,8 @@ class WakeNudgeApp : Application() {
             runCatching { startupRepair.repairIfNeeded() }
             // A ring the last process left behind comes back, or is told about if it cannot.
             runCatching { ring.reviveDurableRing(triggersWiped = wiped) }
+            // If that ring is not coming back after all, nothing else will put the alarm volume back.
+            runCatching { audio.restoreSystemVolumeIfStale() }
             // Last, when all of the above has recorded what it found: an alarm that did not ring on time is explained.
             ringLedger.update()
         }

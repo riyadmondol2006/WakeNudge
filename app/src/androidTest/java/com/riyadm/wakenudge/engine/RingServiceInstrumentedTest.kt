@@ -3,6 +3,7 @@ package com.riyadm.wakenudge.engine
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.media.AudioManager
 import android.os.Build
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
@@ -71,9 +72,12 @@ class RingServiceInstrumentedTest {
 
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context: Context = instrumentation.targetContext
+    private val audioManager: AudioManager = context.getSystemService(AudioManager::class.java)
+    private var originalAlarmVolume = 0
 
     @Before fun setUp() {
         hilt.inject()
+        originalAlarmVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
         runtime.setRegisteredTriggers(emptyMap())
         runtime.clearRingCrashes()
         runtime.clearDurableRing()
@@ -90,6 +94,20 @@ class RingServiceInstrumentedTest {
         runtime.testAlarmJson = null
         runtime.setRegisteredTriggers(emptyMap())
         runtime.clearRingCrashes()
+        // The last test's service can be cut off before it restores the volume, and this phone is someone's alarm clock.
+        audioManager.setStreamVolume(AudioManager.STREAM_ALARM, originalAlarmVolume, 0)
+        runtime.savedAlarmVolume = -1
+    }
+
+    /** A ring set to Never can outlast the ring lock's timeout, so the service renews it; renewing must push the timeout back. */
+    @Test fun renewingTheRingLockKeepsItPastItsTimeout() {
+        locks.acquireRing(1_500)
+        Thread.sleep(1_000)
+        locks.acquireRing(1_500)
+        Thread.sleep(1_000)
+        assertTrue("still held 2 s in, past the first 1.5 s timeout", locks.ringHeld)
+        Thread.sleep(1_200)
+        assertFalse("released once renewals stop", locks.ringHeld)
     }
 
     private fun quietAlarm(id: Long = RingIds.TEST_ALARM_ID) = Alarm(

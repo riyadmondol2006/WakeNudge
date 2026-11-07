@@ -209,9 +209,13 @@ class AlarmAudioEngine @Inject constructor(
         switching = false
     }
 
-    /** Puts the alarm stream back if a previous session was killed before it could. Safe to call any time. */
+    /**
+     * Puts the alarm stream back if a previous session was killed before it could. Safe to call any time. A ring the last
+     * process left behind is on its way back, and it owns the saved volume until it ends: restoring now would have it
+     * save its own lowered or raised level as the original, and the phone would keep that level for good.
+     */
     fun restoreSystemVolumeIfStale() {
-        if (config == null) restoreSystemVolume()
+        if (config == null && runtime.durableRingJson == null) restoreSystemVolume()
     }
 
     // ---- playback ------------------------------------------------------------------------------------------
@@ -552,8 +556,10 @@ class AlarmAudioEngine @Inject constructor(
         }
         plan.streamIndex?.let { index ->
             val current = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+            // Saved by a session that was killed before it could put it back: that is the user's level, not the current one.
+            val savedByKilledSession = runtime.savedAlarmVolume.takeIf { it >= 0 && originalIndexByRoute.isEmpty() }
             if (runtime.savedAlarmVolume < 0) runtime.savedAlarmVolume = current
-            originalIndexByRoute.getOrPut(headsetRouted) { current }
+            originalIndexByRoute.getOrPut(headsetRouted) { savedByKilledSession ?: current }
             val wanted = index.coerceAtMost(streamMax)
             if (current != wanted) {
                 runCatching { audioManager.setStreamVolume(AudioManager.STREAM_ALARM, wanted, 0) }
