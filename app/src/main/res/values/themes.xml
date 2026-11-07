@@ -8,6 +8,11 @@
         <item name="android:windowLightStatusBar">true</item>
     </style>
 
+    <!-- The safe ring screen: dark, with light text, whatever the system theme. -->
+    <style name="Theme.WakeNudge.Safe" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+
     <style name="Theme.WakeNudge.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_bg</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>

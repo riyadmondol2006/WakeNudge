@@ -62,6 +62,7 @@ class RingService : Service() {
     @Inject lateinit var runtime: RuntimeState
     @Inject lateinit var locks: RingWakeLocks
     @Inject lateinit var rescue: RingCrashGuard
+    @Inject lateinit var calls: CallWatcher
 
     // A coroutine that fails must not take the process (and so the alarm) down with it: log it and carry on.
     private val scope = CoroutineScope(
@@ -76,6 +77,9 @@ class RingService : Service() {
     private var stoppedOnPurpose = false
     private var ringingStarted = false
     private var lastIntensified = false
+
+    /** Whether the ring is quiet for an Emergency pause or a call: no sound and no vibration, but it is still on. */
+    private var quiet = false
 
     /** Foreground types the system refused this service; one that said no is not asked again on every notification. */
     private val refusedTypes = mutableSetOf<Int>()
@@ -165,10 +169,10 @@ class RingService : Service() {
      * where the system allows it, and the display is lit so the heads-up notification is at least seen.
      */
     private fun openRingScreenIfItMayNotAppear(session: RingSession) {
-        if (session.phase != RingPhase.RINGING || session.safeMode || !notifier.ringScreenMayNotAppear()) return
+        if (session.phase != RingPhase.RINGING || !notifier.ringScreenMayNotAppear()) return
         diagnostics.warn("Service", "the full-screen alarm may not appear on its own; opening the ring screen directly")
         locks.wakeScreen()
-        runCatching { startActivity(notifier.ringScreenIntent()) }
+        runCatching { startActivity(notifier.ringScreenIntent(session.safeMode)) }
             .onFailure { diagnostics.warn("Service", "the system did not allow opening the ring screen: ${it.message}") }
     }
 
@@ -185,6 +189,7 @@ class RingService : Service() {
 
     private fun observe() {
         if (observer?.isActive == true) return
+        calls.start { store.current?.takeIf { ringingStarted }?.let { applyQuiet(it, time.elapsedMillis()) } }
         observer = scope.launch {
             var previous: RingSession? = null
             store.session.collect { s ->
@@ -226,6 +231,7 @@ class RingService : Service() {
                 delay(1_000)
                 guard("ring timer") {
                     controller.tick()
+                    store.current?.takeIf { ringingStarted }?.let { applyQuiet(it, time.elapsedMillis()) }
                     resurfaceIfAbandoned()
                 }
                 guard("wake lock") { locks.onRingTick() }
@@ -256,20 +262,36 @@ class RingService : Service() {
             lastIntensified = s.intensified
             guard("escalation") {
                 audio.setIntensified(s.intensified)
-                if (s.alarm.vibration.enabled) {
+                if (s.alarm.vibration.enabled && !quiet) {
                     vibrator.stop()
                     vibrator.start(s.alarm.vibration, s.intensified)
                 }
             }
         }
-        if (ringingStarted) guard("silencing") { audio.setSilenced(s.silencedUntil > now) }
+        if (ringingStarted) applyQuiet(s, now)
+    }
+
+    /**
+     * Sound off for a moment (a key, a mute), for an Emergency pause, or for a call; vibration stops with the last two and
+     * comes back with the alarm. Looked at on every change of the session and once a second, since a call has no session
+     * change of its own.
+     */
+    private fun applyQuiet(s: RingSession, now: Long) {
+        val paused = (s.pausedAt(now) && s.pauseSilences) || runCatching { calls.keepsQuiet(s.startedAt * 31 + s.alarm.id) }.getOrDefault(false)
+        guard("silencing") { audio.setSilenced(paused || s.silencedUntil > now) }
+        if (paused == quiet) return
+        quiet = paused
+        guard("vibration") {
+            if (paused) vibrator.stop() else if (s.alarm.vibration.enabled) vibrator.start(s.alarm.vibration, s.intensified)
+        }
+        diagnostics.info("Service", if (paused) "the alarm is quiet for an Emergency pause or a call" else "the alarm sounds again after a pause or a call")
     }
 
     private fun startRinging(s: RingSession) {
         lastIntensified = s.intensified
         scope.launch {
             guard("audio") { audio.start(s.soundAlarm, settings.current(), s.kind, s.intensified) }
-            guard("vibration") { if (s.alarm.vibration.enabled) vibrator.start(s.alarm.vibration, s.intensified) }
+            guard("vibration") { if (s.alarm.vibration.enabled && !quiet) vibrator.start(s.alarm.vibration, s.intensified) }
             guard("voice announcement") { if (s.alarm.voice.enabled && !s.isTimer) startVoice(s) }
         }
     }
@@ -306,6 +328,8 @@ class RingService : Service() {
     private fun resurfaceIfAbandoned() {
         val s = store.current ?: return
         if (s.phase != RingPhase.RINGING || store.isUiVisible.value) return
+        // Someone is calling, or making a call through the Emergency pause: nothing may cover the phone app.
+        if (s.pausedAt(time.elapsedMillis()) || runCatching { calls.callActive() }.getOrDefault(false)) return
         val now = time.nowMillis()
         if (now - lastResurface < RESURFACE_EVERY_MS || now - s.startedAt < RESURFACE_EVERY_MS) return
         scope.launch {
@@ -344,6 +368,7 @@ class RingService : Service() {
         }
         ringingStarted = false
         lastIntensified = false
+        quiet = false
     }
 
     private fun shutdown() {
@@ -360,6 +385,7 @@ class RingService : Service() {
         }
         stoppedOnPurpose = true
         stopSounds()
+        calls.stop()
         observer?.cancel()
         ticker?.cancel()
         observer = null
@@ -374,6 +400,7 @@ class RingService : Service() {
         val session = store.current
         foregroundType = 0
         scope.cancel()
+        runCatching { calls.stop() }
         audio.stop()
         vibrator.stop()
         voice?.shutdown()

@@ -44,6 +44,9 @@ private const val NO_FRAMES_MS = 8_000L
  * never delivers a frame. So [onUnavailable] also fires when no frame has arrived for [NO_FRAMES_MS] while the screen
  * is in front, which covers every way a camera can fail to show up.
  *
+ * A camera that runs but shows only black (a covered or broken lens) is caught too: after a while of flat frames the torch
+ * is switched on, and if the frames stay flat for a minute [onDark] fires (see [DarkFrameWatch]).
+ *
  * @param analysisSize preferred analysis resolution; the camera picks the closest it supports.
  * @param torchOn whether the torch should be lit (ignored if the phone has none; see [onTorchAvailable]).
  */
@@ -54,6 +57,7 @@ internal fun CameraAnalysisView(
     torchOn: Boolean = false,
     onTorchAvailable: (Boolean) -> Unit = {},
     onUnavailable: () -> Unit = {},
+    onDark: () -> Unit = {},
     onFrame: (ImageProxy) -> Unit,
 ) {
     val context = LocalContext.current
@@ -63,6 +67,11 @@ internal fun CameraAnalysisView(
     val latestFrameHandler by rememberUpdatedState(onFrame)
     val latestUnavailable by rememberUpdatedState(onUnavailable)
     val latestTorchAvailable by rememberUpdatedState(onTorchAvailable)
+    val latestDark by rememberUpdatedState(onDark)
+    val darkWatch = remember { DarkFrameWatch() }
+    val hasTorch = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
+    var torchForced by remember { mutableStateOf(false) }
+    var darkReported by remember { mutableStateOf(false) }
     val previewView = remember {
         PreviewView(context).apply {
             // TextureView-based so the preview clips, fades and animates like any other Compose content.
@@ -88,8 +97,19 @@ internal fun CameraAnalysisView(
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .build()
         analysis.setAnalyzer(executor) { image ->
-            lastFrameAt.set(SystemClock.elapsedRealtime())
+            val now = SystemClock.elapsedRealtime()
+            lastFrameAt.set(now)
             try {
+                when (darkWatch.onFrame(now, FrameSampling.lumaStdDev(image), hasTorch.get())) {
+                    DarkFrameWatch.Verdict.FINE -> Unit
+                    DarkFrameWatch.Verdict.TRY_TORCH -> ContextCompat.getMainExecutor(context).execute { torchForced = true }
+                    DarkFrameWatch.Verdict.DARK -> ContextCompat.getMainExecutor(context).execute {
+                        if (!darkReported) {
+                            darkReported = true
+                            latestDark()
+                        }
+                    }
+                }
                 latestFrameHandler(image)
             } catch (_: Exception) {
                 // A bad frame must never take the alarm screen down; the next frame will be analysed normally.
@@ -113,6 +133,7 @@ internal fun CameraAnalysisView(
                     val bound = cameraProvider.bindToLifecycle(lifecycleOwner, selector, preview, analysis)
                     lastFrameAt.set(SystemClock.elapsedRealtime())
                     camera = bound
+                    hasTorch.set(bound.cameraInfo.hasFlashUnit())
                     latestTorchAvailable(bound.cameraInfo.hasFlashUnit())
                 }
             } catch (_: Exception) {
@@ -142,8 +163,8 @@ internal fun CameraAnalysisView(
         }
     }
 
-    LaunchedEffect(camera, torchOn) {
-        camera?.takeIf { it.cameraInfo.hasFlashUnit() }?.cameraControl?.enableTorch(torchOn)
+    LaunchedEffect(camera, torchOn, torchForced) {
+        camera?.takeIf { it.cameraInfo.hasFlashUnit() }?.cameraControl?.enableTorch(torchOn || torchForced)
     }
 
     AndroidView(factory = { previewView }, modifier = modifier)

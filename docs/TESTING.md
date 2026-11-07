@@ -4,10 +4,10 @@ An alarm clock is judged on the one morning it fails, so testing is split by wha
 
 | Layer | Where it runs | What it proves |
 |---|---|---|
-| **JVM unit tests** (778) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
+| **JVM unit tests** (815) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
 | **Fuzz tests** (14, part of the JVM tests) | Your computer | 20,000 seeded random alarm/clock/zone combinations never crash the scheduler or yield a time in the past; corrupted and hostile backup files are rejected or sanitised, never half-applied; random commands from stale buttons, keys and forged claims never end a ring whose missions are unfinished |
 | **Instrumented engine tests** (about 130, with the migration tests) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
-| **Instrumented UI tests** (about 60, 25 of them for the update popup and the About screen) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions |
+| **Instrumented UI tests** (about 65, 25 of them for the update popup and the About screen) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions getting a backup mission (never Continue), Emergency and the way out by click action at font scale 2.0 |
 
 Run the JVM tests with `./gradlew :app:testDebugUnitTest`. For the instrumented tests see the warning in the README:
 **target exactly one device**.
@@ -81,7 +81,17 @@ began life as a question; the ones that found real bugs are marked ✱ and were 
   - **Dismiss on a snoozed alarm's notification** skipped the still-awake check and did not delete a delete-after-use alarm.
   - A **timer finishing with a full disk or an unreadable database** stayed silent.
 - `RingTrapTest` takes each level's settings and every mission through its real exits after any number of restarts, and every
-  limit a restored file can hold through restarts to the end: it fails if a ring has no way to end.
+  limit a restored file can hold through restarts to the end: it fails if a ring has no way to end. It also takes every
+  level, every mission and every reason a mission can fail (`FallbackReason`) through the backup mission; every level's way
+  out (hold, or the chain after its delay, also after a restart); safe mode, where a mission alarm ends only with the plain
+  screen's sums; six Emergency pauses; and, with the way out removed, says explicitly that the only exits left are the
+  backup mission for a detected failure and the restart cap.
+- `FallbackChainTest`: the backup length for every reason at every level, never empty or endless whatever a file says, no
+  step harder than MEDIUM, no multi-digit multiplication over 2,000 seeds. `WayOutAndEmergencyTest`: the hold, the chain
+  opening after its delay and counted one task at a time across a restart, the way out removed, pause counting (two silent,
+  then the sound stays) and its expiry. `CallPauseTest`, `SensorAndCameraWatchTest` (silent sensors, a black camera with
+  the torch tried, a dark room that is not a dead camera). `NoContinueTest` fails if a Continue string or `MissionWayOut`
+  comes back.
 - The app force-killed mid-ring (chaos test): the backup alarm still rings.
 - Rapid snooze/dismiss mashing, double-delivered triggers, concurrent settings writes, missions that cannot be completed
   on this phone, permission revoked mid-flow, huge and hostile labels, 200 % font, RTL, time-zone jumps, DST gaps.
@@ -124,8 +134,9 @@ Hardware: **Google Pixel 6 Pro, Android 17 (API 37)**. No other physical device 
   the next app start; the group, skip, schedule-change, reboot-recovery and fired-snooze cases pass against the real
   AlarmManager and Room. Another project's instrumented tests were running on the same phone at the time, which
   caused a few "no compose hierarchy" failures; each of those classes passed when run again on its own.
-- Strict alarms: the ring screen offers the Emergency stop by default and hides it when an alarm has it switched off;
-  turning it off asks for confirmation; the snooze switch on its card works without opening the card.
+- Strict alarms (before the way out and Emergency changed): the ring screen offered the press-and-hold stop by default and
+  hid it when an alarm had it switched off; turning it off asked for confirmation; the snooze switch on its card works
+  without opening the card.
 
 ## Not verified. Please be sceptical here
 
@@ -148,6 +159,8 @@ These could not be done safely or at all in the development setup. They are the 
 | **Other manufacturers** (Samsung, Xiaomi, OnePlus, Huawei, …) | Their battery managers can still kill background work. Alarm health helps detect settings but cannot override a vendor |
 | **Other Android versions** (8.0–16) | Only Android 17 on hardware. minSdk-26 code paths (e.g. no `POST_NOTIFICATIONS`, `SCHEDULE_EXACT_ALARM`) are branch-tested, not run |
 | Human **shaking, squats and steps** | Counters are unit-tested with synthetic sensor traces; real motion was not performed |
+| The **backup mission** on a real phone: camera permission revoked before a locked ring, NFC off, the lens covered for a minute, a dead sensor | `FallbackChainTest`, `SensorAndCameraWatchTest` and `RingTrapTest` cover the rules; `RingAndMissionUiTest` and `RobustUiTest` (no Continue node, a keypad appears) are compiled, not yet run on a device. The permission dialog over the lock screen was not observed |
+| **Emergency** on a real phone: the phone app or the lock-screen Emergency call button, a real incoming call during a ring, the safe ring screen after two crashes | The pause, its count and the call budget are JVM-tested (`WayOutAndEmergencyTest`, `CallPauseTest`); opening the dialer, the bouncer and `AudioManager` mode changes were not observed, nor `SafeRingActivity` on the lock screen |
 | **Focus Tap** half asleep, and **mission rotation** over real mornings | `FocusGameTest`, `MissionRotationTest` (a month, across daylight-saving changes) and `RotationRingTest` cover the rules; `FocusTapUiTest` (touch, screen reader, RTL, font scale 2.0) is compiled but not yet run on a device. Whether it takes under a minute first thing in the morning, or can be done on reflex, was not tried |
 | **NFC** tag read over the lock screen | The mission logic is tested; no tag was scanned |
 | **QR/barcode** decode with a printed code; **photo match** against a detailed real scene | Decoder/matcher tested on generated images only |

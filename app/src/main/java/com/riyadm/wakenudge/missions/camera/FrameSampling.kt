@@ -37,6 +37,23 @@ internal object FrameSampling {
         return out
     }
 
+    /** How much the luminance varies across the frame (0..255), from a sparse grid of samples: cheap enough for every frame. */
+    fun lumaStdDev(image: ImageProxy, grid: Int = 48): Double {
+        val plane = image.planes[0]
+        val buffer = plane.buffer
+        val samples = IntArray(grid * grid)
+        var n = 0
+        for (gy in 0 until grid) {
+            val y = (gy * image.height) / grid
+            for (gx in 0 until grid) {
+                val x = (gx * image.width) / grid
+                val index = y * plane.rowStride + x * plane.pixelStride
+                if (index < buffer.limit()) samples[n++] = buffer.get(index).toInt() and 0xFF
+            }
+        }
+        return DarkFrameWatch.stdDev(samples, n)
+    }
+
     /**
      * Downsamples the frame to [outWidth] x [outHeight] RGB, upright (the frame's rotation is applied) and squashed to
      * that size. Luminance is averaged over a small block per output pixel so thin details do not alias; chroma is

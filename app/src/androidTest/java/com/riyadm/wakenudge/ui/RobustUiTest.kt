@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.center
@@ -71,14 +72,14 @@ class RobustUiTest {
 
     @Test fun everyRingControlIsReachableAtTheLargestFontOnASmallPhone() {
         showRing(fontScale = 2f, width = 320, height = 480)
-        for (label in listOf("Slide to dismiss", "Emergency stop")) {
+        for (label in listOf("Slide to dismiss", "Emergency")) {
             compose.onNodeWithText(label).performScrollTo().assertIsDisplayed()
         }
     }
 
     private fun fontScaleKeepsEveryControlReachable(scale: Float) {
         showRing(fontScale = scale)
-        compose.onNodeWithText("Emergency stop").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Emergency").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Slide to dismiss").performScrollTo().assertIsDisplayed()
     }
 
@@ -108,21 +109,51 @@ class RobustUiTest {
         assertEquals("RTL users must be able to dismiss", 1, dismissed.get())
     }
 
-    @Test fun aMissionThatCannotBeDoneNeverTrapsTheUser() {
+    @Test fun aMissionThatCannotBeDoneNeverTrapsTheUserAndIsNeverPassed() {
         var done = 0
         compose.setContent {
             WakeNudgeTheme {
                 // A QR mission whose code was never registered (setup skipped, or the alarm was restored from a backup).
                 com.riyadm.wakenudge.missions.MissionHost(
                     listOf(com.riyadm.wakenudge.domain.model.MissionConfig(com.riyadm.wakenudge.domain.model.MissionType.QR_BARCODE)),
+                    backup = com.riyadm.wakenudge.missions.MissionBackup(com.riyadm.wakenudge.domain.model.AntiOversleepSettings(fallbackCount = 3)),
                     onComplete = { done++ },
                 )
             }
         }
-        compose.onNodeWithText("Not set up yet").assertIsDisplayed()
-        compose.onNodeWithText("Continue").performClick()
-        compose.waitForIdle()
-        assertEquals(1, done)
+        compose.onNodeWithText("Backup mission").assertIsDisplayed()
+        compose.onNodeWithText("Continue").assertDoesNotExist()
+        assertEquals("nothing is passed for free", 0, done)
+    }
+
+    /** TalkBack users reach Emergency and the way out by their click action, at the largest font, on a mission alarm. */
+    @Test fun emergencyAndTheWayOutWorkByClickActionAtTheLargestFont() {
+        val calls = AtomicInteger()
+        val stops = AtomicInteger()
+        compose.setContent {
+            val base = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(base.density, 2f)) {
+                WakeNudgeTheme {
+                    Box(Modifier.size(320.dp, 600.dp)) {
+                        RingScreen(
+                            session = session(Alarm(label = "Gym", missions = listOf(com.riyadm.wakenudge.domain.model.MissionConfig(com.riyadm.wakenudge.domain.model.MissionType.MATH)))),
+                            settings = AppSettings(),
+                            actions = RingActions(
+                                onSnooze = {}, onDismiss = {}, onEmergencyStop = { stops.incrementAndGet() }, onAddMinute = {}, onHide = {},
+                                onInteraction = {}, onMissionProgress = {}, onEmergencyCall = { calls.incrementAndGet() },
+                            ),
+                            missionContent = { m, i, p, c, f -> RingMissionContent(m, i, p, c, f) },
+                        )
+                    }
+                }
+            }
+        }
+        compose.onNodeWithText("Emergency").performScrollTo().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+        compose.onNodeWithText("Call or use phone").performClick()
+        assertEquals(1, calls.get())
+        compose.onNodeWithContentDescription("Way out without the mission").performScrollTo().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+        compose.onNodeWithText("Stop alarm").performClick()
+        assertEquals(1, stops.get())
     }
 
     @Test fun alarmCardCopesWithAHostileLabelAndHugeFonts() {

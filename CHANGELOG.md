@@ -4,6 +4,27 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 Releases are built and published automatically from `main` and numbered `MAJOR.MINOR.N`, where `N` is the commit count
 (see [docs/RELEASING.md](docs/RELEASING.md)); the notes of each GitHub release list the commits it contains.
 
+## No more Continue: a backup mission, a way out that takes effort, and Emergency on every ring
+
+- **A mission the phone cannot do is no longer passed with Continue.** It is replaced by a backup mission of short tasks
+  (Focus Tap, typing a phrase, simple sums, in turn): 3 to 8 steps when the phone is at fault (no hardware, never set up, a
+  setup that cannot be read, a camera that fails, a sensor that says nothing for 30 seconds), and the longer way-out length
+  when it could be a choice (camera permission refused, NFC off), offered next to the fix. Refusing the camera and tapping
+  Continue used to pass a mission in two taps
+- **A camera that shows only black** (a covered or broken lens) is noticed: after 15 seconds the flashlight is switched
+  on, and after a minute of nothing the backup mission takes over. A dark room the flashlight lights up is not affected
+- **The way out without the mission** replaces the Emergency stop. By default it is a 10-second hold (it was 3 seconds, and
+  the hold time setting is gone). A strict alarm (Emergency stop switched off) now opens its way out only after a few
+  minutes of ringing (3 for alarms that were strict before), and then asks for 10 tasks; the progress survives a restart.
+  An alarm that ends with one tap has no hold, since there is nothing to skip. Both are still recorded as an emergency stop
+- **Emergency** is on every ring and mission screen, whatever the alarm: it pauses the alarm for 3 minutes and opens the
+  phone app, or on a locked phone the unlock screen with its Emergency call button. It does not stop the alarm. The first two
+  pauses of a ring are silent, later ones keep the sound on unless a call is going on. A phone call, or one ringing in,
+  keeps the alarm quiet for as long as it lasts; a call in an app for at most 10 minutes per ring
+- **If the alarm screen keeps crashing**, a plain screen takes over instead of the notification buttons: an alarm with a
+  mission is ended there with a few sums, never with one tap from the notification
+- Pauses, backup missions and way-out tasks are counted in the history
+
 ## A new mission, and a different one each morning
 
 - **Focus Tap**: shapes come and go on a 3 x 3 board and you tap only the one you are asked for. A wrong tap starts the

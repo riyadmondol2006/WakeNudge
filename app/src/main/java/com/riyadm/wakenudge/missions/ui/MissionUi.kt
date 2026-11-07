@@ -70,6 +70,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -80,6 +81,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
+import com.riyadm.wakenudge.missions.FallbackReason
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -304,17 +306,32 @@ internal fun openAppSettings(context: Context) {
 }
 
 /**
- * Set by [com.riyadm.wakenudge.missions.MissionHost] while an alarm really rings: lets a mission that turns out to be
- * impossible right now (camera permission refused, camera broken or busy) let the user through, as the app promises,
- * instead of leaving them with a ringing alarm and nothing to do. Null in previews and setup screens.
+ * Set by [com.riyadm.wakenudge.missions.MissionHost] while an alarm really rings: a mission that turns out to be impossible
+ * right now hands itself over to a backup mission through it. Nothing passes a mission. Null in previews and setup screens.
  */
-internal val LocalMissionWayOut = staticCompositionLocalOf<(() -> Unit)?> { null }
+internal class MissionFallback(val steps: (FallbackReason) -> Int, val start: (FallbackReason) -> Unit)
 
-/** The Continue button of a mission that cannot be done right now; nothing outside a real ring. */
+internal val LocalMissionFallback = staticCompositionLocalOf<MissionFallback?> { null }
+
+/** The phone cannot do this mission: during a real ring the backup mission takes over at once. */
 @Composable
-internal fun ColumnScope.MissionWayOut() {
-    val wayOut = LocalMissionWayOut.current ?: return
-    MissionButton(stringResource(R.string.mission_continue), wayOut, Modifier.fillMaxWidth())
+internal fun ReportFallback(reason: FallbackReason) {
+    val fallback = LocalMissionFallback.current ?: return
+    LaunchedEffect(reason) { fallback.start(reason) }
+}
+
+/**
+ * For a cause the user could fix (a refused permission, NFC off): the backup mission, of the way-out length, as a choice
+ * next to the fix. Nothing outside a real ring.
+ */
+@Composable
+internal fun ColumnScope.BackupMissionButton(reason: FallbackReason) {
+    val fallback = LocalMissionFallback.current ?: return
+    val steps = fallback.steps(reason)
+    MissionButton(
+        pluralStringResource(R.plurals.mission_backup_instead, steps, steps), { fallback.start(reason) }, Modifier.fillMaxWidth(),
+        kind = MissionButtonKind.Tonal,
+    )
 }
 
 /** True while a touch-exploring screen reader (TalkBack) is on; looked at again on every resume. */
@@ -380,8 +397,9 @@ internal fun PermissionGate(
                     MissionButton(stringResource(R.string.mission_allow_access), { launcher.launch(permission) }, Modifier.fillMaxWidth())
                 }
                 extraActions()
-                // Asked and refused (or Android no longer asks): during a real alarm this mission cannot happen.
-                if (denied || permanentlyDenied) MissionWayOut()
+                // Without the permission this mission cannot happen, whatever the reason (refused, revoked, or a dialog
+                // that does not show over the lock screen): the long backup mission is always there as the way through.
+                BackupMissionButton(FallbackReason.PERMISSION_REFUSED)
             }
         }
     }

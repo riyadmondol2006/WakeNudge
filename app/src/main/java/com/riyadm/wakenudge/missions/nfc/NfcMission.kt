@@ -63,7 +63,9 @@ import com.riyadm.wakenudge.missions.ui.SetupFrame
 import com.riyadm.wakenudge.missions.ui.errorShake
 import com.riyadm.wakenudge.missions.ui.findActivity
 import com.riyadm.wakenudge.missions.ui.rememberErrorFeedback
-import com.riyadm.wakenudge.missions.ui.MissionWayOut
+import com.riyadm.wakenudge.missions.FallbackReason
+import com.riyadm.wakenudge.missions.ui.BackupMissionButton
+import com.riyadm.wakenudge.missions.ui.ReportFallback
 import com.riyadm.wakenudge.missions.ui.rememberResumeCount
 import com.riyadm.wakenudge.ui.theme.LocalWakeHaptics
 import kotlinx.coroutines.delay
@@ -143,15 +145,13 @@ private fun openNfcSettings(context: Context) {
 }
 
 /**
- * The "NFC is off" state shared by the mission and its setup. During a ring, someone who went to the settings and came
- * back with NFC still off (a locked phone that would not open them, a setting they cannot find) is offered Continue,
- * like a refused camera permission: a tag that cannot be read must not trap them.
+ * The "NFC is off" state shared by the mission and its setup. During a ring the backup mission is offered next to the
+ * settings button from the start, like for a refused camera permission: a tag that cannot be read must not trap anyone
+ * (a locked phone that will not open the settings, a setting they cannot find), and it is the long backup, not a pass.
  */
 @Composable
 private fun NfcOffNotice() {
     val context = LocalContext.current
-    val resumes = rememberResumeCount()
-    var openedAt by remember { mutableIntStateOf(-1) }
     MissionNotice(
         icon = Icons.Filled.Nfc,
         title = stringResource(R.string.mission_nfc_off_title),
@@ -159,10 +159,10 @@ private fun NfcOffNotice() {
     ) {
         MissionButton(
             stringResource(R.string.mission_nfc_open_settings),
-            { openedAt = resumes; openNfcSettings(context) },
+            { openNfcSettings(context) },
             Modifier.fillMaxWidth(), icon = Icons.Filled.Settings,
         )
-        if (openedAt >= 0 && resumes > openedAt) MissionWayOut()
+        BackupMissionButton(FallbackReason.NFC_OFF)
     }
 }
 
@@ -253,9 +253,8 @@ internal fun NfcMission(config: MissionConfig, onInteraction: () -> Unit, onComp
     MissionScaffold(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (total > 1) MissionProgress(tapped.toFloat() / total, stringResource(R.string.mission_nfc_progress, minOf(tapped + 1, total), total))
         if (adapter == null) {
-            MissionNotice(Icons.Filled.SensorsOff, stringResource(R.string.mission_nfc_missing_title), stringResource(R.string.mission_unsupported_nfc)) {
-                MissionWayOut()
-            }
+            ReportFallback(FallbackReason.UNSUPPORTED)
+            MissionNotice(Icons.Filled.SensorsOff, stringResource(R.string.mission_nfc_missing_title), stringResource(R.string.mission_unsupported_nfc))
         } else if (!nfcEnabled) {
             NfcOffNotice()
         } else {

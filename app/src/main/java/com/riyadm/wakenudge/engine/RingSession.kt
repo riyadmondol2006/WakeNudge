@@ -79,7 +79,16 @@ data class RingSession(
     /** Times this ring has come back after the phone restarted. */
     val resumes: Int = 0,
     val pullBacks: Int = 0,
+    /** An Emergency pause runs until then, on the [com.riyadm.wakenudge.core.TimeSource.elapsedMillis] clock; 0 when none. */
+    val pausedUntil: Long = 0,
+    /** Whether the running pause also silences the alarm. From the third pause on it only stops the pull-back. */
+    val pauseSilences: Boolean = false,
+    /** Sums done on the safe ring screen, counted by the controller. */
+    val safeSumsDone: Int = 0,
 ) {
+    /** Whether an Emergency pause is running at [elapsedNow]. */
+    fun pausedAt(elapsedNow: Long): Boolean = pausedUntil > elapsedNow
+
     val isTimer: Boolean get() = kind == RingKind.TIMER
     val isTest: Boolean get() = kind == RingKind.TEST
     val hasMissions: Boolean get() = !isTimer && alarm.missions.isNotEmpty()

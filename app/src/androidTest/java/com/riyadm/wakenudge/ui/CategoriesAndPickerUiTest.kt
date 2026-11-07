@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -157,7 +158,7 @@ class CategoriesAndPickerUiTest {
         assertEquals("No missions", plain.getValue(AlarmCategory.WAKE_UP))
     }
 
-    // ---- strict alarms: Emergency stop and snooze are per-alarm switches ----------------------------------------------
+    // ---- strict alarms: the way out and snooze are per-alarm switches ----------------------------------------------
 
     private fun ringSession(alarm: Alarm) =
         RingSession(alarm = alarm, kind = RingKind.PRIMARY, phase = RingPhase.RINGING, eventId = 1, scheduledAt = 0, startedAt = 0)
@@ -179,16 +180,24 @@ class CategoriesAndPickerUiTest {
         }
     }
 
-    @Test fun theRingScreenOffersTheEmergencyStopByDefault() {
-        showRing(Alarm(label = "Gym"))
-        compose.onNodeWithText("Emergency stop").assertIsDisplayed()
+    @Test fun theRingScreenOffersTheHoldWayOutByDefault() {
+        showRing(Alarm(label = "Gym", missions = listOf(MissionConfig(MissionType.MATH))))
+        compose.onNodeWithText("Way out without the mission").assertIsDisplayed()
+        compose.onNodeWithText("Emergency").assertIsDisplayed()
     }
 
-    @Test fun aStrictAlarmHasNoEmergencyStopOnTheRingScreen() {
-        showRing(Alarm(label = "Flight", antiOversleep = AntiOversleepSettings(emergencyStopEnabled = false)))
-        compose.onNodeWithText("Emergency stop").assertDoesNotExist()
-        // The way to end it is still the normal one.
+    @Test fun aStrictAlarmHasASlowWayOutAndEmergencyInsteadOfAHold() {
+        showRing(Alarm(label = "Flight", missions = listOf(MissionConfig(MissionType.MATH)), antiOversleep = AntiOversleepSettings(emergencyStopEnabled = false, wayOutDelayMinutes = 3)))
+        compose.onNodeWithText("Way out without the mission").assertDoesNotExist()
+        compose.onNode(hasText("Way out opens in", substring = true)).assertIsDisplayed()
+        compose.onNodeWithText("Emergency").assertIsDisplayed()
+    }
+
+    @Test fun anAlarmThatEndsWithOneTapHasNoWayOutButStillEmergency() {
+        showRing(Alarm(label = "Nap"))
+        compose.onNodeWithText("Way out without the mission").assertDoesNotExist()
         compose.onNodeWithText("Slide to dismiss").assertIsDisplayed()
+        compose.onNodeWithText("Emergency").assertIsDisplayed()
     }
 
     @Test fun turningTheEmergencyStopOffAsksFirstAndTurningItOnDoesNot() {
@@ -200,17 +209,17 @@ class CategoriesAndPickerUiTest {
                 }
             }
         }
-        compose.onNodeWithText("Emergency stop").performClick()
+        compose.onNodeWithText("Way out without the mission").performClick()
         compose.waitForIdle()
-        compose.onNodeWithText("Turn off the Emergency stop?").assertIsDisplayed()
+        compose.onNodeWithText("Make the way out slower?").assertIsDisplayed()
         assertTrue("nothing changes until the user confirms", alarm.antiOversleep.emergencyStopEnabled)
 
         compose.onNodeWithText("Cancel").performClick()
         compose.waitForIdle()
         assertTrue(alarm.antiOversleep.emergencyStopEnabled)
 
-        compose.onNodeWithText("Emergency stop").performClick()
-        compose.onNodeWithText("Turn off").performClick()
+        compose.onNodeWithText("Way out without the mission").performClick()
+        compose.onNodeWithText("Make it slower").performClick()
         compose.waitForIdle()
         assertEquals(false, alarm.antiOversleep.emergencyStopEnabled)
 

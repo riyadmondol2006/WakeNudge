@@ -129,8 +129,6 @@
     <string name="settings_hearing_cap_level">Headphone limit</string>
     <string name="settings_keep_front">Keep the alarm screen in front</string>
     <string name="settings_keep_front_hint">If you leave the screen while an alarm rings, bring it back.</string>
-    <string name="settings_emergency_hold">Emergency stop hold time</string>
-    <string name="settings_emergency_hold_hint">How long the Emergency stop button must be held.</string>
     <string name="settings_defaults">New alarm defaults</string>
     <string name="settings_defaults_hint">Sound, volume, vibration, snooze and anti-oversleep for new alarms.</string>
     <string name="settings_vacation">Vacation mode</string>
@@ -295,10 +293,9 @@
     <string name="settings_vacation_holidays_hint">Pause alarms for a trip, and skip holidays and calendar events.</string>
     <string name="settings_vacation_until">Vacation mode is on until %1$s</string>
     <string name="settings_vacation_on">Vacation mode is on</string>
-    <string name="settings_ringing_hint">Volume buttons, the alarm screen and Emergency stop.</string>
+    <string name="settings_ringing_hint">Volume buttons and the alarm screen.</string>
     <string name="settings_ringing_intro">How the phone behaves while an alarm is ringing.</string>
     <string name="settings_ringing_controls">Buttons and screen</string>
-    <string name="settings_ringing_safety">A way out</string>
     <string name="settings_audio_page">Audio output and hearing</string>
     <string name="settings_audio_hint">Speaker or headphones, and a volume limit on headphones.</string>
     <string name="settings_hearing">Hearing safety</string>

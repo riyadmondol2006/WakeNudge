@@ -199,16 +199,33 @@ class RingCommandsTest {
         assertEquals(1, history.get(s.eventId)!!.missionsDone)
     }
 
-    @Test fun `a safe-mode dismissal from the notification, the one shortcut left, is recorded as what it was`() = runBlocking {
+    @Test fun `in safe mode a mission alarm is not ended from its notification, only by the plain screen's sums`() = runBlocking {
         runtime.recordRingCrash(clock.now - 2_000)
         runtime.recordRingCrash(clock.now - 1_000)
-        val a = alarm { copy(missions = twoMissions) }
+        val a = alarm { copy(missions = twoMissions, antiOversleep = antiOversleep.copy(fallbackCount = 3)) }
         val s = ring(a)
         assertTrue(s.safeMode)
-        assertTrue(controller.dismiss(RingTarget.of(s)))
+        assertFalse("no one-tap way out of a mission", controller.dismiss(RingTarget.of(s)))
+        assertFalse("nor a claim the controller has not counted", controller.dismiss(RingTarget.of(s), RingProof.SafeSumsComplete))
+        controller.noteSafeSum(1)
+        controller.noteSafeSum(3)
+        assertEquals("one at a time", 1, store.current!!.safeSumsDone)
+        controller.noteSafeSum(2)
+        assertFalse(controller.dismiss(RingTarget.of(s), RingProof.SafeSumsComplete))
+        controller.noteSafeSum(3)
+        assertTrue(controller.dismiss(RingTarget.of(s), RingProof.SafeSumsComplete))
         val event = history.get(s.eventId)!!
         assertEquals(AlarmOutcome.DISMISSED, event.outcome)
         assertEquals("no mission was done", 0, event.missionsDone)
+    }
+
+    @Test fun `in safe mode an alarm that ends with one tap still ends from its notification`() = runBlocking {
+        runtime.recordRingCrash(clock.now - 2_000)
+        runtime.recordRingCrash(clock.now - 1_000)
+        val s = ring(alarm())
+        assertTrue(s.safeMode)
+        assertTrue(controller.dismiss(RingTarget.of(s)))
+        assertEquals(AlarmOutcome.DISMISSED, history.get(s.eventId)!!.outcome)
     }
 
     // ---- the snoozed notification -------------------------------------------------------------------------------

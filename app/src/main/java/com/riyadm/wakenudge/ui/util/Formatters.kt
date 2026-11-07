@@ -71,6 +71,15 @@ object Formatters {
         }
     }
 
+    /** A short countdown, "2:41" or "1:02:05", never negative. */
+    fun countdown(millis: Long): String {
+        val total = ((millis.coerceAtLeast(0) + 999) / 1000)
+        val h = total / 3600
+        val m = (total % 3600) / 60
+        val sec = total % 60
+        return if (h > 0) "%d:%02d:%02d".format(h, m, sec) else "%d:%02d".format(m, sec)
+    }
+
     /** City label from an IANA id: "America/Port_of_Spain" -> "Port of Spain". */
     fun cityName(zoneId: String): String = zoneId.substringAfterLast('/').replace('_', ' ')
 

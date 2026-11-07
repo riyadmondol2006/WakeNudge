@@ -175,8 +175,8 @@ class DurableRingTest {
 
     // ---- every way a ring ends leaves no record --------------------------------------------------------------------
 
-    private suspend fun assertNoRecordAfter(failingStorage: Boolean, end: suspend (RingSession, Alarm) -> Unit) {
-        val a = alarm { copy(snooze = SnoozeSettings(minutes = 5), antiOversleep = anti(720, never = false).copy(ringTimeoutMinutes = 1)) }
+    private suspend fun assertNoRecordAfter(failingStorage: Boolean, missions: List<MissionConfig> = emptyList(), end: suspend (RingSession, Alarm) -> Unit) {
+        val a = alarm { copy(missions = missions, snooze = SnoozeSettings(minutes = 5), antiOversleep = anti(720, never = false).copy(ringTimeoutMinutes = 1)) }
         val s = ring(a)
         assertNotNull(durable.ring())
         clearMocks(pending, answers = false)
@@ -195,9 +195,14 @@ class DurableRingTest {
 
     @Test fun `a dismissed ring leaves no record when the disk is full`() = runBlocking { assertNoRecordAfter(true) { s, _ -> controller.dismiss(RingTarget.of(s)) } }
 
-    @Test fun `an emergency-stopped ring leaves no record`() = runBlocking { assertNoRecordAfter(false) { s, _ -> controller.emergencyStop(RingTarget.of(s), RingProof.Hold) } }
+    // The way out is for an alarm with a mission to skip; one without has nothing to hold for.
+    @Test fun `an emergency-stopped ring leaves no record`() = runBlocking {
+        assertNoRecordAfter(false, listOf(MissionConfig(MissionType.MATH))) { s, _ -> assertTrue(controller.emergencyStop(RingTarget.of(s), RingProof.Hold)) }
+    }
 
-    @Test fun `an emergency-stopped ring leaves no record when the disk is full`() = runBlocking { assertNoRecordAfter(true) { s, _ -> controller.emergencyStop(RingTarget.of(s), RingProof.Hold) } }
+    @Test fun `an emergency-stopped ring leaves no record when the disk is full`() = runBlocking {
+        assertNoRecordAfter(true, listOf(MissionConfig(MissionType.MATH))) { s, _ -> assertTrue(controller.emergencyStop(RingTarget.of(s), RingProof.Hold)) }
+    }
 
     @Test fun `a snoozed ring leaves no record`() = runBlocking { assertNoRecordAfter(false) { s, _ -> controller.snooze(RingTarget.of(s)) } }
 

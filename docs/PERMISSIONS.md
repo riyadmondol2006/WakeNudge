@@ -38,15 +38,16 @@ manifest (`app/src/main/AndroidManifest.xml`) too.
 | `ACTIVITY_RECOGNITION` | Steps mission (hardware step counter) | First time you set up or run the steps mission. Declining is fine: the steps mission can count with the motion sensor instead |
 | `READ_CALENDAR` | Optional: treat all-day events in calendars you pick (for example public holidays) as exception days. Only event start and end are read, never titles or descriptions | When you switch on calendar exceptions in Settings |
 
-If you decline a permission, the feature that needs it explains what is missing, and a mission that can no longer be
-completed offers a way out so it can never block you from stopping an alarm (see "Emergency stop").
+If you decline a permission, the feature that needs it explains what is missing, and during an alarm a mission that can no
+longer be completed offers a longer backup mission (a few short tasks) next to the fix, so it can never block you from
+stopping an alarm, and is never skipped for free either.
 
 ## Hardware is never required
 
 `uses-feature android:required="false"` is declared for `camera`, `camera.autofocus`, `nfc`,
 `sensor.accelerometer`, `sensor.stepcounter` and `touchscreen`, so the app installs on every device, whatever
-hardware it lacks. A mission whose hardware is missing shows an explanation and a Continue button instead of failing
-(`MissionInfo.isSupported`, `MissionGate`).
+hardware it lacks. During an alarm, a mission whose hardware is missing is replaced by a short backup mission
+(`MissionInfo.isSupported`, `MissionGate`, `FallbackChain`).
 
 ## Not used
 
@@ -90,6 +91,9 @@ The in-app backup file (validated, then re-armed on restore) is the supported wa
 
 ## Related behaviour worth knowing
 
+- The Emergency button on the ring screen opens the phone app with `ACTION_DIAL` (no number, no permission), or on a locked
+  phone the unlock screen and its Emergency call button. Whether a call is going on is read from the audio mode
+  (`AudioManager.getMode`), which needs no phone permission.
 - Android 17 added hardening around background audio: an app in the background must run a foreground service and also
   hold the exact-alarm permission while using `USAGE_ALARM` audio. WakeNudge does all three. On a test Pixel 6 Pro
   running Android 17 the system logs warn-only lines about background playback, but alarm playback was verified as

@@ -1,5 +1,7 @@
 package com.riyadm.wakenudge.ui.ring
 
+import android.app.KeyguardManager
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
@@ -21,6 +23,7 @@ import com.riyadm.wakenudge.engine.RingController
 import com.riyadm.wakenudge.engine.RingPhase
 import com.riyadm.wakenudge.engine.RingTarget
 import com.riyadm.wakenudge.engine.RingSessionStore
+import com.riyadm.wakenudge.engine.policy.RingProof
 import com.riyadm.wakenudge.ui.theme.WakeNudgeTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -98,12 +101,39 @@ class RingActivity : ComponentActivity() {
                             onHide = { finish() },
                             onInteraction = controller::noteInteraction,
                             onMissionProgress = controller::noteMissionDone,
+                            onWayOut = { proof -> lifecycleScope.launch { controller.wayOut(RingTarget.of(current), proof) } },
+                            onWayOutStep = controller::noteWayOutStep,
+                            onEmergencyCall = { emergencyCall(this, controller, RingTarget.of(current)) },
+                            onFallbackUsed = controller::noteFallbackUsed,
                         ),
                         missionContent = { missions, onInteraction, onProgress, onComplete, first ->
                             RingMissionContent(missions, onInteraction, onProgress, onComplete, first)
                         },
                     )
                 }
+            }
+        }
+    }
+
+    companion object {
+        /**
+         * Emergency, "Call or use phone": the alarm pauses, then the phone app opens, or on a locked phone the unlock
+         * screen with its Emergency call button (an app may not open the emergency dialer itself). The phone is opened
+         * whatever the pause says: nothing may stand between someone and a call.
+         */
+        fun emergencyCall(activity: android.app.Activity, controller: RingController, target: RingTarget) {
+            controller.pauseForEmergency(target, RingProof.Gesture)
+            val dial = { runCatching { activity.startActivity(Intent(Intent.ACTION_DIAL).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
+            val keyguard = activity.getSystemService(KeyguardManager::class.java)
+            if (keyguard?.isKeyguardLocked == true) {
+                keyguard.requestDismissKeyguard(
+                    activity,
+                    object : KeyguardManager.KeyguardDismissCallback() {
+                        override fun onDismissSucceeded() { dial() }
+                    },
+                )
+            } else {
+                dial()
             }
         }
     }

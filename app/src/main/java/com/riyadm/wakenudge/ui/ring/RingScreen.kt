@@ -45,11 +45,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -75,7 +77,11 @@ import com.riyadm.wakenudge.domain.scheduling.SnoozePolicy
 import com.riyadm.wakenudge.engine.RingKind
 import com.riyadm.wakenudge.engine.RingPhase
 import com.riyadm.wakenudge.engine.RingSession
+import com.riyadm.wakenudge.engine.policy.RingPolicy
 import com.riyadm.wakenudge.engine.policy.RingProof
+import com.riyadm.wakenudge.engine.policy.WayOut
+import com.riyadm.wakenudge.missions.FallbackChain
+import com.riyadm.wakenudge.missions.MissionBackup
 import com.riyadm.wakenudge.ui.components.AnimatedClockText
 import com.riyadm.wakenudge.ui.components.rememberReduceMotion
 import com.riyadm.wakenudge.ui.theme.Blobs
@@ -87,17 +93,25 @@ import com.riyadm.wakenudge.ui.util.Formatters
 import com.riyadm.wakenudge.ui.util.rememberIs24Hour
 import kotlinx.coroutines.delay
 
-private enum class RingMode { Home, DismissMissions, SnoozeMissions }
+private enum class RingMode { Home, DismissMissions, SnoozeMissions, WayOut }
 
 /** What the ring screen needs from its host; keeps the screen a pure function of state + callbacks. */
 class RingActions(
     val onSnooze: (RingProof) -> Unit,
     val onDismiss: (RingProof) -> Unit,
+    /** The way out by holding. */
     val onEmergencyStop: (RingProof) -> Unit,
     val onAddMinute: () -> Unit,
     val onHide: () -> Unit,
     val onInteraction: () -> Unit,
     val onMissionProgress: (Int) -> Unit,
+    /** The way out by its chain of tasks, once they are all done. */
+    val onWayOut: (RingProof) -> Unit = {},
+    val onWayOutStep: (Int) -> Unit = {},
+    /** Emergency, "Call or use phone": pause the alarm and open the phone app (or the unlock screen and its Emergency call). */
+    val onEmergencyCall: () -> Unit = {},
+    /** A backup mission stood in for one this phone could not do. */
+    val onFallbackUsed: () -> Unit = {},
 )
 
 @Composable
@@ -172,7 +186,7 @@ fun RingScreen(
                 // (or when a keyboard changed the window's shape) threw away the mission in progress.
                 Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 8.dp)) {
                     MissionTopBar(session, settings, now, mode, onBack = { mode = RingMode.Home })
-                    Controls(session, settings, mode, { mode = it }, actions, missionContent, onBottom, Modifier.weight(1f))
+                    Controls(session, settings, now, mode, { mode = it }, actions, missionContent, onBottom, Modifier.weight(1f))
                 }
             } else if (wide) {
                 Row(Modifier.fillMaxSize().padding(24.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
@@ -180,7 +194,7 @@ fun RingScreen(
                         Header(session, settings, now)
                     }
                     Column(Modifier.weight(1f).fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.Center) {
-                        Controls(session, settings, mode, { mode = it }, actions, missionContent, onBottom)
+                        Controls(session, settings, now, mode, { mode = it }, actions, missionContent, onBottom)
                     }
                 }
             } else {
@@ -190,7 +204,7 @@ fun RingScreen(
                     verticalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Header(session, settings, now, compact = false)
-                    Controls(session, settings, mode, { mode = it }, actions, missionContent, onBottom)
+                    Controls(session, settings, now, mode, { mode = it }, actions, missionContent, onBottom)
                 }
             }
         }
@@ -284,7 +298,13 @@ private fun MissionTopBar(session: RingSession, settings: AppSettings, now: Long
     val is24 = rememberIs24Hour(settings.timeFormat)
     val time = TimeText.format(java.time.Instant.ofEpochMilli(now).atZone(java.time.ZoneId.systemDefault()).toLocalTime(), is24)
     val scheme = MaterialTheme.colorScheme
-    val purpose = stringResource(if (mode == RingMode.SnoozeMissions) R.string.ring_missions_snooze else R.string.ring_missions_dismiss)
+    val purpose = stringResource(
+        when (mode) {
+            RingMode.SnoozeMissions -> R.string.ring_missions_snooze
+            RingMode.WayOut -> R.string.ring_way_out_purpose
+            else -> R.string.ring_missions_dismiss
+        },
+    )
     val notes = (listOf(purpose) + badgeTexts(session)).joinToString(" · ")
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         TextButton(onClick = onBack) {
@@ -309,6 +329,7 @@ private fun MissionTopBar(session: RingSession, settings: AppSettings, now: Long
 private fun Controls(
     session: RingSession,
     settings: AppSettings,
+    now: Long,
     mode: RingMode,
     setMode: (RingMode) -> Unit,
     actions: RingActions,
@@ -391,48 +412,107 @@ private fun Controls(
                         onDismiss = { actions.onDismiss(RingProof.Gesture) },
                     )
                 }
-                if (alarm.antiOversleep.emergencyStopEnabled) {
-                    EmergencyStop(settings.emergencyStopHoldSeconds, { actions.onEmergencyStop(RingProof.Hold) }, onBottom)
-                }
+                WayOutControl(session, now, actions, { setMode(RingMode.WayOut) }, onBottom)
+                if (!session.isTimer) EmergencyButton(session.pauses, actions.onEmergencyCall, onBottom)
             }
 
             // Back and the purpose of the missions are in the MissionTopBar above.
             RingMode.DismissMissions, RingMode.SnoozeMissions -> Column(Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     val list = if (current == RingMode.SnoozeMissions) alarm.snoozeMissions else alarm.missions
+                    val onFallbackUsed by rememberUpdatedState(actions.onFallbackUsed)
+                    val backup = remember(alarm.antiOversleep) { MissionBackup(alarm.antiOversleep, onUsed = { onFallbackUsed() }) }
                     // The chain belongs to this ring: another ring taking over the screen starts its own.
                     key(alarm.id, session.eventId) {
+                        CompositionLocalProvider(LocalMissionBackup provides backup) {
+                            missionContent(
+                                list,
+                                actions.onInteraction,
+                                { if (current == RingMode.DismissMissions) actions.onMissionProgress(it) },
+                                { if (current == RingMode.SnoozeMissions) actions.onSnooze(RingProof.MissionsComplete) else actions.onDismiss(RingProof.MissionsComplete) },
+                                // Going back to the alarm (or the screen being rebuilt) must not cost the missions already done.
+                                if (current == RingMode.DismissMissions) session.missionsDone.coerceIn(0, list.size) else 0,
+                            )
+                        }
+                    }
+                }
+                MissionFooter(session, now, actions, { setMode(RingMode.WayOut) }, onBottom)
+            }
+
+            // The way-out chain: its progress is the controller's, so going back or a restart costs nothing done.
+            RingMode.WayOut -> Column(Modifier.fillMaxSize()) {
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    val steps = remember(alarm.antiOversleep) { FallbackChain.wayOut(alarm.antiOversleep) }
+                    key(alarm.id, session.eventId, "way-out") {
                         missionContent(
-                            list,
+                            steps,
                             actions.onInteraction,
-                            { if (current == RingMode.DismissMissions) actions.onMissionProgress(it) },
-                            { if (current == RingMode.SnoozeMissions) actions.onSnooze(RingProof.MissionsComplete) else actions.onDismiss(RingProof.MissionsComplete) },
-                            // Going back to the alarm (or the screen being rebuilt) must not cost the missions already done.
-                            if (current == RingMode.DismissMissions) session.missionsDone.coerceIn(0, list.size) else 0,
+                            actions.onWayOutStep,
+                            { actions.onWayOut(RingProof.WayOutComplete) },
+                            session.wayOutProgress.coerceIn(0, steps.size),
                         )
                     }
                 }
-                if (alarm.antiOversleep.emergencyStopEnabled) {
-                    EmergencyStop(settings.emergencyStopHoldSeconds, { actions.onEmergencyStop(RingProof.Hold) }, onBottom, Modifier.padding(top = 8.dp), compact = true)
-                }
+                EmergencyButton(session.pauses, actions.onEmergencyCall, onBottom, Modifier.padding(top = 8.dp).align(Alignment.CenterHorizontally))
             }
         }
     }
 }
 
+/** Under a mission: Emergency always, and the way out next to it when the alarm has one. */
+@Composable
+private fun MissionFooter(session: RingSession, now: Long, actions: RingActions, openWayOut: () -> Unit, onBottom: Color) {
+    Row(
+        Modifier.fillMaxWidth().padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        EmergencyButton(session.pauses, actions.onEmergencyCall, onBottom)
+        Box(Modifier.weight(1f)) { WayOutControl(session, now, actions, openWayOut, onBottom, compact = true) }
+    }
+}
+
 /**
- * The always-available escape hatch. Sighted users hold it; screen-reader users double-tap and then confirm in a
- * dialog. It bypasses missions and is recorded honestly in the history as an emergency stop.
+ * The way to end the ring without its mission, as the alarm has it: hold for [RingPolicy.WAY_OUT_HOLD_SECONDS], or a chain
+ * of tasks that opens after a few minutes of ringing (with a countdown until then). Nothing for an alarm without a mission,
+ * or one whose owner removed the way out.
  */
 @Composable
-private fun EmergencyStop(holdSeconds: Int, onStop: () -> Unit, hintColor: Color, modifier: Modifier = Modifier, compact: Boolean = false) {
+private fun WayOutControl(session: RingSession, now: Long, actions: RingActions, openWayOut: () -> Unit, hintColor: Color, compact: Boolean = false) {
+    when (val wayOut = RingPolicy.wayOut(session)) {
+        WayOut.None -> Unit
+        is WayOut.Hold -> WayOutHold(wayOut.seconds, { actions.onEmergencyStop(RingProof.Hold) }, hintColor, compact = compact)
+        is WayOut.Chain -> {
+            val opensAt = RingPolicy.wayOutOpensAt(session) ?: return
+            val left = opensAt - now
+            val label = when {
+                left > 0 -> stringResource(R.string.ring_way_out_in, Formatters.countdown(left))
+                session.wayOutProgress > 0 -> stringResource(R.string.ring_way_out_progress, session.wayOutProgress, wayOut.steps)
+                else -> pluralStringResource(R.plurals.ring_way_out_tasks, wayOut.steps, wayOut.steps)
+            }
+            val haptics = LocalWakeHaptics.current
+            FilledTonalButton(
+                onClick = { haptics.click(); actions.onInteraction(); openWayOut() },
+                enabled = left <= 0,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).widthIn(max = 420.dp),
+            ) { Text(label, textAlign = TextAlign.Center) }
+        }
+    }
+}
+
+/**
+ * The way out by holding. Sighted users hold it; screen-reader users double-tap and then confirm in a dialog. It skips the
+ * missions and is recorded honestly in the history as an emergency stop.
+ */
+@Composable
+private fun WayOutHold(holdSeconds: Int, onStop: () -> Unit, hintColor: Color, modifier: Modifier = Modifier, compact: Boolean = false) {
     var confirm by remember { mutableStateOf(false) }
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         HoldButton(
             // Under a mission the button says how to use it itself, which saves the hint line.
-            label = if (compact) stringResource(R.string.ring_emergency_stop_hold, holdSeconds) else stringResource(R.string.ring_emergency_stop),
-            holdSeconds = holdSeconds.coerceIn(1, 10),
-            actionDescription = stringResource(R.string.ring_emergency_stop),
+            label = if (compact) stringResource(R.string.ring_way_out_hold, holdSeconds) else stringResource(R.string.ring_way_out),
+            holdSeconds = holdSeconds,
+            actionDescription = stringResource(R.string.ring_way_out),
             onComplete = onStop,
             onAccessibilityClick = { confirm = true },
             container = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
@@ -443,7 +523,7 @@ private fun EmergencyStop(holdSeconds: Int, onStop: () -> Unit, hintColor: Color
         )
         if (!compact) {
             Text(
-                stringResource(R.string.ring_emergency_hint, holdSeconds),
+                stringResource(R.string.ring_way_out_hint, holdSeconds),
                 style = MaterialTheme.typography.bodySmall, color = hintColor,
                 modifier = Modifier.padding(top = 4.dp),
             )
@@ -452,9 +532,9 @@ private fun EmergencyStop(holdSeconds: Int, onStop: () -> Unit, hintColor: Color
     if (confirm) {
         AlertDialog(
             onDismissRequest = { confirm = false },
-            title = { Text(stringResource(R.string.ring_emergency_title)) },
-            text = { Text(stringResource(R.string.ring_emergency_body)) },
-            confirmButton = { TextButton(onClick = { confirm = false; onStop() }) { Text(stringResource(R.string.ring_emergency_confirm)) } },
+            title = { Text(stringResource(R.string.ring_way_out_confirm_title)) },
+            text = { Text(stringResource(R.string.ring_way_out_confirm_body)) },
+            confirmButton = { TextButton(onClick = { confirm = false; onStop() }) { Text(stringResource(R.string.ring_way_out_confirm)) } },
             dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(R.string.action_cancel)) } },
         )
     }

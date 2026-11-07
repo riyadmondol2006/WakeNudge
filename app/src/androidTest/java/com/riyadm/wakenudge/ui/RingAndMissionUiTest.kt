@@ -26,6 +26,8 @@ import com.riyadm.wakenudge.engine.RingKind
 import com.riyadm.wakenudge.engine.RingPhase
 import com.riyadm.wakenudge.engine.RingSession
 import com.riyadm.wakenudge.missions.MissionHost
+import com.riyadm.wakenudge.missions.ChainStyle
+import com.riyadm.wakenudge.missions.MissionBackup
 import com.riyadm.wakenudge.ui.ring.RingActions
 import com.riyadm.wakenudge.ui.ring.RingMissionContent
 import com.riyadm.wakenudge.ui.ring.RingScreen
@@ -43,16 +45,19 @@ class RingAndMissionUiTest {
 
     private class Counters {
         val snooze = AtomicInteger(); val dismiss = AtomicInteger(); val emergency = AtomicInteger(); val progress = AtomicInteger(-1)
+        val call = AtomicInteger(); val wayOut = AtomicInteger()
         fun actions() = RingActions(
             onSnooze = { snooze.incrementAndGet() }, onDismiss = { dismiss.incrementAndGet() },
             onEmergencyStop = { emergency.incrementAndGet() }, onAddMinute = {}, onHide = {}, onInteraction = {},
-            onMissionProgress = { progress.set(it) },
+            onMissionProgress = { progress.set(it) }, onEmergencyCall = { call.incrementAndGet() }, onWayOut = { wayOut.incrementAndGet() },
         )
     }
 
-    private fun session(alarm: Alarm, snoozeCount: Int = 0) = RingSession(
-        alarm = alarm, kind = RingKind.PRIMARY, phase = RingPhase.RINGING, eventId = 1, scheduledAt = 0, startedAt = 0, snoozeCount = snoozeCount,
+    private fun session(alarm: Alarm, snoozeCount: Int = 0, startedAt: Long = 0) = RingSession(
+        alarm = alarm, kind = RingKind.PRIMARY, phase = RingPhase.RINGING, eventId = 1, scheduledAt = 0, startedAt = startedAt, snoozeCount = snoozeCount,
     )
+
+    private val math = listOf(MissionConfig(MissionType.MATH, Difficulty.EASY, 1))
 
     private fun show(session: RingSession, counters: Counters) = compose.setContent {
         WakeNudgeTheme {
@@ -63,13 +68,15 @@ class RingAndMissionUiTest {
         }
     }
 
-    @Test fun plainAlarmOffersSnoozeDismissAndEmergencyStop() {
+    @Test fun plainAlarmOffersSnoozeDismissAndEmergency() {
         val c = Counters()
         show(session(Alarm(label = "Gym", snooze = SnoozeSettings(minutes = 7))), c)
         compose.onNodeWithText("Gym").assertIsDisplayed()
         compose.onNodeWithText("Snooze · 7 min").assertIsDisplayed()
         compose.onNodeWithText("Slide to dismiss").assertIsDisplayed()
-        compose.onNodeWithText("Emergency stop").assertIsDisplayed()
+        compose.onNodeWithText("Emergency").assertIsDisplayed()
+        // It ends with one tap, so there is no way out to hold: it would have no purpose.
+        compose.onNodeWithText("Way out without the mission").assertDoesNotExist()
         compose.onNodeWithText("Snooze · 7 min").performClick()
         assertEquals(1, c.snooze.get())
     }
@@ -81,14 +88,70 @@ class RingAndMissionUiTest {
         assertEquals(1, c.dismiss.get())
     }
 
-    @Test fun emergencyStopForScreenReadersAsksForConfirmation() {
+    @Test fun theWayOutForScreenReadersAsksForConfirmation() {
         val c = Counters()
-        show(session(Alarm()), c)
-        compose.onNodeWithContentDescription("Emergency stop").performSemanticsAction(SemanticsActions.OnClick)
-        compose.onNodeWithText("Stop the alarm now?").assertIsDisplayed()
+        show(session(Alarm(missions = math)), c)
+        compose.onNodeWithContentDescription("Way out without the mission").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("Stop without the mission?").assertIsDisplayed()
         assertEquals("nothing happens before confirming", 0, c.emergency.get())
         compose.onNodeWithText("Stop alarm").performClick()
         assertEquals(1, c.emergency.get())
+    }
+
+    @Test fun emergencyOpensAPanelAndCallsOnlyWhenAsked() {
+        val c = Counters()
+        show(session(Alarm(missions = math)), c)
+        compose.onNodeWithText("Emergency").performClick()
+        compose.onNodeWithText("Call or use phone").assertIsDisplayed()
+        assertEquals("opening the panel pauses nothing", 0, c.call.get())
+        compose.onNodeWithText("Call or use phone").performClick()
+        assertEquals(1, c.call.get())
+        assertEquals("Emergency never ends the alarm", 0, c.emergency.get() + c.dismiss.get())
+    }
+
+    @Test fun emergencyIsOnTheMissionScreenToo() {
+        val c = Counters()
+        show(session(Alarm(missions = math)), c)
+        compose.onNodeWithText("Solve to dismiss").performClick()
+        compose.onNodeWithText("Emergency").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("Call or use phone").performClick()
+        assertEquals(1, c.call.get())
+    }
+
+    @Test fun aStrictWayOutCountsDownThenOpensItsTasks() {
+        val strict = AntiOversleepSettings(emergencyStopEnabled = false, wayOutDelayMinutes = 3, wayOutCount = 10)
+        val c = Counters()
+        show(session(Alarm(missions = math, antiOversleep = strict), startedAt = System.currentTimeMillis()), c)
+        compose.onNode(hasText("Way out opens in", substring = true)).assertIsDisplayed()
+        compose.onNodeWithText("Way out without the mission").assertDoesNotExist()
+    }
+
+    @Test fun anOpenStrictWayOutLeadsToItsTasks() {
+        val strict = AntiOversleepSettings(emergencyStopEnabled = false, wayOutDelayMinutes = 3, wayOutCount = 10)
+        val c = Counters()
+        show(session(Alarm(missions = math, antiOversleep = strict), startedAt = System.currentTimeMillis() - 4 * 60_000L), c)
+        compose.onNodeWithText("Way out: 10 tasks").performClick()
+        compose.onNode(hasText("Way out without the mission", substring = true)).assertIsDisplayed()
+        compose.onNodeWithText("Emergency").assertIsDisplayed()
+        assertEquals(0, c.wayOut.get())
+    }
+
+    /** A mission that cannot be done is never passed: no Continue, and a backup mission with a keypad takes its place. */
+    @Test fun anUnusableMissionInARingGetsABackupMissionNotContinue() {
+        var completed = 0
+        compose.setContent {
+            WakeNudgeTheme {
+                MissionHost(
+                    listOf(MissionConfig(MissionType.QR_BARCODE)),
+                    backup = MissionBackup(AntiOversleepSettings(fallbackCount = 3), style = ChainStyle.SUMS_AND_TYPING),
+                    onComplete = { completed++ },
+                )
+            }
+        }
+        compose.onNodeWithText("Backup mission").assertIsDisplayed()
+        compose.onNodeWithText("Continue").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Submit answer").assertIsDisplayed()
+        assertEquals(0, completed)
     }
 
     @Test fun snoozeButtonDisappearsAfterTheLimit() {

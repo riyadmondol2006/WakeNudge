@@ -34,6 +34,7 @@ import com.riyadm.wakenudge.engine.RingPhase
 import com.riyadm.wakenudge.engine.RingSession
 import com.riyadm.wakenudge.engine.RingTarget
 import com.riyadm.wakenudge.ui.ring.RingActivity
+import com.riyadm.wakenudge.ui.ring.SafeRingActivity
 import com.riyadm.wakenudge.ui.ring.WakeCheckActivity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Instant
@@ -161,7 +162,8 @@ class Notifier @Inject constructor(
             session.phase == RingPhase.SUNRISE -> context.getString(R.string.notif_sunrise_text)
             else -> TimeText.format(alarm.hour, alarm.minute, is24)
         }
-        val open = ringActivityIntent()
+        // Safe mode: the ring screen crashed more than once, so the plain one stands in for it.
+        val open = if (session.safeMode) safeRingIntent() else ringActivityIntent()
         val builder = NotificationCompat.Builder(context, Channels.RING)
             .setSmallIcon(R.drawable.ic_stat_alarm)
             .setContentTitle(title)
@@ -174,15 +176,21 @@ class Notifier @Inject constructor(
             .setOnlyAlertOnce(!alertAgain)
             .setShowWhen(true)
             .setWhen(session.scheduledAt.takeIf { it > 0 } ?: System.currentTimeMillis())
-            .setContentIntent(if (session.safeMode) mainIntent(alarm.id) else open)
-        // Safe mode: the ring screen crashed more than once, so it is not launched on its own any more.
-        if (!session.safeMode) builder.setFullScreenIntent(open, true)
+            .setContentIntent(open)
+            .setFullScreenIntent(open, true)
 
         if (session.phase == RingPhase.RINGING && session.safeMode && !session.isTimer) {
+            // Only an alarm that ends with one tap anyway is snoozed or dismissed here; any other opens the plain screen.
+            val oneTap = alarm.dismissesWithOneTap
             if (session.canSnooze) {
-                builder.addAction(0, context.getString(R.string.action_snooze), broadcast(Actions.SNOOZE, alarm.id, eventId = session.eventId))
+                val snoozeHere = alarm.missions.isEmpty() && alarm.snoozeMissions.isEmpty()
+                builder.addAction(0, context.getString(R.string.action_snooze), if (snoozeHere) broadcast(Actions.SNOOZE, alarm.id, eventId = session.eventId) else open)
             }
-            builder.addAction(0, context.getString(R.string.action_dismiss), broadcast(Actions.DISMISS, alarm.id, eventId = session.eventId))
+            builder.addAction(
+                0,
+                context.getString(if (oneTap) R.string.action_dismiss else R.string.action_solve_to_dismiss),
+                if (oneTap) broadcast(Actions.DISMISS, alarm.id, eventId = session.eventId) else open,
+            )
         } else if (session.phase == RingPhase.RINGING) {
             if (session.isTimer) {
                 builder.addAction(0, context.getString(R.string.action_add_minute), broadcast(Actions.TIMER_ADD_MINUTE, session.timerId))
@@ -246,8 +254,8 @@ class Notifier @Inject constructor(
         .setCategory(NotificationCompat.CATEGORY_ALARM)
         .setPriority(NotificationCompat.PRIORITY_MAX)
         .setOngoing(true)
-        .setContentIntent(if (safeMode) mainIntent(0) else ringActivityIntent())
-        .apply { if (!safeMode) setFullScreenIntent(ringActivityIntent(), true) }
+        .setContentIntent(if (safeMode) safeRingIntent() else ringActivityIntent())
+        .setFullScreenIntent(if (safeMode) safeRingIntent() else ringActivityIntent(), true)
         .build()
 
     fun cancelRing() = manager.cancel(NotificationIds.RING)
@@ -513,9 +521,10 @@ class Notifier @Inject constructor(
         return RingUiFallback.mayNotAppear(Build.VERSION.SDK_INT, enabled, importance, fullScreen)
     }
 
-    /** The intent the ring screen is launched with (same flags the notification uses). */
-    fun ringScreenIntent(): Intent =
-        Intent(context, RingActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+    /** The intent the ring screen is launched with (same flags the notification uses); the plain one in safe mode. */
+    fun ringScreenIntent(safeMode: Boolean = false): Intent =
+        Intent(context, if (safeMode) SafeRingActivity::class.java else RingActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
 
     // ---- plumbing ------------------------------------------------------------------------------------------
 
@@ -533,6 +542,10 @@ class Notifier @Inject constructor(
         context, 1,
         Intent(context, RingActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
+
+    private fun safeRingIntent(): PendingIntent = PendingIntent.getActivity(
+        context, 5, ringScreenIntent(safeMode = true), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
     private fun mainIntent(alarmId: Long, action: String = MainActivity.ACTION_SHOW_ALARMS): PendingIntent = PendingIntent.getActivity(

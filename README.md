@@ -38,9 +38,10 @@ or NFC tag on the other side of the room, steps, squats and more. After you dism
 again if you drifted back to sleep. A built-in **Alarm Health** screen and a real **test alarm** tell you whether your
 phone is set up to ring.
 
-It runs entirely on your phone, follows your wallpaper colours with Material You, and by default an **Emergency stop** is
-one press-and-hold away, so it never traps you. For an alarm you really must obey you can switch the Emergency stop
-(and snooze) off, per alarm.
+It runs entirely on your phone and follows your wallpaper colours with Material You. It never traps you: every ring and
+mission screen has an **Emergency** button that pauses the alarm so you can make a call, a mission your phone cannot do is
+replaced by a **backup mission**, and there is a **way out without the mission** (a 10-second hold by default; on a strict
+alarm it opens after a few minutes of ringing and takes a series of tasks).
 
 ## Download
 
@@ -91,7 +92,7 @@ Real captures from a Pixel 6 Pro in the dark theme. WakeNudge also has light and
 | **Ten wake-up missions** | Math, memory, typing, QR/barcode, NFC, shake, steps, squats, puzzles and photo matching. Chain several, pick the difficulty, preview each one. |
 | **Still-awake check** | Dismissed and went back to sleep? WakeNudge asks "Still awake?" after 1 to 30 minutes and rings again if you do not answer. It survives restarts. |
 | **Loud, then louder** | An **Extra Loud strength slider** (you choose how much punch to add), a volume ramp of up to 10 minutes, and a sound that intensifies after 40 seconds without interaction. A separate **backup alarm** rings later if nothing happens. |
-| **Anti-oversleep, with an exit** | Snooze limits (optionally shrinking), hold-to-dismiss, accidental-dismissal protection and an optional edit lock before the alarm. Every restriction can be bypassed with the **Emergency stop**, which is on by default; **strict alarms** can turn it, and snooze, off per alarm (missions your phone cannot do still offer Continue). An ignored alarm stops after its ring timeout, or, set to **Never**, rings until you deal with it. |
+| **Anti-oversleep, with an exit** | Snooze limits (optionally shrinking), hold-to-dismiss, accidental-dismissal protection and an optional edit lock before the alarm. The **way out without the mission** is a 10-second hold by default; **strict alarms** make it open only after a few minutes of ringing and ask for a series of tasks, and can turn snooze off. A mission your phone cannot do (no camera, refused permission, a dead sensor, a black camera) is replaced by a **backup mission**, never skipped. **Emergency**, on every ring, pauses the alarm for a call. An ignored alarm stops after its ring timeout, or, set to **Never**, rings until you deal with it. |
 | **Alarm Health and test alarm** | Checks notifications, full-screen permission, exact alarms, battery restrictions, Do Not Disturb and audio routing, explains each fix, and rings a real test alarm. |
 | **Offline, no ads, no tracking** | No accounts, no analytics, no ad SDKs. The only thing that goes online is the optional update check. See [Privacy](#privacy). |
 | **Open source** | Apache License 2.0, Kotlin and Jetpack Compose, with a large automated test suite. |
@@ -100,7 +101,8 @@ Real captures from a Pixel 6 Pro in the dark theme. WakeNudge also has light and
 ### Wake-up missions
 
 Missions are completed in order. Count and difficulty are set per alarm. A mission the phone cannot do (no camera, no
-step sensor, permission refused) offers **Continue** instead of blocking you.
+step sensor, a camera that shows only black, permission refused, NFC off) is replaced by a **backup mission**: a few
+short tasks (Focus Tap, typing a phrase, simple sums), longer when the cause is one you could fix. It is never skipped.
 
 | Mission | What you do | Needs |
 |---|---|---|
@@ -222,8 +224,11 @@ can guarantee a wake-up, but these settings remove the easy ways to fail.
 <details>
 <summary><strong>Can a mission trap me?</strong></summary>
 
-No. The Emergency stop (press and hold on the ring screen) bypasses every restriction, and a mission the phone cannot
-perform offers Continue.
+No. Every ring and mission screen has an **Emergency** button: it pauses the alarm for three minutes and opens the phone
+app (on a locked phone, the unlock screen with its Emergency call button). A mission the phone cannot perform is replaced
+by a backup mission of a few short tasks. And there is a way out without the mission: hold for 10 seconds, or, on a
+strict alarm, a series of tasks that opens after a few minutes of ringing. If you remove the way out yourself, the backup
+mission and the limit on how many restarts a ring comes back from are what is left.
 </details>
 
 <details>

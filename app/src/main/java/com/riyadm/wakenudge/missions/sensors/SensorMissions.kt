@@ -1,6 +1,7 @@
 package com.riyadm.wakenudge.missions.sensors
 
 import android.hardware.Sensor
+import android.os.SystemClock
 import android.hardware.SensorManager
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
@@ -56,7 +57,11 @@ import androidx.compose.ui.unit.dp
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.domain.model.MissionConfig
 import com.riyadm.wakenudge.domain.model.MissionType
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.riyadm.wakenudge.missions.FallbackReason
 import com.riyadm.wakenudge.missions.MissionInfo
+import com.riyadm.wakenudge.missions.ui.ReportFallback
 import com.riyadm.wakenudge.missions.ui.MissionButton
 import com.riyadm.wakenudge.missions.ui.MissionButtonKind
 import com.riyadm.wakenudge.missions.ui.MissionNotice
@@ -104,9 +109,30 @@ private fun CounterRing(count: Int, total: Int, caption: String, icon: ImageVect
 
 @Composable
 private fun SensorMissingNotice(type: MissionType) {
+    ReportFallback(FallbackReason.UNSUPPORTED)
     MissionScaffold {
         MissionNotice(Icons.Filled.SensorsOff, stringResource(MissionInfo.titleRes(type)), stringResource(MissionInfo.unsupportedReasonRes(type)))
     }
+}
+
+/**
+ * Watches the sensor a mission depends on while the screen is in front: when it has said nothing for half a minute (see
+ * [SensorLiveness]) the phone cannot do the mission, and during a ring the backup mission takes over.
+ */
+@Composable
+private fun rememberSensorLiveness(active: Boolean, gated: Boolean = false): SensorLiveness {
+    val liveness = remember(gated) { SensorLiveness(gated) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    var silent by remember { mutableStateOf(false) }
+    LaunchedEffect(active, liveness) {
+        while (active && !silent) {
+            delay(1_000)
+            // Time behind another app or with the screen off says nothing about the sensor: the listener is off then.
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && liveness.tick(SystemClock.elapsedRealtime())) silent = true
+        }
+    }
+    if (silent) ReportFallback(FallbackReason.SENSOR_SILENT)
+    return liveness
 }
 
 /** Shake the phone [MissionConfig.count] times; harder levels need harder shakes. */
@@ -122,8 +148,10 @@ internal fun ShakeMission(config: MissionConfig, onInteraction: () -> Unit, onCo
     var finished by rememberSaveable { mutableStateOf(false) }
     val detector = remember(config.difficulty) { ShakeDetector.forDifficulty(config.difficulty) }
     val wobble = remember { Animatable(0f) }
+    val liveness = rememberSensorLiveness(active = !finished)
 
     SensorEventsEffect(Sensor.TYPE_ACCELEROMETER, enabled = !finished) { event ->
+        liveness.onReading()
         val (x, y, z) = event.values
         // Any real movement shows the user is awake and trying, even if it is too gentle to count yet.
         if (abs(sqrt(x * x + y * y + z * z) - STANDARD_GRAVITY) > MOVEMENT_THRESHOLD_MS2) onInteraction()
@@ -206,8 +234,12 @@ private fun StepsCounting(availability: StepSensorAvailability, config: MissionC
     var steps by rememberSaveable { mutableIntStateOf(tracker.steps) }
     var finished by rememberSaveable { mutableStateOf(false) }
     val accelerometerPedometer = remember { StepDetector() }
+    // A step sensor only speaks while someone walks, so it is judged only while the phone moves.
+    val gated = source != StepSource.ACCELEROMETER && availability.hasAccelerometer
+    val liveness = rememberSensorLiveness(active = !finished, gated = gated)
 
     fun update(newSteps: Int) {
+        liveness.onReading()
         if (newSteps == steps || finished) return
         steps = newSteps
         onInteraction()
@@ -225,7 +257,12 @@ private fun StepsCounting(availability: StepSensorAvailability, config: MissionC
     SensorEventsEffect(Sensor.TYPE_STEP_DETECTOR, enabled = source == StepSource.DETECTOR && !finished, samplingPeriodUs = SensorManager.SENSOR_DELAY_UI) {
         update(tracker.onDetectorStep())
     }
+    SensorEventsEffect(Sensor.TYPE_ACCELEROMETER, enabled = gated && !finished) { event ->
+        val (x, y, z) = event.values
+        if (abs(sqrt(x * x + y * y + z * z) - STANDARD_GRAVITY) > MOVEMENT_THRESHOLD_MS2) liveness.onMotion(SystemClock.elapsedRealtime())
+    }
     SensorEventsEffect(Sensor.TYPE_ACCELEROMETER, enabled = source == StepSource.ACCELEROMETER && !finished) { event ->
+        liveness.onReading()
         val credited = accelerometerPedometer.onSample(event.timestamp, event.values[0], event.values[1], event.values[2])
         if (credited > 0) update(tracker.add(credited))
     }
@@ -268,8 +305,10 @@ internal fun SquatsMission(config: MissionConfig, onInteraction: () -> Unit, onC
     var phase by remember { mutableStateOf(SquatDetector.Phase.READY) }
     var firstSampleNs by remember { mutableLongStateOf(-1L) }
     var calibrated by remember { mutableStateOf(false) }
+    val liveness = rememberSensorLiveness(active = !finished)
 
     SensorEventsEffect(Sensor.TYPE_ACCELEROMETER, enabled = !finished) { event ->
+        liveness.onReading()
         if (firstSampleNs < 0) firstSampleNs = event.timestamp
         if (!calibrated && event.timestamp - firstSampleNs > CALIBRATION_NS) calibrated = true
         val repDone = detector.onSample(event.timestamp, event.values[0], event.values[1], event.values[2])

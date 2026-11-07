@@ -29,6 +29,7 @@ import com.riyadm.wakenudge.engine.policy.RingCommand
 import com.riyadm.wakenudge.engine.policy.RingDecision
 import com.riyadm.wakenudge.engine.policy.RingPolicy
 import com.riyadm.wakenudge.engine.policy.RingProof
+import com.riyadm.wakenudge.engine.policy.WayOut
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -673,6 +674,8 @@ class RingController @Inject constructor(
         val s = store.current ?: return
         val now = time.elapsedMillis()
         if (s.silencedUntil in 1..now) store.update { it.copy(silencedUntil = 0) }
+        // The pause is over: the alarm comes back as it was, and an ignored ring counts from now, not from before the call.
+        if (s.pausedUntil in 1..now) store.update { it.copy(pausedUntil = 0, pauseSilences = false, lastInteractionAt = now) }
 
         if (s.phase == RingPhase.SUNRISE) {
             val limit = (s.alarm.sunrise.leadMinutes + SUNRISE_GRACE_MINUTES) * 60_000L
@@ -758,7 +761,7 @@ class RingController @Inject constructor(
         true
     }
 
-    /** The accessible escape hatch: ends the alarm without missions. Recorded honestly as an emergency stop. */
+    /** The way out by holding: ends the alarm without missions. Recorded honestly as an emergency stop. */
     suspend fun emergencyStop(target: RingTarget? = null, proof: RingProof = RingProof.None): Boolean = mutex.withLock {
         val s = store.current ?: return@withLock false
         if (target != null && !target.matches(s)) return@withLock false
@@ -766,6 +769,75 @@ class RingController @Inject constructor(
         endSession(s, AlarmOutcome.EMERGENCY_STOPPED)
         diagnostics.warn("Ring", "alarm ${s.alarm.id} ended by emergency stop")
         true
+    }
+
+    /** The way out by its chain of tasks, once the controller has counted all of them. Also recorded as an emergency stop. */
+    suspend fun wayOut(target: RingTarget? = null, proof: RingProof = RingProof.None): Boolean = mutex.withLock {
+        val s = store.current ?: return@withLock false
+        if (target != null && !target.matches(s)) return@withLock false
+        if (refused(s, RingCommand.WayOutDone, proof)) return@withLock false
+        endSession(s, AlarmOutcome.EMERGENCY_STOPPED)
+        diagnostics.warn("Ring", "alarm ${s.alarm.id} ended by the way out after ${s.wayOutProgress} tasks")
+        true
+    }
+
+    /**
+     * A task of the way-out chain was done; [count] is how many are done now according to the screen. Like missions it only
+     * moves one step at a time, and not before the way out has opened. It is saved, so a restart does not cost it.
+     */
+    fun noteWayOutStep(count: Int) {
+        val now = time.nowMillis()
+        var advanced = false
+        store.update { s ->
+            val chain = RingPolicy.wayOut(s) as? WayOut.Chain
+            val opensAt = RingPolicy.wayOutOpensAt(s)
+            if (chain != null && opensAt != null && now >= opensAt && count == s.wayOutProgress + 1 && count <= chain.steps) {
+                advanced = true
+                s.copy(wayOutProgress = count)
+            } else {
+                diagnostics.warn("Ring", "way-out step $count ignored: ${s.wayOutProgress} done")
+                s
+            }
+        }
+        if (advanced) store.current?.let(::rememberRing)
+    }
+
+    /** A backup mission stood in for one this phone could not do. Recorded in the history. */
+    fun noteFallbackUsed() {
+        var changed = false
+        store.update { s -> if (s.fallback) s else s.copy(fallback = true).also { changed = true } }
+        if (changed) store.current?.let {
+            diagnostics.warn("Ring", "alarm ${it.alarm.id}: a mission could not be done; a backup mission stands in")
+            rememberRing(it)
+        }
+    }
+
+    /** A sum on the safe ring screen was answered; counted one step at a time like everything else that ends a ring. */
+    fun noteSafeSum(count: Int) {
+        store.update { s ->
+            if (s.safeMode && count == s.safeSumsDone + 1 && count <= RingPolicy.safeSums(s)) s.copy(safeSumsDone = count) else s
+        }
+    }
+
+    /**
+     * Emergency: the alarm steps aside for [RingPolicy.EMERGENCY_PAUSE_MS] so a call can be made. It does not end the
+     * alarm. The first [RingPolicy.SILENT_PAUSES] pauses of a ring also silence it; later ones only stop the pull-back,
+     * so it cannot be used as a free snooze, and a call that is active keeps it quiet anyway. Every pause is counted.
+     */
+    fun pauseForEmergency(target: RingTarget? = null, proof: RingProof = RingProof.None): Boolean {
+        val now = time.elapsedMillis()
+        var paused = false
+        store.update { s ->
+            if ((target != null && !target.matches(s)) || decide(s, RingCommand.EmergencyPause, proof) !is RingDecision.Allow) return@update s
+            paused = true
+            val count = s.pauses + 1
+            s.copy(pauses = count, pausedUntil = now + RingPolicy.EMERGENCY_PAUSE_MS, pauseSilences = count <= RingPolicy.SILENT_PAUSES, lastInteractionAt = now)
+        }
+        store.current?.takeIf { paused }?.let {
+            diagnostics.warn("Ring", "alarm ${it.alarm.id}: Emergency pause ${it.pauses} (${if (it.pauseSilences) "silent" else "sound stays on"})")
+            rememberRing(it)
+        }
+        return paused
     }
 
     /**

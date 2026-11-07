@@ -34,7 +34,6 @@
     <string name="mission_step_of">Mission %1$d of %2$d</string>
     <string name="mission_preview_label">Preview</string>
     <string name="mission_skip">Skip</string>
-    <string name="mission_continue">Continue</string>
     <string name="mission_close_preview">Close preview</string>
     <string name="mission_all_done">All done!</string>
     <string name="mission_chip_done">completed</string>
@@ -43,6 +42,24 @@
     <string name="mission_not_set_up_title">Not set up yet</string>
     <string name="mission_not_set_up_body">%1$s needs a one-time setup. Open this alarm\'s mission settings and set it up first.</string>
     <string name="mission_counter_description">%1$d of %2$d</string>
+
+    <!-- Backup mission: stands in for a mission that cannot be done right now. It is never a pass. -->
+    <string name="mission_backup_title">Backup mission</string>
+    <string name="mission_backup_why_not_set_up">%1$s was never set up for this alarm.</string>
+    <string name="mission_backup_why_broken">The saved setup of %1$s can\'t be read.</string>
+    <string name="mission_backup_why_camera">The camera could not be started.</string>
+    <string name="mission_backup_why_dark">The camera shows only black, even with the flashlight on.</string>
+    <string name="mission_backup_why_sensor">The phone\'s motion sensor isn\'t reporting anything.</string>
+    <string name="mission_backup_why_permission">%1$s needs a permission that isn\'t allowed.</string>
+    <string name="mission_backup_why_nfc">NFC is off, so the tag can\'t be read.</string>
+    <plurals name="mission_backup_steps">
+        <item quantity="one">Do this %d step instead.</item>
+        <item quantity="other">Do these %d steps instead.</item>
+    </plurals>
+    <plurals name="mission_backup_instead">
+        <item quantity="one">Do %d backup step instead</item>
+        <item quantity="other">Do %d backup steps instead</item>
+    </plurals>
 
     <!-- Permissions and camera -->
     <string name="mission_allow_access">Allow access</string>

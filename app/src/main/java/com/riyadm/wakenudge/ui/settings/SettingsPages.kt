@@ -35,7 +35,6 @@ import com.riyadm.wakenudge.ui.components.ChipChoiceRow
 import com.riyadm.wakenudge.ui.components.SectionTitle
 import com.riyadm.wakenudge.ui.components.SettingsGroup
 import com.riyadm.wakenudge.ui.components.SliderRow
-import com.riyadm.wakenudge.ui.components.StepperRow
 import com.riyadm.wakenudge.ui.components.SwitchRow
 import com.riyadm.wakenudge.ui.components.ValueRow
 import com.riyadm.wakenudge.ui.edit.SoundPickerSheet
@@ -126,7 +125,7 @@ fun AppearanceSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, 
     }
 }
 
-/** What the phone does while an alarm is on screen: buttons, screen and the way out. */
+/** What the phone does while an alarm is on screen: buttons and screen. */
 @Composable
 fun RingingSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
     val s = viewModel.settings.collectAsStateWithLifecycle().value ?: return
@@ -150,20 +149,7 @@ fun RingingSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, vie
                 }
             }
         }
-        item {
-            SectionTitle(stringResource(R.string.settings_ringing_safety))
-            SettingsGroup {
-                item { shape ->
-                    StepperRow(
-                        title = stringResource(R.string.settings_emergency_hold), subtitle = stringResource(R.string.settings_emergency_hold_hint),
-                        valueText = stringResource(R.string.unit_seconds, s.emergencyStopHoldSeconds),
-                        onMinus = { viewModel.update { it.copy(emergencyStopHoldSeconds = (it.emergencyStopHoldSeconds - 1).coerceAtLeast(1)) } },
-                        onPlus = { viewModel.update { it.copy(emergencyStopHoldSeconds = (it.emergencyStopHoldSeconds + 1).coerceAtMost(10)) } },
-                        canMinus = s.emergencyStopHoldSeconds > 1, canPlus = s.emergencyStopHoldSeconds < 10, shape = shape,
-                    )
-                }
-            }
-        }
+        // The way out's hold is a fixed 10 s now (RingPolicy.WAY_OUT_HOLD_SECONDS), so there is no hold time to set here.
     }
 }
 

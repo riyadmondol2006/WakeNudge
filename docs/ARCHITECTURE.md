@@ -70,7 +70,18 @@ UI observe.
   counts missions itself, one step at a time, and that count is what "missions complete" is checked against and what
   history records. Safe mode (below) is the one remaining shortcut.
 - **Ring timeout**: an ignored ring ends after `ringTimeoutMinutes`. 0 is "Never": only a dismissal, a snooze or an
-  Emergency stop ends it (a backup firing just upgrades it). Timers and the test alarm carry their own fixed timeouts.
+  way out ends it (a backup firing just upgrades it). Timers and the test alarm carry their own fixed timeouts.
+- **The way out** (`RingPolicy.wayOut`) exists only for an alarm with a mission and is worked out from its settings: a
+  10-second hold (`emergencyStopEnabled`), or a chain of `wayOutCount` tasks that opens `wayOutDelayMinutes` after the ring
+  first started, counted on the wall clock so a restart does not reset it. The controller counts the chain one task at a
+  time (`noteWayOutStep`, saved in `DurableRingRecord.wayOutProgress`) and `WayOutDone` needs the full count. Both are
+  recorded as an emergency stop. `wayOutRemoved` (the owner's explicit choice) leaves neither; Emergency, the backup
+  mission and the restart cap stay.
+- **Emergency** (`pauseForEmergency`) never ends a ring: it pauses it for 3 minutes so a call can be made (the ring screen
+  then opens the phone app, or on a locked phone the unlock screen with its Emergency call button). The first two pauses of
+  a ring also silence it; later ones only keep the alarm out of the way. `CallWatcher` reads `AudioManager.getMode` (and its
+  change listener on Android 12+), with no phone permission: a phone call, or one ringing in, keeps the ring quiet for as
+  long as it lasts; a call in an app at most 10 minutes per ring (`CallPause`). Every pause is counted in the history.
 
 ### Audio
 
@@ -130,7 +141,9 @@ One rule: **persistence, the notification and the ring screen never decide wheth
   (alarm-clock trigger, exempt from background-start limits) and the platform handler then ends the process. The new
   process rings the same event again (`RingController.onRetry` refuses if it was handled meanwhile or something already
   rings). After two crashes in ten minutes the notification stops launching the screen and carries Snooze/Dismiss itself
-  (`RingSession.safeMode`); after five it stops rescuing, except for an alarm that keeps coming back
+  (`RingSession.safeMode`) and opens `SafeRingActivity` instead: plain Views, no camera, no sensors. An alarm that ends with
+  one tap keeps its buttons there and on the notification; any other is ended with `RingPolicy.safeSums` plain sums on a
+  keypad, counted by the controller (`noteSafeSum`), so safe mode is never a one-tap way out of a mission. After five it stops rescuing, except for an alarm that keeps coming back
   (`AntiOversleepSettings.keepsComingBack`), whose rescues back off to once a minute instead.
 - **The OS refuses to start the service** (Android 15 forbids media foreground services from boot-completed receivers, which
   `systemExempted` avoids; vendors differ): `RingServiceLauncher` posts a fallback notification that sounds the alarm tone by itself (`ring_fallback_v1`,
@@ -200,8 +213,16 @@ be tested without a real broadcast.
 
 `MissionHost` runs a list of `MissionConfig`s in order and reports progress. Each mission (`math`, `memory`, `typing`,
 `scan`, `nfc`, `sensors` for shake/steps/squats, `puzzle`, `photo`, `focus` for Focus Tap) has a pure core (problem generation, matching,
-rep counting) tested on the JVM and a thin Compose UI. A mission that cannot be completed on this phone (no camera, no
-step sensor, permission refused) shows "Continue" instead of trapping the user.
+rep counting) tested on the JVM and a thin Compose UI.
+
+A mission is never passed for free. During a ring, `MissionHost` gets a `MissionBackup`, and a mission that cannot be done
+reports a `FallbackReason` through `LocalMissionFallback`: no hardware, never set up, a setup that cannot be read, a camera
+that fails or shows only black for a minute with the torch tried (`DarkFrameWatch`), a sensor silent for 30 s
+(`SensorLiveness`; a step sensor is only judged while the phone moves), a refused permission, NFC off. `FallbackChain` turns
+the reason into a backup mission of one-step Focus Tap, typing and MEDIUM sum missions in turn: `fallbackCount` steps for
+bad luck, the way-out length for a cause the user could fix (offered as a button next to the fix). The step that failed
+counts as done only when its backup is, and the ring records `fallbackUsed`. No step is harder than the HARD sums, and
+none multiplies a multi-digit number.
 
 An alarm with "Change the mission each morning" (`rotateMissions`) and two or more missions asks for one of them per
 occurrence: `MissionRotation.pick` takes the next in turn, counted in the alarm's own ring days, plus one for each

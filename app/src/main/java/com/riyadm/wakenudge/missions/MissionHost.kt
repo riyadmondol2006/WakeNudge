@@ -33,7 +33,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import com.riyadm.wakenudge.missions.ui.LocalMissionWayOut
+import com.riyadm.wakenudge.missions.ui.LocalMissionFallback
+import com.riyadm.wakenudge.missions.ui.MissionFallback
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -55,6 +57,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.riyadm.wakenudge.R
+import com.riyadm.wakenudge.domain.model.AntiOversleepSettings
 import com.riyadm.wakenudge.domain.model.MissionConfig
 import com.riyadm.wakenudge.domain.model.MissionType
 import com.riyadm.wakenudge.missions.focus.FocusMission
@@ -90,8 +93,9 @@ import com.riyadm.wakenudge.ui.theme.WakeMotion
  * rate-limits it; it calms an escalating alarm). With [previewMode] a small "Preview" label shows and every mission
  * also offers a "Skip" action; behaviour is otherwise real.
  *
- * Progress is kept across recomposition and configuration changes. A mission that can never succeed on this phone
- * (missing hardware, or never set up) shows an explanation with a Continue button instead of trapping the user.
+ * Progress is kept across recomposition and configuration changes. During a real ring ([backup] set) a mission that
+ * cannot be done (missing hardware, never set up, a dead sensor or camera, a refused permission) is never passed: a
+ * backup mission of [FallbackChain] steps takes its place, and the mission counts as done only when that is finished.
  */
 @Composable
 fun MissionHost(
@@ -108,6 +112,8 @@ fun MissionHost(
      * engine counted, or the chain would finish and the engine would refuse to end the ring.
      */
     progressKeptElsewhere: Boolean = false,
+    /** What a mission that cannot be done is replaced by; null outside a real ring (previews, setup). */
+    backup: MissionBackup? = null,
     onComplete: () -> Unit,
 ) {
     val total = missions.size
@@ -152,7 +158,7 @@ fun MissionHost(
                             latestOnProgress(index + 1)
                         }
                     }
-                    MissionGate(missions[index], previewMode, onInteraction, finishMission)
+                    MissionGate(missions[index], index, previewMode, backup, onInteraction, finishMission)
                 }
             }
         }
@@ -219,28 +225,87 @@ fun MissionSetup(config: MissionConfig, onSaved: (MissionConfig) -> Unit, onCanc
 private fun isReady(config: MissionConfig): Boolean = config.isConfigured &&
     (config.type != MissionType.PHOTO || config.params[MissionConfig.PARAM_SIGNATURE]?.let { PhotoSignature.decode(it) } != null)
 
+/**
+ * How a real ring replaces a mission that cannot be done. [ao] gives the lengths, [style] what the steps are made of, and
+ * [onUsed] tells the ring that a backup stood in, for the history.
+ */
+class MissionBackup(val ao: AntiOversleepSettings, val style: ChainStyle = ChainStyle.MIXED, val onUsed: () -> Unit = {})
+
 @Composable
-private fun MissionGate(config: MissionConfig, previewMode: Boolean, onInteraction: () -> Unit, onDone: () -> Unit) {
+private fun MissionGate(config: MissionConfig, index: Int, previewMode: Boolean, backup: MissionBackup?, onInteraction: () -> Unit, onDone: () -> Unit) {
     val context = LocalContext.current
     val supported = remember(config.type) { MissionInfo.isSupported(context, config.type) }
+    var reason by rememberSaveable { mutableStateOf<FallbackReason?>(null) }
+    val gateReason = when {
+        !supported -> FallbackReason.UNSUPPORTED
+        !config.isConfigured -> FallbackReason.NOT_SET_UP
+        !isReady(config) -> FallbackReason.BROKEN_SETUP
+        else -> null
+    }
+    val active = reason ?: gateReason?.takeIf { backup != null }
+    if (active != null && backup != null) {
+        LaunchedEffect(active) { backup.onUsed() }
+        BackupMission(config, active, index, backup, onInteraction, onDone)
+        return
+    }
     when {
         !supported -> Unavailable(
             icon = Icons.Filled.SensorsOff,
             title = stringResource(MissionInfo.titleRes(config.type)),
             body = stringResource(MissionInfo.unsupportedReasonRes(config.type)),
-            previewMode = previewMode,
-            onContinue = onDone,
         )
         !isReady(config) -> Unavailable(
             icon = Icons.Filled.Construction,
             title = stringResource(R.string.mission_not_set_up_title),
             body = stringResource(R.string.mission_not_set_up_body, stringResource(MissionInfo.titleRes(config.type))),
-            previewMode = previewMode,
-            onContinue = onDone,
         )
-        else -> CompositionLocalProvider(LocalMissionWayOut provides if (previewMode) null else onDone) {
-            MissionContent(config, onInteraction, onDone)
+        else -> {
+            val fallback = remember(backup) {
+                backup?.let { b -> MissionFallback(steps = { FallbackChain.length(it, b.ao) }, start = { reason = it }) }
+            }
+            CompositionLocalProvider(LocalMissionFallback provides if (previewMode) null else fallback) {
+                MissionContent(config, onInteraction, onDone)
+            }
         }
+    }
+}
+
+/** The backup mission in place of [config]: why, then the steps, and the mission counts as done when they are. */
+@Composable
+private fun BackupMission(config: MissionConfig, reason: FallbackReason, index: Int, backup: MissionBackup, onInteraction: () -> Unit, onDone: () -> Unit) {
+    val steps = remember(reason, backup.ao, backup.style, index) { FallbackChain.backup(reason, backup.ao, backup.style, offset = index) }
+    val name = stringResource(MissionInfo.titleRes(config.type))
+    val why = when (reason) {
+        FallbackReason.UNSUPPORTED -> stringResource(MissionInfo.unsupportedReasonRes(config.type))
+        FallbackReason.NOT_SET_UP -> stringResource(R.string.mission_backup_why_not_set_up, name)
+        FallbackReason.BROKEN_SETUP -> stringResource(R.string.mission_backup_why_broken, name)
+        FallbackReason.CAMERA_FAILED -> stringResource(R.string.mission_backup_why_camera)
+        FallbackReason.CAMERA_DARK -> stringResource(R.string.mission_backup_why_dark)
+        FallbackReason.SENSOR_SILENT -> stringResource(R.string.mission_backup_why_sensor)
+        FallbackReason.PERMISSION_REFUSED -> stringResource(R.string.mission_backup_why_permission, name)
+        FallbackReason.NFC_OFF -> stringResource(R.string.mission_backup_why_nfc)
+    }
+    Column(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+                .clip(MaterialTheme.shapes.large)
+                .background(MaterialTheme.colorScheme.secondaryContainer)
+                .padding(12.dp)
+                .semantics(mergeDescendants = true) {},
+        ) {
+            Text(
+                stringResource(R.string.mission_backup_title), style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.semantics { heading() },
+            )
+            Text(
+                why + " " + pluralStringResource(R.plurals.mission_backup_steps, steps.size, steps.size),
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+        }
+        // Its own chain, done in turn; nothing in it needs hardware, a permission or a setup, so it cannot fail in turn.
+        MissionHost(steps, Modifier.weight(1f), onInteraction = onInteraction, onComplete = onDone)
     }
 }
 
@@ -261,13 +326,11 @@ private fun MissionContent(config: MissionConfig, onInteraction: () -> Unit, onD
     }
 }
 
-/** Explains why a mission cannot run. In a real alarm a Continue button lets the user through; in preview, Skip already does. */
+/** Explains why a mission cannot run, in a preview (where Skip moves on) or wherever there is no backup to stand in. */
 @Composable
-private fun Unavailable(icon: ImageVector, title: String, body: String, previewMode: Boolean, onContinue: () -> Unit) {
+private fun Unavailable(icon: ImageVector, title: String, body: String) {
     MissionScaffold {
-        MissionNotice(icon, title, body) {
-            if (!previewMode) MissionButton(stringResource(R.string.mission_continue), onContinue, Modifier.fillMaxWidth())
-        }
+        MissionNotice(icon, title, body)
     }
 }
 
@@ -292,9 +355,9 @@ private fun MissionHeader(missions: List<MissionConfig>, completed: Int, preview
     val current = missions.getOrNull(completed)
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // A single mission at ring time has neither steps nor a preview badge: no empty row taking the mission's height.
-        if (total > 1 || previewMode) {
+        if ((total in 2..MissionConfig.MAX_MISSIONS) || previewMode) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                if (total > 1) {
+                if (total in 2..MissionConfig.MAX_MISSIONS) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
                         missions.forEachIndexed { index, mission -> StepChip(mission.type, index, completed) }
                     }

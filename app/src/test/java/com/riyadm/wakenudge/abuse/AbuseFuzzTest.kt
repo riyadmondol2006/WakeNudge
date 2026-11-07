@@ -356,13 +356,17 @@ class AbuseFuzzTest {
                 ),
                 kind = RingKind.entries.filter { it != RingKind.TIMER }.random(r), phase = RingPhase.RINGING, eventId = r.nextLong(-1, 50), scheduledAt = 1, startedAt = 1,
                 snoozeCount = r.nextInt(0, 5), missionsDone = r.nextInt(0, missions.size), mutesUsed = r.nextInt(0, 6),
+                wayOutProgress = r.nextInt(0, 32),
             )
             val command = RingCommand.entries[r.nextInt(RingCommand.entries.size)]
             val proof = RingProof.entries[r.nextInt(RingProof.entries.size)]
             val allowed = RingPolicy.decide(session, command, proof) is RingDecision.Allow
             val ending = command in setOf(RingCommand.Snooze, RingCommand.Dismiss, RingCommand.HoldStop, RingCommand.Timeout, RingCommand.WayOutDone)
             if (allowed && ending) assertEquals("$command with $proof on $session", RingCommand.WayOutDone, command)
-            if (command == RingCommand.WayOutDone) assertEquals(proof == RingProof.WayOutComplete, allowed)
+            // The way out ends it only with its proof and with every task counted by the controller.
+            if (command == RingCommand.WayOutDone) {
+                assertEquals(proof == RingProof.WayOutComplete && session.wayOutProgress >= RingPolicy.wayOutSteps(session.alarm.antiOversleep), allowed)
+            }
         }
     }
 }

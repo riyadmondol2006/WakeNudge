@@ -42,5 +42,5 @@
     <string name="cat_defaults">Default</string>
 
     <string name="cat_snooze_switch">Allow snooze</string>
-    <string name="cat_no_emergency_stop">No emergency stop</string>
+    <string name="cat_no_emergency_stop">Slow way out</string>
 </resources>

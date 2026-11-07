@@ -114,6 +114,19 @@
             android:turnScreenOn="true"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- Safe mode: a plain ring screen for when the real one kept crashing. -->
+        <activity
+            android:name=".ui.ring.SafeRingActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection"
+            android:directBootAware="true"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.WakeNudge.Safe"
+            android:turnScreenOn="true" />
+
         <activity
             android:name=".ui.ring.WakeCheckActivity"
             android:directBootAware="true"

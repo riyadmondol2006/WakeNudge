@@ -56,7 +56,8 @@ import com.riyadm.wakenudge.missions.camera.FrameSampling
 import com.riyadm.wakenudge.missions.ui.MissionButton
 import com.riyadm.wakenudge.missions.ui.MissionButtonKind
 import com.riyadm.wakenudge.missions.ui.MissionNotice
-import com.riyadm.wakenudge.missions.ui.MissionWayOut
+import com.riyadm.wakenudge.missions.FallbackReason
+import com.riyadm.wakenudge.missions.ui.ReportFallback
 import com.riyadm.wakenudge.missions.ui.MissionProgress
 import com.riyadm.wakenudge.missions.ui.MissionPrompt
 import com.riyadm.wakenudge.missions.ui.MissionScaffold
@@ -89,6 +90,7 @@ internal fun CodeScannerView(
     var torchOn by rememberSaveable { mutableStateOf(false) }
     var torchAvailable by remember { mutableStateOf(false) }
     var cameraFailed by remember { mutableStateOf(false) }
+    var cameraProblem by remember { mutableStateOf<FallbackReason?>(null) }
 
     PermissionGate(
         permission = android.Manifest.permission.CAMERA,
@@ -98,9 +100,8 @@ internal fun CodeScannerView(
         modifier = modifier,
     ) {
         if (cameraFailed) {
-            MissionNotice(Icons.Filled.NoPhotography, stringResource(R.string.mission_camera_failed_title), stringResource(R.string.mission_camera_failed_body), modifier, scrollable = true) {
-                MissionWayOut()
-            }
+            ReportFallback(cameraProblem ?: FallbackReason.CAMERA_FAILED)
+            MissionNotice(Icons.Filled.NoPhotography, stringResource(R.string.mission_camera_failed_title), stringResource(R.string.mission_camera_failed_body), modifier, scrollable = true)
         } else {
             Box(modifier.clip(MaterialTheme.shapes.extraLarge).background(Color.Black)) {
                 CameraAnalysisView(
@@ -109,6 +110,7 @@ internal fun CodeScannerView(
                     torchOn = torchOn,
                     onTorchAvailable = { torchAvailable = it },
                     onUnavailable = { cameraFailed = true },
+                    onDark = { cameraProblem = FallbackReason.CAMERA_DARK; cameraFailed = true },
                 ) { image ->
                     val code = synchronized(decoder) {
                         decoder.decode(FrameSampling.luminance(image), image.width, image.height, image.imageInfo.rotationDegrees)

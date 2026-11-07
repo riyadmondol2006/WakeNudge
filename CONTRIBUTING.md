@@ -10,8 +10,10 @@ Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT
 
 1. **Stay offline.** No analytics, no remote config, no network-capable dependency, no new network permission. The app
    holds only `INTERNET`, for the optional update check. The build enforces this; do not work around it.
-2. **A mission must never trap the user.** Anything that can be impossible on some phone needs a way out, and the
-   Emergency stop must work wherever the alarm has it switched on (it is on by default; a strict alarm may turn it off).
+2. **A mission must never trap the user, and must never be passed for free.** Anything that can be impossible on some
+   phone hands over to the backup mission (`FallbackReason`, `LocalMissionFallback`), never to a Continue button.
+   Emergency must stay reachable on every ring and mission screen, and every ring needs a way to end: `RingTrapTest`
+   must cover any new failure reason, level or exit.
 3. **Restore what you change.** Anything modifying system state (alarm volume, brightness) must put it back.
 4. **No placeholders.** No TODO-shaped UI, no mock buttons, no dead settings.
 

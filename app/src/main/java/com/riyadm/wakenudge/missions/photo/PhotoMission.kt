@@ -57,7 +57,8 @@ import com.riyadm.wakenudge.missions.camera.Thumbnails
 import com.riyadm.wakenudge.missions.ui.MissionButton
 import com.riyadm.wakenudge.missions.ui.MissionButtonKind
 import com.riyadm.wakenudge.missions.ui.MissionNotice
-import com.riyadm.wakenudge.missions.ui.MissionWayOut
+import com.riyadm.wakenudge.missions.FallbackReason
+import com.riyadm.wakenudge.missions.ui.ReportFallback
 import com.riyadm.wakenudge.missions.ui.MissionPrompt
 import com.riyadm.wakenudge.missions.ui.MissionProgress
 import com.riyadm.wakenudge.missions.ui.MissionScaffold
@@ -91,9 +92,8 @@ internal fun PhotoMission(config: MissionConfig, onInteraction: () -> Unit, onCo
     val reference = remember(config.params[MissionConfig.PARAM_SIGNATURE]) { config.params[MissionConfig.PARAM_SIGNATURE]?.let { PhotoSignature.decode(it) } }
     if (reference == null) {
         MissionScaffold {
-            MissionNotice(Icons.Filled.NoPhotography, stringResource(R.string.mission_photo_broken_title), stringResource(R.string.mission_photo_broken_body)) {
-                MissionWayOut()
-            }
+            ReportFallback(FallbackReason.BROKEN_SETUP)
+            MissionNotice(Icons.Filled.NoPhotography, stringResource(R.string.mission_photo_broken_title), stringResource(R.string.mission_photo_broken_body))
         }
         return
     }
@@ -108,6 +108,7 @@ internal fun PhotoMission(config: MissionConfig, onInteraction: () -> Unit, onCo
     var torchOn by rememberSaveable { mutableStateOf(false) }
     var torchAvailable by remember { mutableStateOf(false) }
     var cameraFailed by remember { mutableStateOf(false) }
+    var cameraProblem by remember { mutableStateOf<FallbackReason?>(null) }
     val hold = remember(threshold) { MatchHold(threshold) }
     val passing = remember { AtomicBoolean(false) }
     val lastInteractionNs = remember { java.util.concurrent.atomic.AtomicLong(0L) }
@@ -131,12 +132,11 @@ internal fun PhotoMission(config: MissionConfig, onInteraction: () -> Unit, onCo
             modifier = Modifier.weight(1f),
         ) {
             if (cameraFailed) {
+                ReportFallback(cameraProblem ?: FallbackReason.CAMERA_FAILED)
                 MissionNotice(
                     Icons.Filled.NoPhotography, stringResource(R.string.mission_camera_failed_title), stringResource(R.string.mission_camera_failed_body),
                     Modifier.weight(1f), scrollable = true,
-                ) {
-                    MissionWayOut()
-                }
+                )
             } else {
                 Box(Modifier.weight(1f).fillMaxWidth().clip(MaterialTheme.shapes.extraLarge).background(Color.Black)) {
                     CameraAnalysisView(
@@ -145,6 +145,7 @@ internal fun PhotoMission(config: MissionConfig, onInteraction: () -> Unit, onCo
                         torchOn = torchOn,
                         onTorchAvailable = { torchAvailable = it },
                         onUnavailable = { cameraFailed = true },
+                        onDark = { cameraProblem = FallbackReason.CAMERA_DARK; cameraFailed = true },
                     ) { image ->
                         if (passing.get()) return@CameraAnalysisView
                         val now = SystemClock.elapsedRealtimeNanos()
