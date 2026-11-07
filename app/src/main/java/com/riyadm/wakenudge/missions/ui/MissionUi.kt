@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.missions.ui
 
+import androidx.compose.runtime.collectAsState
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -345,10 +346,9 @@ internal fun ColumnScope.BackupMissionButton(reason: FallbackReason) {
 internal fun rememberScreenReaderOn(): Boolean {
     val context = LocalContext.current
     val resumes = rememberResumeCount()
-    return remember(resumes) {
-        runCatching { context.getSystemService(android.view.accessibility.AccessibilityManager::class.java)?.isTouchExplorationEnabled == true }
-            .getOrDefault(false)
-    }
+    val chosen by MissionAccessibility.noTimedMissions.collectAsState()
+    val system = remember(resumes) { MissionAccessibility.assistiveServiceOn(context) }
+    return system || chosen
 }
 
 /** Increments each time the host activity resumes; lets a composable re-check things the user may have changed in system settings. */
@@ -468,4 +468,32 @@ internal fun SetupFrame(
             }
         }
     }
+}
+
+/**
+ * Whether missions should take their screen-reader form: no timing, nothing to catch on sight. Set by the person
+ * ("I can't do timed or physical missions", copied here from the settings at app start and on every change) or found on
+ * the phone: a screen reader, or Switch Access or Voice Access, which work a screen one step at a time and so cannot win a
+ * timed game. Other accessibility services (a password manager, for example) do not count: they would make missions easy
+ * for anyone who has one.
+ */
+object MissionAccessibility {
+    val noTimedMissions = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+    /** Switch Access and Voice Access, by package; neither gives spoken feedback, so the feedback type cannot find them. */
+    private val STEP_BY_STEP_PACKAGES = setOf(
+        "com.google.android.accessibility.switchaccess",
+        "com.google.android.apps.accessibility.voiceaccess",
+    )
+
+    fun assistiveServiceOn(context: Context): Boolean = runCatching {
+        val manager = context.getSystemService(android.view.accessibility.AccessibilityManager::class.java) ?: return@runCatching false
+        if (manager.isTouchExplorationEnabled) return@runCatching true
+        val spoken = android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_SPOKEN or
+            android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_BRAILLE
+        manager.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK).any { info ->
+            val pkg = info.resolveInfo?.serviceInfo?.packageName
+            pkg != context.packageName && (info.feedbackType and spoken != 0 || pkg in STEP_BY_STEP_PACKAGES)
+        }
+    }.getOrDefault(false)
 }

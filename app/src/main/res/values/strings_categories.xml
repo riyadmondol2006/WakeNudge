@@ -44,6 +44,7 @@
         <item quantity="other">Back after up to %d restarts</item>
     </plurals>
     <string name="cat_bright">Full brightness</string>
+    <string name="cat_torch">Torch flashes</string>
     <string name="cat_check_after">After %1$s</string>
     <string name="cat_with_proof">with proof</string>
 </resources>

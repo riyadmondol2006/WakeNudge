@@ -123,6 +123,11 @@ data class AppSettings(
     val levelsCardSeen: Boolean = false,
     /** No mercy was picked once after its warning; later picks don't ask again. */
     val noMercyConfirmed: Boolean = false,
+    /**
+     * "I can't do timed or physical missions": the picker leaves out missions that are timed or need the phone moved,
+     * every mission uses its screen-reader form, chains are sums and typing, and the still-awake check asks for sums.
+     */
+    val noTimedMissions: Boolean = false,
 ) {
     /**
      * The three update fields describe this installation, not the user's alarm setup, so a backup neither carries

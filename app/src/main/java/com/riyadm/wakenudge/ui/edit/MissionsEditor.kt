@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -310,10 +311,12 @@ private fun setupSummary(mission: MissionConfig): String = when (mission.type) {
 @Composable
 private fun MissionPicker(onPick: (MissionType) -> Unit, onDismiss: () -> Unit) {
     val context = LocalContext.current
+    // "I can't do timed or physical missions" leaves those out here; alarms that have them keep them.
+    val noTimed by com.riyadm.wakenudge.missions.ui.MissionAccessibility.noTimedMissions.collectAsState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         LazyColumn(Modifier.navigationBarsPadding(), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item { Text(stringResource(R.string.edit_missions_pick_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)) }
-            items(MissionInfo.pickerOrder, key = { it.name }) { type ->
+            items(MissionInfo.pickable(noTimed), key = { it.name }) { type ->
                 val supported = MissionInfo.isSupported(context, type)
                 Surface(
                     onClick = { if (supported) onPick(type) },

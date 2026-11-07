@@ -4,7 +4,7 @@ An alarm clock is judged on the one morning it fails, so testing is split by wha
 
 | Layer | Where it runs | What it proves |
 |---|---|---|
-| **JVM unit tests** (904) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
+| **JVM unit tests** (919) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
 | **Fuzz tests** (14, part of the JVM tests) | Your computer | 20,000 seeded random alarm/clock/zone combinations never crash the scheduler or yield a time in the past; corrupted and hostile backup files are rejected or sanitised, never half-applied; random commands from stale buttons, keys and forged claims never end a ring whose missions are unfinished |
 | **Instrumented engine tests** (about 130, with the migration tests) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
 | **Instrumented UI tests** (about 80, 25 of them for the update popup and the About screen) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions getting a backup mission (never Continue), Emergency and the way out by click action at font scale 2.0 |
@@ -96,6 +96,16 @@ began life as a question; the ones that found real bugs are marked ✱ and were 
   screen's sums; six Emergency pauses; and, with the way out removed, says explicitly that the only exits left are the
   backup mission for a detected failure and the restart cap. Each level exactly as the editor makes it, Mixed rotation and
   backup ring included, ends with its missions and by its way out, also after a restart.
+- `SensorDetectorsTest`: shaking and walking are synthetic streams whose every cycle varies like a person's; a machine
+  (the same streams without variation) stops counting once its rhythm is known, at every difficulty and pace tried, also at
+  rates faster than the shake detector's dead time, and a person shaking or walking evenly still counts in full.
+  `CadenceGuardTest`: nothing judged before ten events, an alternating but exact pattern caught, a pause starting over. The
+  machine tests were watched failing before the guard. `TorchFlasherTest` (virtual time): once a second and never faster,
+  never touched with the setting off, before the ring is ignored, for a timer or a sunrise, off for a camera mission, a pause
+  or a mute, and put out when the ring ends; changing the rate or dropping the "ignored" condition was watched failing.
+  `StatsTest` adds "How it went". `MissionInfoTest`: "I can't do timed or physical missions" hides exactly those missions and
+  makes chains sums and typing. `NoTimedMissionsUiTest` (compiled, not yet run on a device): the picker and the still-awake
+  check's sums.
 - `CategoriesAndPickerUiTest` and `LevelsEditorUiTest` (compiled, not yet run on a device): picking each level sets and names
   it, a changed detail shows Custom, the protection line under Hard opens the setup, the slider never reaches "use the phone's
   alarm volume", "Keep ringing until I finish the mission" is a switch and "Stop ringing after" stops at 1 minute, the way out
@@ -203,6 +213,10 @@ These could not be done safely or at all in the development setup. They are the 
 | **Other manufacturers** (Samsung, Xiaomi, OnePlus, Huawei, …) | Their battery managers can still kill background work. Alarm health helps detect settings but cannot override a vendor |
 | **Other Android versions** (8.0–16) | Only Android 17 on hardware. minSdk-26 code paths (e.g. no `POST_NOTIFICATIONS`, `SCHEDULE_EXACT_ALARM`) are branch-tested, not run |
 | Human **shaking, squats and steps** | Counters are unit-tested with synthetic sensor traces; real motion was not performed |
+| **A machine rejected, a person not**: 30 shakes by hand, an even walk, then a phone on a mechanical shaker | `CadenceGuard`'s bars (0.08 for shakes, 0.01 for steps) come from synthetic streams; a person who shakes very evenly may lose a few counts, and how a real shaker and real sensor timing look is unknown |
+| The **torch** flashing for an ignored alarm, with a camera mission open, and after the app is killed mid-flash | `TorchFlasherTest` uses a fake torch; whether Android turns off a torch left on by a killed process was not checked |
+| **"How hard?"** picked by someone who has never seen the app, timed; each level's alarm overnight; 5 varied existing alarms after the update | The level table is JVM-tested twice over and the editor is compiled; nobody has used it on a phone |
+| **"I can't do timed or physical missions"** with Switch Access and Voice Access | The setting and the services' detection by package are code-reviewed and partly UI-tested; neither service was run |
 | The **backup mission** on a real phone: camera permission revoked before a locked ring, NFC off, the lens covered for a minute, a dead sensor | `FallbackChainTest`, `SensorAndCameraWatchTest` and `RingTrapTest` cover the rules; `RingAndMissionUiTest` and `RobustUiTest` (no Continue node, a keypad appears) are compiled, not yet run on a device. The permission dialog over the lock screen was not observed |
 | **Emergency** on a real phone: the phone app or the lock-screen Emergency call button, a real incoming call during a ring, the safe ring screen after two crashes | The pause, its count and the call budget are JVM-tested (`WayOutAndEmergencyTest`, `CallPauseTest`); opening the dialer, the bouncer and `AudioManager` mode changes were not observed, nor `SafeRingActivity` on the lock screen |
 | **Coming back to the ring screen** on a real phone: Home, Recents, a swiped card, Clear all, split screen, opening the app, a ring back from a kill or a restart, both navigation modes, the screen switched off, a 5-press SOS, the camera double-press, Circle to Search under `FLAG_SECURE` | `ResurfacePolicyTest` covers the rules on the JVM; `RingServiceInstrumentedTest` (Home, Recents and a swipe in Recents with the permission granted by `appops`, and the screen staying away without it) is compiled, not yet run on a device. Whether Android allows the start during Overview, and whether a re-alert disturbs the lock-screen Emergency dialer, were not observed |

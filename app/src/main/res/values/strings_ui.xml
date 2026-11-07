@@ -364,6 +364,7 @@
     <string name="lock_duration_hours">%1$d h</string>
     <string name="lock_banner_unlock_mission">Do the mission</string>
     <string name="lock_override_mission_title">Do this alarm\'s mission to unlock it</string>
-    <string name="notif_wake_check_text_proof">Open this and do one round of Focus Tap, or the alarm rings again.</string>
+    <string name="notif_wake_check_text_proof">Open this and show you\'re up, or the alarm rings again.</string>
     <string name="wake_check_proof_body">Do one round of Focus Tap to show you\'re up.</string>
+    <string name="wake_check_proof_body_sums">Do three sums to show you\'re up.</string>
 </resources>

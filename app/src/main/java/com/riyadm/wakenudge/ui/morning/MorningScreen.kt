@@ -1,5 +1,7 @@
 package com.riyadm.wakenudge.ui.morning
 
+import androidx.compose.ui.semantics.heading
+import com.riyadm.wakenudge.domain.stats.HowItWent
 import androidx.compose.ui.platform.LocalResources
 import com.riyadm.wakenudge.ui.util.spokenDuration
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -128,6 +130,7 @@ fun MorningScreen(modifier: Modifier = Modifier, viewModel: MorningViewModel = h
                     }
                 }
             }
+            if (state.howWeek.rings > 0) item { HowItWentCard(state.howToday, state.howWeek) }
             item { StreakCard(stats.currentStreak, stats.bestStreak) }
             item { WeekChart(state.week) }
             item { StatTiles(state) }
@@ -181,6 +184,43 @@ private fun GreetingCard(state: MorningUiState, is24: Boolean) {
                 }
             }
         }
+    }
+}
+
+/** What really happened, from the history on this phone: this morning, then the last seven days. */
+@Composable
+private fun HowItWentCard(today: HowItWent, week: HowItWent) {
+    val scheme = MaterialTheme.colorScheme
+    Surface(shape = RoundedCornerShape(28.dp), color = scheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(stringResource(R.string.morning_how_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+            if (today.rings > 0) HowItWentLines(stringResource(R.string.morning_how_today), today)
+            HowItWentLines(stringResource(R.string.morning_how_week), week)
+            Text(stringResource(R.string.morning_how_local), style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+        }
+    }
+}
+
+@Composable
+private fun HowItWentLines(title: String, how: HowItWent) {
+    val scheme = MaterialTheme.colorScheme
+    Text(
+        title + " · " + pluralStringResource(R.plurals.morning_how_rings, how.rings, how.rings),
+        style = MaterialTheme.typography.titleSmall, color = scheme.primary, modifier = Modifier.padding(top = 8.dp),
+    )
+    val lines = buildList {
+        if (how.backupMissions > 0) add(pluralStringResource(R.plurals.morning_how_backup_mission, how.backupMissions, how.backupMissions))
+        if (how.wayOuts > 0) add(pluralStringResource(R.plurals.morning_how_way_out, how.wayOuts, how.wayOuts))
+        if (how.missed > 0) add(pluralStringResource(R.plurals.morning_how_missed, how.missed, how.missed))
+        if (how.pauses > 0) add(pluralStringResource(R.plurals.morning_how_pauses, how.pauses, how.pauses))
+        if (how.resumes > 0) add(pluralStringResource(R.plurals.morning_how_resumes, how.resumes, how.resumes))
+        if (how.pullBacks > 0) add(pluralStringResource(R.plurals.morning_how_pull_backs, how.pullBacks, how.pullBacks))
+        if (how.mutes > 0) add(pluralStringResource(R.plurals.morning_how_mutes, how.mutes, how.mutes))
+    }
+    if (how.straightUp || lines.isEmpty()) {
+        Text(stringResource(R.string.morning_how_clean), style = MaterialTheme.typography.bodyMedium)
+    } else {
+        lines.forEach { Text(it, style = MaterialTheme.typography.bodyMedium) }
     }
 }
 
@@ -306,6 +346,11 @@ private fun HistoryRow(event: AlarmEvent, is24: Boolean, zone: java.time.ZoneId)
                     if (event.snoozeCount > 0) add(pluralStringResource(R.plurals.morning_snoozes, event.snoozeCount, event.snoozeCount))
                     if (event.backupFired) add(stringResource(R.string.badge_backup_fired))
                     if (event.wakeCheck == WakeCheckStatus.PASSED) add(stringResource(R.string.badge_check_passed))
+                    if (event.fallbackUsed) add(stringResource(R.string.morning_badge_backup_mission))
+                    if (event.pauses > 0) add(pluralStringResource(R.plurals.morning_badge_pauses, event.pauses, event.pauses))
+                    if (event.resumes > 0) add(pluralStringResource(R.plurals.morning_badge_resumes, event.resumes, event.resumes))
+                    if (event.pullBacks > 0) add(pluralStringResource(R.plurals.morning_badge_pull_backs, event.pullBacks, event.pullBacks))
+                    if (event.mutesUsed > 0) add(pluralStringResource(R.plurals.morning_badge_mutes, event.mutesUsed, event.mutesUsed))
                 }
                 Text(details.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
             }

@@ -18,7 +18,14 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** What answered a "Still awake?" check. A plain tap is proof of nothing on an alarm that asks for proof. */
-enum class WakeProof { NONE, FOCUS_TAP, STEPS }
+enum class WakeProof {
+    NONE,
+    FOCUS_TAP,
+    STEPS,
+
+    /** Sums, for someone who can't do timed missions ("I can't do timed or physical missions"). */
+    SUMS,
+}
 
 /**
  * The hardware step counter's running total since boot, or null when there is none, the permission is refused, or it

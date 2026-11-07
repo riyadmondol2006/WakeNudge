@@ -4,6 +4,23 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 Releases are built and published automatically from `main` and numbered `MAJOR.MINOR.N`, where `N` is the commit count
 (see [docs/RELEASING.md](docs/RELEASING.md)); the notes of each GitHub release list the commits it contains.
 
+## A morning record, a torch for an ignored alarm, and no credit for a machine
+
+- **How it went**, on the Morning screen: whether the backup mission was used, a way out taken, a ring missed, and how many
+  Emergency pauses, restarts, times brought back to the alarm and mutes, this morning and over the last 7 days. It is
+  counted from the history on the phone; nothing is sent anywhere
+- **Flash the torch if I ignore it** (More options, Voice and light): once the alarm got louder for being ignored, the torch
+  flashes once a second, never faster. It stops for an Emergency pause, a mute and while a camera mission is open, and goes
+  off when the alarm ends
+- **A machine gets no credit**: a phone on a shaker, or a held-steady metronome shake, stops counting once its rhythm is
+  known; the same goes for an accelerometer-counted walk too even for a person. People shaking and walking still count
+- **The photo mission suggests the torch** after 30 seconds without a match
+- **"I can't do timed or physical missions"** (Settings, Look and feel): the picker leaves out shake, steps, squats, Focus
+  Tap and Memory, every mission waits for you instead of timing you, backup and way-out tasks are sums and typing, and the
+  still-awake check asks for three sums. Missions also wait for you when Switch Access or Voice Access is on, as they did
+  with a screen reader
+- The still-awake notification no longer names Focus Tap, since the check may ask for sums
+
 ## How hard? Four levels, and every detail in plain words
 
 - **Each alarm is Easy, Normal, Hard or No mercy**, each explained in one line in the editor. Easy: swipe to stop, snooze.

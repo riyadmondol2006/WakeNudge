@@ -82,6 +82,7 @@ import com.riyadm.wakenudge.engine.policy.RingPolicy
 import com.riyadm.wakenudge.engine.policy.RingProof
 import com.riyadm.wakenudge.engine.policy.WayOut
 import com.riyadm.wakenudge.missions.FallbackChain
+import com.riyadm.wakenudge.missions.ChainStyle
 import com.riyadm.wakenudge.missions.MissionBackup
 import com.riyadm.wakenudge.ui.components.AnimatedClockText
 import com.riyadm.wakenudge.ui.components.rememberReduceMotion
@@ -428,7 +429,8 @@ private fun Controls(
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     val list = if (current == RingMode.SnoozeMissions) alarm.snoozeMissions else alarm.missions
                     val onFallbackUsed by rememberUpdatedState(actions.onFallbackUsed)
-                    val backup = remember(alarm.antiOversleep) { MissionBackup(alarm.antiOversleep, onUsed = { onFallbackUsed() }) }
+                    val style = ChainStyle.forUser(settings.noTimedMissions)
+                    val backup = remember(alarm.antiOversleep, style) { MissionBackup(alarm.antiOversleep, style, onUsed = { onFallbackUsed() }) }
                     // The chain belongs to this ring: another ring taking over the screen starts its own.
                     key(alarm.id, session.eventId) {
                         CompositionLocalProvider(LocalMissionBackup provides backup) {
@@ -450,7 +452,8 @@ private fun Controls(
             // The way-out chain: its progress is the controller's, so going back or a restart costs nothing done.
             RingMode.WayOut -> Column(Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f).fillMaxWidth()) {
-                    val steps = remember(alarm.antiOversleep) { FallbackChain.wayOut(alarm.antiOversleep) }
+                    val style = ChainStyle.forUser(settings.noTimedMissions)
+                    val steps = remember(alarm.antiOversleep, style) { FallbackChain.wayOut(alarm.antiOversleep, style) }
                     key(alarm.id, session.eventId, "way-out") {
                         missionContent(
                             steps,

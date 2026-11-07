@@ -7,6 +7,7 @@ import com.riyadm.wakenudge.domain.stats.WakeStatsCalculator
 import java.time.LocalDate
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -82,5 +83,23 @@ class StatsTest {
     @Test fun `passed checks are counted`() {
         val s = WakeStatsCalculator.compute(listOf(event(1, check = WakeCheckStatus.PASSED), event(2, check = WakeCheckStatus.PASSED)), zone)
         assertEquals(2, s.checksPassed)
+    }
+
+    @Test fun `how it went counts what really happened, and only finished rings`() {
+        val events = listOf(
+            event(1).copy(fallbackUsed = true, pauses = 2, resumes = 1, pullBacks = 3, mutesUsed = 1),
+            event(2, AlarmOutcome.EMERGENCY_STOPPED),
+            event(3, AlarmOutcome.MISSED),
+            event(4),
+            event(5, AlarmOutcome.RINGING).copy(pauses = 9),
+        )
+        assertEquals(
+            com.riyadm.wakenudge.domain.stats.HowItWent(rings = 4, backupMissions = 1, wayOuts = 1, missed = 1, pauses = 2, resumes = 1, pullBacks = 3, mutes = 1),
+            com.riyadm.wakenudge.domain.stats.HowItWent.of(events),
+        )
+        assertTrue(com.riyadm.wakenudge.domain.stats.HowItWent.of(listOf(event(4))).straightUp)
+        assertEquals(false, com.riyadm.wakenudge.domain.stats.HowItWent.of(events).straightUp)
+        assertEquals("no rings is not \"straight up\"", false, com.riyadm.wakenudge.domain.stats.HowItWent.of(emptyList()).straightUp)
+        assertEquals("a corrupt negative count adds nothing", 0, com.riyadm.wakenudge.domain.stats.HowItWent.of(listOf(event(1).copy(pauses = -5))).pauses)
     }
 }

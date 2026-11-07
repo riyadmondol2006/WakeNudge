@@ -105,6 +105,16 @@ object MissionInfo {
         MissionType.MATH, MissionType.PHOTO, MissionType.STEPS, MissionType.SQUATS, MissionType.SHAKE,
     )
 
+    /** Missions that need the phone moved with the body. */
+    val PHYSICAL: Set<MissionType> = setOf(MissionType.SHAKE, MissionType.STEPS, MissionType.SQUATS)
+
+    /** Missions that are a race against time when played on sight: shapes that come and go, a sequence that flashes. */
+    val TIMED: Set<MissionType> = setOf(MissionType.FOCUS_TAP, MissionType.MEMORY)
+
+    /** What the picker offers, with "I can't do timed or physical missions" ([noTimed]) on or off. */
+    fun pickable(noTimed: Boolean): List<MissionType> =
+        if (noTimed) pickerOrder.filter { it !in PHYSICAL && it !in TIMED } else pickerOrder
+
     /** An honest line about how well a mission keeps people up, where there is something worth saying. */
     @StringRes
     fun noteRes(type: MissionType): Int? = when (type) {

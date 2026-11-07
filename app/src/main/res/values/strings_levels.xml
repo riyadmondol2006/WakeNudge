@@ -121,6 +121,71 @@
     <string name="alarms_ready">Ready</string>
     <string name="alarms_problem">Check: %1$s</string>
 
+    <!-- Torch, "I can't do timed or physical missions", photo hint -->
+    <string name="opt_torch">Flash the torch if I ignore it</string>
+    <string name="opt_torch_hint">Once it got louder, the torch flashes once a second, never faster. Not while a camera mission is open.</string>
+    <string name="opt_torch_none">This phone has no torch.</string>
+    <string name="settings_no_timed">I can\'t do timed or physical missions</string>
+    <string name="settings_no_timed_hint">Hides missions that are timed or need the phone moved. Every mission waits for you, backup and way-out tasks are sums and typing, and the check after you\'re up asks for sums.</string>
+    <string name="mission_photo_torch_hint">No match yet. More light may help.</string>
+    <string name="mission_photo_torch_action">Turn on the torch</string>
+
+    <!-- Morning record -->
+    <string name="morning_how_title">How it went</string>
+    <string name="morning_how_today">This morning</string>
+    <string name="morning_how_week">Last 7 days</string>
+    <string name="morning_how_clean">Straight up: no backup mission, no way out, no pauses, restarts or mutes.</string>
+    <string name="morning_how_local">Counted on this phone only. Nothing is sent anywhere.</string>
+    <plurals name="morning_how_rings">
+        <item quantity="one">%d alarm</item>
+        <item quantity="other">%d alarms</item>
+    </plurals>
+    <plurals name="morning_how_backup_mission">
+        <item quantity="one">Backup mission used %d time</item>
+        <item quantity="other">Backup mission used %d times</item>
+    </plurals>
+    <plurals name="morning_how_way_out">
+        <item quantity="one">Way out taken %d time</item>
+        <item quantity="other">Way out taken %d times</item>
+    </plurals>
+    <plurals name="morning_how_missed">
+        <item quantity="one">Missed %d time</item>
+        <item quantity="other">Missed %d times</item>
+    </plurals>
+    <plurals name="morning_how_pauses">
+        <item quantity="one">%d Emergency pause</item>
+        <item quantity="other">%d Emergency pauses</item>
+    </plurals>
+    <plurals name="morning_how_resumes">
+        <item quantity="one">Came back after %d restart</item>
+        <item quantity="other">Came back after %d restarts</item>
+    </plurals>
+    <plurals name="morning_how_pull_backs">
+        <item quantity="one">Brought back to the alarm %d time</item>
+        <item quantity="other">Brought back to the alarm %d times</item>
+    </plurals>
+    <plurals name="morning_how_mutes">
+        <item quantity="one">Muted %d time during a mission</item>
+        <item quantity="other">Muted %d times during a mission</item>
+    </plurals>
+    <string name="morning_badge_backup_mission">Backup mission</string>
+    <plurals name="morning_badge_pauses">
+        <item quantity="one">%d pause</item>
+        <item quantity="other">%d pauses</item>
+    </plurals>
+    <plurals name="morning_badge_resumes">
+        <item quantity="one">%d restart</item>
+        <item quantity="other">%d restarts</item>
+    </plurals>
+    <plurals name="morning_badge_pull_backs">
+        <item quantity="one">brought back %d time</item>
+        <item quantity="other">brought back %d times</item>
+    </plurals>
+    <plurals name="morning_badge_mutes">
+        <item quantity="one">%d mute</item>
+        <item quantity="other">%d mutes</item>
+    </plurals>
+
     <!-- New alarm defaults -->
     <string name="defaults_vibration_owned">Always on at Normal and harder.</string>
 </resources>

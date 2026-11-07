@@ -15,6 +15,28 @@ import org.junit.Test
 import org.w3c.dom.Element
 
 class MissionInfoTest {
+    @Test fun `with "I can't do timed or physical missions" the picker offers neither, and nothing is lost without it`() {
+        val all = MissionInfo.pickable(noTimed = false)
+        assertEquals(MissionType.entries.toSet(), all.toSet())
+        val offered = MissionInfo.pickable(noTimed = true)
+        for (t in listOf(MissionType.SHAKE, MissionType.STEPS, MissionType.SQUATS, MissionType.FOCUS_TAP, MissionType.MEMORY)) {
+            org.junit.Assert.assertFalse("$t is hidden", t in offered)
+        }
+        for (t in listOf(MissionType.QR_BARCODE, MissionType.NFC, MissionType.MATH, MissionType.TYPING, MissionType.PUZZLE, MissionType.PHOTO)) {
+            org.junit.Assert.assertTrue("$t is offered", t in offered)
+        }
+        assertEquals("the order stays", all.filter { it in offered }, offered)
+    }
+
+    @Test fun `the setting makes backup and way-out chains sums and typing only`() {
+        assertEquals(com.riyadm.wakenudge.missions.ChainStyle.MIXED, com.riyadm.wakenudge.missions.ChainStyle.forUser(false))
+        val style = com.riyadm.wakenudge.missions.ChainStyle.forUser(true)
+        val ao = com.riyadm.wakenudge.domain.model.AntiOversleepSettings(wayOutCount = 20, fallbackCount = 8)
+        val steps = FallbackChain.wayOut(ao, style) + FallbackChain.backup(FallbackReason.SENSOR_SILENT, ao, style)
+        org.junit.Assert.assertTrue(steps.isNotEmpty())
+        org.junit.Assert.assertTrue(steps.all { it.type == MissionType.MATH || it.type == MissionType.TYPING })
+    }
+
     @Test fun `every mission type has a title description icon and unsupported reason`() {
         for (type in MissionType.entries) {
             assertNotEquals("title $type", 0, MissionInfo.titleRes(type))

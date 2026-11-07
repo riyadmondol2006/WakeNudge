@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Accessibility
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.BeachAccess
 import androidx.compose.material.icons.outlined.Code
@@ -125,6 +126,16 @@ fun SettingsScreen(nav: SettingsNav, modifier: Modifier = Modifier, viewModel: S
                     item { shape ->
                         val summary = stringResource(R.string.settings_appearance_summary, stringResource(themeLabel(s.themeMode)), stringResource(timeFormatLabel(s.timeFormat)))
                         NavRow(stringResource(R.string.settings_appearance_page), shape, nav.appearance, summary = summary, icon = Icons.Outlined.Palette)
+                    }
+                    item { shape ->
+                        com.riyadm.wakenudge.ui.components.SwitchRow(
+                            title = stringResource(R.string.settings_no_timed),
+                            subtitle = stringResource(R.string.settings_no_timed_hint),
+                            icon = Icons.Outlined.Accessibility,
+                            checked = s.noTimedMissions,
+                            onCheckedChange = { on -> viewModel.update { it.copy(noTimedMissions = on) } },
+                            shape = shape,
+                        )
                     }
                 }
             }

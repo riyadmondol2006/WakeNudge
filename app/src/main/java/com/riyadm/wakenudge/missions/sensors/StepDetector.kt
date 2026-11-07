@@ -10,8 +10,9 @@ import kotlin.math.sqrt
  * Candidates must follow each other at a walking cadence; the first [WARMUP_STEPS] of a streak are credited together
  * once the streak is confirmed, so one-off jolts (picking the phone up, putting it down) never count as steps.
  */
-class StepDetector {
+class StepDetector(private val cadence: CadenceGuard = CadenceGuard(STEP_MIN_VARIATION)) {
     private var lastNs = -1L
+    private var before = 0f
     private var gravity = STANDARD_GRAVITY
     private var smooth = 0f
     private var prev = 0f
@@ -37,14 +38,25 @@ class StepDetector {
 
         var credited = 0
         // `prev` was a peak if the signal rose into it and is now falling away.
-        if (rising && smooth < prev) credited = onPeak(prev, prevNs)
+        if (rising && smooth < prev) credited = onPeak(prev, prevNs, peakTime(before, prev, smooth, prevNs, timestampNs - prevNs))
         rising = smooth > prev
+        before = prev
         prev = smooth
         prevNs = timestampNs
         return credited
     }
 
-    private fun onPeak(height: Float, timeNs: Long): Int {
+    /**
+     * When the peak really was, between samples: a parabola through the three samples around it. Sample times alone are
+     * too coarse to tell a machine's cadence from a person's (one sample is about 2 % of a step at 50 Hz).
+     */
+    private fun peakTime(y0: Float, y1: Float, y2: Float, atNs: Long, spacingNs: Long): Double {
+        val curve = y0 - 2f * y1 + y2
+        val offset = if (curve < 0f) (0.5f * (y0 - y2) / curve).coerceIn(-0.5f, 0.5f) else 0f
+        return atNs + offset.toDouble() * spacingNs
+    }
+
+    private fun onPeak(height: Float, timeNs: Long, exactNs: Double): Int {
         val threshold = maxOf(MIN_PEAK_MS2, ADAPTIVE_FRACTION * peakAverage)
         if (height < threshold) return 0
         val sincePeak = if (lastPeakNs < 0) Float.MAX_VALUE else (timeNs - lastPeakNs) / 1e9f
@@ -52,6 +64,8 @@ class StepDetector {
         lastPeakNs = timeNs
         peakAverage = if (peakAverage == 0f) height else peakAverage * 0.8f + height * 0.2f
         streak = if (sincePeak <= MAX_INTERVAL_S) streak + 1 else 1
+        // A cadence no walker keeps (a phone on a machine) stops counting.
+        if (cadence.isMechanical(exactNs)) return 0
         return when {
             streak == WARMUP_STEPS -> WARMUP_STEPS
             streak > WARMUP_STEPS -> 1
@@ -61,6 +75,12 @@ class StepDetector {
 
     companion object {
         const val WARMUP_STEPS = 3
+
+        /**
+         * Steps are judged far stricter than shakes: people walk evenly (step intervals vary by about 2 to 4 %), so the
+         * shake bar would stop counting real walkers. Only a cadence a machine keeps is below this.
+         */
+        const val STEP_MIN_VARIATION = 0.01
         private const val GRAVITY_TAU_S = 1.0f
         private const val SMOOTH_TAU_S = 0.05f
         private const val MIN_PEAK_MS2 = 1.0f

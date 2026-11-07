@@ -35,6 +35,12 @@ enum class ChainStyle {
     TYPING_ONLY,
     /** Sums and typed phrases in turn: nothing timed and nothing physical. */
     SUMS_AND_TYPING,
+    ;
+
+    companion object {
+        /** Sums and typing for someone who said they can't do timed or physical missions, the usual mix otherwise. */
+        fun forUser(noTimedMissions: Boolean): ChainStyle = if (noTimedMissions) SUMS_AND_TYPING else MIXED
+    }
 }
 
 /**

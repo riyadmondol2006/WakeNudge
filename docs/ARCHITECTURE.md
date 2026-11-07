@@ -326,6 +326,27 @@ occurrence: `MissionRotation.pick` takes the next in turn, counted in the alarm'
 still-awake re-ring. `RingController.begin` puts only that mission in the session, so the policy, the mission count, the
 saved ring and the history need nothing else; a snooze coming back, a backup and a restart ask for the same one.
 
+A machine is not a person: `CadenceGuard` stops the shake and accelerometer-step counts once the last ten strokes or steps
+keep a rhythm no person keeps. Shakes are judged from each main stroke's peak, placed between samples; their bar is a
+coefficient of variation of 0.08, or a pattern repeating every 2 to 5 intervals to within 0.04. Steps are judged against
+0.01, since people walk evenly (step intervals vary by 2 to 4 %): the shake bar would stop real walkers.
+
+"I can't do timed or physical missions" (`AppSettings.noTimedMissions`, copied at start into
+`MissionAccessibility.noTimedMissions` so missions read it without the settings at hand) leaves shake, steps, squats, Focus
+Tap and Memory out of the picker, gives every mission its screen-reader form, makes the backup and way-out chains sums and
+typing (`ChainStyle.forUser`) and the still-awake check's proof three sums (`WakeProof.SUMS`). The screen-reader form is
+also used when a screen reader, Switch Access or Voice Access is on (`MissionAccessibility.assistiveServiceOn`); other
+accessibility services do not count.
+
+The torch flashes for an alarm with `torchWhenIgnored` (`engine/audio/TorchFlasher.kt`): once a ring is intensified for
+being ignored, on and off every half second (never faster than 1 Hz), never during an Emergency pause or a mute, and off
+while a mission has the camera (`CameraInUse`). It watches the ring session from app start, so the ring service does not
+know about it, and it only ever switches off a torch it switched on. A photo mission without a match for 30 s offers the
+torch.
+
+"How it went" on the Morning screen (`HowItWent`) counts from the history kept on the phone: the backup mission used, way
+outs, missed rings, Emergency pauses, restarts, pull-backs and mutes, this morning and over the last seven days.
+
 ## Health
 
 `HealthChecker` reads the system (notifications, full-screen intent, exact alarms, battery optimisation, DND, audio

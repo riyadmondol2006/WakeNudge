@@ -118,7 +118,12 @@ fun EditLockMissionOverride(alarm: com.riyadm.wakenudge.domain.model.Alarm, onSo
                 com.riyadm.wakenudge.missions.MissionHost(
                     missions = alarm.missions,
                     modifier = Modifier.weight(1f),
-                    backup = remember(alarm.antiOversleep) { com.riyadm.wakenudge.missions.MissionBackup(alarm.antiOversleep) },
+                    backup = remember(alarm.antiOversleep) {
+                        com.riyadm.wakenudge.missions.MissionBackup(
+                            alarm.antiOversleep,
+                            com.riyadm.wakenudge.missions.ChainStyle.forUser(com.riyadm.wakenudge.missions.ui.MissionAccessibility.noTimedMissions.value),
+                        )
+                    },
                     onComplete = {
                         haptics.confirm()
                         onSolved()

@@ -95,9 +95,11 @@ class WakeCheckActivity : ComponentActivity() {
                                 delay(PROMPT_REPEAT_MS)
                             }
                         }
+                        val sums = s.noTimedMissions
                         ProofCheckScreen(
                             deadlineMillis = current.deadline,
-                            onProof = { finishAfter { wakeChecks.answer(current.alarmId, WakeProof.FOCUS_TAP) } },
+                            sums = sums,
+                            onProof = { finishAfter { wakeChecks.answer(current.alarmId, if (sums) WakeProof.SUMS else WakeProof.FOCUS_TAP) } },
                             onExpired = { finishAndRemoveTask() },
                         )
                     } else {
@@ -207,9 +209,12 @@ private fun WakeCheckScreen(deadlineMillis: Long, onAwake: () -> Unit, onCancel:
     }
 }
 
-/** The check that needs proof: its countdown, and one round of Focus Tap, which works with a screen reader too. */
+/**
+ * The check that needs proof: its countdown, and one round of Focus Tap, which works with a screen reader too. With
+ * [sums] ("I can't do timed or physical missions") it asks for three sums instead: nothing timed.
+ */
 @Composable
-private fun ProofCheckScreen(deadlineMillis: Long, onProof: () -> Unit, onExpired: () -> Unit) {
+internal fun ProofCheckScreen(deadlineMillis: Long, sums: Boolean, onProof: () -> Unit, onExpired: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val remainingMs by produceState((deadlineMillis - System.currentTimeMillis()).coerceAtLeast(0)) {
         while (true) {
@@ -219,17 +224,22 @@ private fun ProofCheckScreen(deadlineMillis: Long, onProof: () -> Unit, onExpire
         }
     }
     LaunchedEffect(remainingMs) { if (remainingMs == 0L) onExpired() }
-    val round = remember { listOf(MissionConfig(MissionType.FOCUS_TAP, Difficulty.MEDIUM, count = 1)) }
+    val round = remember(sums) {
+        listOf(if (sums) MissionConfig(MissionType.MATH, Difficulty.MEDIUM, count = SUMS_FOR_PROOF) else MissionConfig(MissionType.FOCUS_TAP, Difficulty.MEDIUM, count = 1))
+    }
     Column(Modifier.fillMaxSize().background(scheme.tertiaryContainer).safeDrawingPadding().padding(16.dp)) {
         Text(
             stringResource(R.string.wake_check_screen_title), style = MaterialTheme.typography.headlineMedium,
             color = scheme.onTertiaryContainer, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            stringResource(R.string.wake_check_proof_body) + "  " + "${(remainingMs + 999) / 1000}",
+            stringResource(if (sums) R.string.wake_check_proof_body_sums else R.string.wake_check_proof_body) + "  " + "${(remainingMs + 999) / 1000}",
             style = MaterialTheme.typography.bodyLarge, color = scheme.onTertiaryContainer,
             textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp),
         )
         MissionHost(round, Modifier.weight(1f).fillMaxWidth(), onComplete = onProof)
     }
 }
+
+/** Sums that stand in for a round of Focus Tap: a few, at the backup mission's level, so it proves being up, not cleverness. */
+private const val SUMS_FOR_PROOF = 3

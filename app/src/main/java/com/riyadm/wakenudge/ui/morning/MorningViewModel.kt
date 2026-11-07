@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.ui.morning
 
+import com.riyadm.wakenudge.domain.stats.HowItWent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.riyadm.wakenudge.core.TimeSource
@@ -39,6 +40,9 @@ data class MorningUiState(
     val week: List<DayBar> = emptyList(),
     val pendingChecks: List<PendingCheck> = emptyList(),
     val now: ZonedDateTime = ZonedDateTime.now(),
+    /** "How it went": this morning's rings and the last seven days', from the history on this phone. */
+    val howToday: HowItWent = HowItWent(),
+    val howWeek: HowItWent = HowItWent(),
 )
 
 @HiltViewModel
@@ -69,9 +73,13 @@ class MorningViewModel @Inject constructor(
         }
         val labels = alarms.associate { it.id to it.label }
         val needsProof = alarms.filter { it.wakeCheck.requireProof }.map { it.id }.toSet()
+        val todays = events.filter { java.time.Instant.ofEpochMilli(it.firedAt).atZone(zone).toLocalDate() == today }
+        val weekStart = today.minusDays(6)
+        val lastWeek = events.filter { !java.time.Instant.ofEpochMilli(it.firedAt).atZone(zone).toLocalDate().isBefore(weekStart) }
         return MorningUiState(
             loaded = true, settings = s, stats = stats,
-            today = events.filter { java.time.Instant.ofEpochMilli(it.firedAt).atZone(zone).toLocalDate() == today },
+            howToday = HowItWent.of(todays), howWeek = HowItWent.of(lastWeek),
+            today = todays,
             recent = events.sortedByDescending { it.firedAt }.take(30),
             week = week,
             pendingChecks = checks.map { PendingCheck(it, labels[it.alarmId].orEmpty(), cancellable = it.alarmId !in needsProof) },

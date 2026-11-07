@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.Campaign
+import androidx.compose.material.icons.outlined.FlashlightOn
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.MusicNote
@@ -756,7 +757,7 @@ internal fun volumeKeyLabel(a: VolumeKeyAction) = when (a) {
     VolumeKeyAction.NOTHING -> R.string.vk_nothing
 }
 
-/** Spoken time, the screen's glow before the alarm and its brightness while it rings. */
+/** Spoken time, the screen's glow before the alarm, the torch and the brightness while it rings. */
 @Composable
 fun LightSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -> Unit) {
     val voice = alarm.voice
@@ -821,6 +822,20 @@ fun LightSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) ->
                     canMinus = s.leadMinutes > 1, canPlus = s.leadMinutes < 30, shape = shape, enabled = enabled,
                 )
             }
+        }
+        item { shape ->
+            // For deaf and hard-of-hearing people: the alarm is seen when it isn't heard. TorchFlasher does the flashing.
+            val hasTorch = androidx.compose.ui.platform.LocalContext.current.packageManager
+                .hasSystemFeature(android.content.pm.PackageManager.FEATURE_CAMERA_FLASH)
+            SwitchRow(
+                title = stringResource(R.string.opt_torch),
+                subtitle = stringResource(if (hasTorch) R.string.opt_torch_hint else R.string.opt_torch_none),
+                icon = Icons.Outlined.FlashlightOn,
+                checked = alarm.antiOversleep.torchWhenIgnored,
+                onCheckedChange = { on -> onChange { it.copy(antiOversleep = it.antiOversleep.copy(torchWhenIgnored = on)) } },
+                // Switching it off always works, also on a phone that turned out to have no torch.
+                shape = shape, enabled = enabled && (hasTorch || alarm.antiOversleep.torchWhenIgnored),
+            )
         }
         item { shape ->
             SwitchRow(

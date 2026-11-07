@@ -119,6 +119,16 @@ internal fun PhotoMission(config: MissionConfig, onInteraction: () -> Unit, onCo
             onComplete()
         }
     }
+    // Different light is the usual reason a reference photo stops matching: after a while without a match, offer the
+    // torch. A match, or the torch going on, starts the wait again.
+    var suggestTorch by remember { mutableStateOf(false) }
+    LaunchedEffect(found, torchOn, torchAvailable) {
+        suggestTorch = false
+        if (torchAvailable && !torchOn) {
+            delay(TORCH_HINT_AFTER_MS)
+            suggestTorch = true
+        }
+    }
 
     MissionScaffold(scrollable = false, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (total > 1) MissionProgress(found.toFloat() / total, stringResource(R.string.mission_photo_progress, minOf(found + 1, total), total))
@@ -193,6 +203,24 @@ internal fun PhotoMission(config: MissionConfig, onInteraction: () -> Unit, onCo
                                 contentDescription = stringResource(if (torchOn) R.string.mission_torch_off else R.string.mission_torch_on),
                                 tint = Color.White,
                             )
+                        }
+                    }
+                    if (suggestTorch && !torchOn && !finished) {
+                        androidx.compose.material3.Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.inverseSurface,
+                            modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                        ) {
+                            Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    stringResource(R.string.mission_photo_torch_hint),
+                                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.inverseOnSurface,
+                                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                                )
+                                androidx.compose.material3.TextButton(onClick = { torchOn = true; latestOnInteraction() }) {
+                                    Text(stringResource(R.string.mission_photo_torch_action), color = MaterialTheme.colorScheme.inversePrimary)
+                                }
+                            }
                         }
                     }
                     MatchMeter(
@@ -373,3 +401,6 @@ internal fun PhotoSetup(config: MissionConfig, onSaved: (MissionConfig) -> Unit,
         }
     }
 }
+
+/** How long without a match before the torch is suggested. */
+internal const val TORCH_HINT_AFTER_MS = 30_000L

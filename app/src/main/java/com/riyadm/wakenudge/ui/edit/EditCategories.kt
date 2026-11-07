@@ -302,7 +302,8 @@ fun categorySummary(category: AlarmCategory, alarm: Alarm): String {
             val voice = if (alarm.voice.enabled) stringResource(R.string.cat_announces) else null
             val sunrise = if (alarm.sunrise.enabled) stringResource(R.string.cat_sunrise) else null
             val bright = if (a.fullBrightness) stringResource(R.string.cat_bright) else null
-            listOfNotNull(voice, sunrise, bright).ifEmpty { listOf(stringResource(R.string.state_off)) }.joinToString(separator)
+            val torch = if (a.torchWhenIgnored) stringResource(R.string.cat_torch) else null
+            listOfNotNull(voice, sunrise, torch, bright).ifEmpty { listOf(stringResource(R.string.state_off)) }.joinToString(separator)
         }
         AlarmCategory.STILL_UP -> {
             val w = alarm.wakeCheck

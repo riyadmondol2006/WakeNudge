@@ -164,6 +164,8 @@ class WakeProofTest {
         assertTrue(WakeProofPolicy.accepts(requireProof = false, WakeProof.NONE))
         assertFalse(WakeProofPolicy.accepts(requireProof = true, WakeProof.NONE))
         assertTrue(WakeProofPolicy.accepts(requireProof = true, WakeProof.FOCUS_TAP))
+        // "I can't do timed or physical missions" answers with sums instead of Focus Tap.
+        assertTrue(WakeProofPolicy.accepts(requireProof = true, WakeProof.SUMS))
         assertTrue(WakeProofPolicy.accepts(requireProof = true, WakeProof.STEPS))
     }
 }

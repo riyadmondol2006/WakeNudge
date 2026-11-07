@@ -8,6 +8,9 @@ import com.riyadm.wakenudge.engine.RingCrashGuard
 import com.riyadm.wakenudge.engine.RingLedger
 import com.riyadm.wakenudge.engine.StartupRepair
 import com.riyadm.wakenudge.engine.audio.AlarmAudioEngine
+import com.riyadm.wakenudge.engine.audio.TorchFlasher
+import com.riyadm.wakenudge.domain.repository.SettingsRepository
+import com.riyadm.wakenudge.missions.ui.MissionAccessibility
 import com.riyadm.wakenudge.engine.notify.Notifier
 import com.riyadm.wakenudge.health.ExitPostMortem
 import dagger.hilt.android.HiltAndroidApp
@@ -26,6 +29,8 @@ class WakeNudgeApp : Application() {
     @Inject lateinit var exitPostMortem: ExitPostMortem
     @Inject lateinit var ringLedger: RingLedger
     @Inject @AppScope lateinit var appScope: CoroutineScope
+    @Inject lateinit var torch: TorchFlasher
+    @Inject lateinit var settings: SettingsRepository
 
     override fun onCreate() {
         super.onCreate()
@@ -33,6 +38,12 @@ class WakeNudgeApp : Application() {
         crashGuard.install()
         // Channels must exist before any receiver posts a notification, including receivers that start the process.
         notifier.ensureChannels()
+        // Flashes the torch for an ignored alarm set to; it watches the ring, so nothing else has to call it.
+        torch.start(appScope)
+        // Missions read this without the settings at hand: the ring screen, the still-awake screen, the editor.
+        appScope.launch {
+            runCatching { settings.settings.collect { MissionAccessibility.noTimedMissions.value = it.noTimedMissions } }
+        }
         // Housekeeping runs at every process start, including the one an alarm wakes: whatever it hits, it must not crash.
         appScope.launch {
             runCatching {

@@ -69,6 +69,11 @@ internal fun CameraAnalysisView(
     val latestTorchAvailable by rememberUpdatedState(onTorchAvailable)
     val latestDark by rememberUpdatedState(onDark)
     val darkWatch = remember { DarkFrameWatch() }
+    // The alarm's torch flashing (TorchFlasher) holds off while a mission has the camera and its flash.
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        com.riyadm.wakenudge.engine.audio.CameraInUse.acquire()
+        onDispose { com.riyadm.wakenudge.engine.audio.CameraInUse.release() }
+    }
     val hasTorch = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
     var torchForced by remember { mutableStateOf(false) }
     var darkReported by remember { mutableStateOf(false) }
