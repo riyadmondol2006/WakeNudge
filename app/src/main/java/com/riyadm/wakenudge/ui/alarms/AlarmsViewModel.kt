@@ -1,5 +1,8 @@
 package com.riyadm.wakenudge.ui.alarms
 
+import com.riyadm.wakenudge.engine.TonightCheck
+import com.riyadm.wakenudge.engine.TonightProblem
+import kotlinx.coroutines.flow.asStateFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.riyadm.wakenudge.core.TimeSource
@@ -51,6 +54,9 @@ data class AlarmItem(
     val effectivelyEnabled: Boolean get() = alarm.enabled && (group?.enabled ?: true)
 }
 
+/** The next alarm, [problem] the worst thing that could stop it (null: ready). */
+data class NextReadiness(val alarmId: Long, val at: Long, val problem: TonightProblem?)
+
 data class AlarmsUiState(
     val loaded: Boolean = false,
     val items: List<AlarmItem> = emptyList(),
@@ -97,6 +103,7 @@ class AlarmsViewModel @Inject constructor(
     private val ringQuery: ActiveRingQuery,
     private val time: TimeSource,
     deletedInEditor: DeletedAlarmRelay,
+    private val tonight: TonightCheck,
 ) : ViewModel() {
 
     private val filter = MutableStateFlow<Long?>(null)
@@ -150,6 +157,21 @@ class AlarmsViewModel @Inject constructor(
             next = items.filter { it.nextAt != null }.minByOrNull { it.nextAt!!.toInstant() },
         )
     }
+
+    private val _readiness = MutableStateFlow<NextReadiness?>(null)
+
+    /** Whether the next alarm will work, as the evening check would find it; null until looked at or when it can't tell. */
+    val readiness: StateFlow<NextReadiness?> = _readiness.asStateFlow()
+
+    /** Looks again: on coming back to the list (a fix is made in Settings) and when the next alarm changes. */
+    fun refreshReadiness(next: AlarmItem?) = viewModelScope.launch {
+        val at = next?.nextAt?.toInstant()?.toEpochMilli()
+        _readiness.value = if (next == null || at == null) null
+        else tonight.look(next.alarm, at)?.let { NextReadiness(next.alarm.id, at, it.firstOrNull()) }
+    }
+
+    /** The one-time "choose how hard each alarm is" card was read. */
+    fun dismissLevelsCard() = viewModelScope.launch { settings.update { it.copy(levelsCardSeen = true) } }
 
     fun setFilter(groupId: Long?) {
         filter.value = groupId

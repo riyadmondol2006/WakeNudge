@@ -25,7 +25,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.outlined.EventRepeat
-import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Snooze
 import androidx.compose.material.icons.outlined.TaskAlt
@@ -56,7 +57,8 @@ import androidx.compose.ui.unit.dp
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.engine.audio.AlarmVibrator
-import com.riyadm.wakenudge.engine.audio.SoundPreviewer
+import com.riyadm.wakenudge.domain.model.AntiOversleepSettings
+import com.riyadm.wakenudge.ui.util.LockText
 import com.riyadm.wakenudge.ui.theme.Blobs
 import com.riyadm.wakenudge.ui.components.ExpressiveSwitch
 import com.riyadm.wakenudge.ui.theme.LocalWakeHaptics
@@ -66,16 +68,16 @@ import com.riyadm.wakenudge.ui.util.fadeLabel
 import com.riyadm.wakenudge.ui.util.minutesLabel
 
 /**
- * The groups every alarm option belongs to, in the order a person thinks about them: what you must do to get up,
- * what you hear and feel, how snoozing works, the safety net, and the rules about *when* the alarm applies.
- * The alarm editor and the "new alarm defaults" screen both render them, so the two can never drift apart.
+ * The groups of "More options", in the order a person thinks about them: how it sounds, snoozing, how it ends, what
+ * happens if you try to get out of it, voice and light, the check after you're up, and when the alarm applies.
  */
 enum class AlarmCategory(val icon: ImageVector) {
-    WAKE_UP(Icons.Outlined.TaskAlt),
-    SOUND(Icons.Outlined.MusicNote),
     VOLUME(Icons.Outlined.VolumeUp),
     SNOOZE(Icons.Outlined.Snooze),
-    PROTECTION(Icons.Outlined.Shield),
+    STOPPING(Icons.Outlined.TaskAlt),
+    LEAVING(Icons.Outlined.Shield),
+    LIGHT(Icons.Outlined.LightMode),
+    STILL_UP(Icons.Outlined.NotificationsActive),
     RULES(Icons.Outlined.EventRepeat),
 }
 
@@ -100,36 +102,33 @@ class ExpandedCategories(initial: Set<AlarmCategory> = emptySet()) {
 @Composable
 fun rememberExpandedCategories(): ExpandedCategories = rememberSaveable(saver = ExpandedCategories.Saver) { ExpandedCategories() }
 
-/** What differs between the editor of a real alarm and the editor of the defaults for new ones. */
+/** What the editor passes down to the option groups besides the alarm. */
 class CategoryOptions(
-    /** Per-alarm features that have no meaning as a default: voice announcements, sunrise, missions, still-awake check, rules. */
-    val perAlarm: Boolean,
     val missionSlots: MissionSlots? = null,
-    /** The way-out removal and the link to the Protection setup; only for a real alarm. */
+    /** The way-out removal and the link to the Protection setup. */
     val protection: ProtectionLink? = null,
+    val groups: List<com.riyadm.wakenudge.domain.model.AlarmGroup> = emptyList(),
 )
 
 /** [rehearsed]: this alarm, with the missions it has now, had a finished rehearsal, which removing its way out needs. */
 class ProtectionLink(val rehearsed: (Alarm) -> Boolean, val open: () -> Unit)
 
-/** Emits the option categories as collapsible cards into a lazy list. */
+/** Emits the option groups as collapsible cards into a lazy list. */
 fun LazyListScope.alarmCategories(
     alarm: Alarm,
     enabled: Boolean,
     expanded: ExpandedCategories,
     options: CategoryOptions,
-    previewer: SoundPreviewer,
     vibrator: AlarmVibrator,
     onChange: ((Alarm) -> Alarm) -> Unit,
 ) {
-    val shown = AlarmCategory.entries.filter { options.perAlarm || it != AlarmCategory.WAKE_UP && it != AlarmCategory.RULES }
-    shown.forEach { category ->
+    AlarmCategory.entries.forEach { category ->
         item(key = "category-${category.name}") {
             val switchLabel = stringResource(R.string.cat_snooze_switch)
             CategoryCard(
                 icon = category.icon,
                 title = stringResource(categoryTitle(category)),
-                summary = categorySummary(category, alarm, options.perAlarm),
+                summary = categorySummary(category, alarm),
                 expanded = expanded.isOpen(category),
                 onToggle = { expanded.toggle(category) },
                 trailing = if (category == AlarmCategory.SNOOZE) {
@@ -145,14 +144,6 @@ fun LazyListScope.alarmCategories(
                 } else null,
             ) {
                 when (category) {
-                    AlarmCategory.WAKE_UP -> {
-                        options.missionSlots?.missions?.invoke(alarm, enabled, onChange)
-                        WakeCheckSection(alarm, enabled, onChange)
-                    }
-                    AlarmCategory.SOUND -> {
-                        SoundSection(alarm, enabled, previewer, onChange, showVoice = options.perAlarm)
-                        if (options.perAlarm) SunriseSection(alarm, enabled, onChange)
-                    }
                     AlarmCategory.VOLUME -> {
                         VolumeSection(alarm, enabled, onChange)
                         VibrationSection(alarm, enabled, vibrator, onChange)
@@ -162,8 +153,11 @@ fun LazyListScope.alarmCategories(
                         snoozeMissions = { options.missionSlots?.snoozeMissions?.invoke(alarm, enabled, onChange) },
                         showTitle = false,
                     )
-                    AlarmCategory.PROTECTION -> AntiOversleepSection(alarm, enabled, onChange, showTitle = false, protection = options.protection)
-                    AlarmCategory.RULES -> ExtrasSection(alarm, enabled, onChange, showTitle = false)
+                    AlarmCategory.STOPPING -> StoppingSection(alarm, enabled, onChange, options.protection)
+                    AlarmCategory.LEAVING -> LeavingSection(alarm, enabled, onChange, options.protection)
+                    AlarmCategory.LIGHT -> LightSection(alarm, enabled, onChange)
+                    AlarmCategory.STILL_UP -> StillUpSection(alarm, enabled, onChange)
+                    AlarmCategory.RULES -> ExtrasSection(alarm, enabled, onChange, options.groups)
                 }
             }
         }
@@ -247,38 +241,30 @@ fun CategoryCard(
 }
 
 private fun categoryTitle(c: AlarmCategory) = when (c) {
-    AlarmCategory.WAKE_UP -> R.string.cat_wake_up
-    AlarmCategory.SOUND -> R.string.cat_sound
     AlarmCategory.VOLUME -> R.string.cat_volume
     AlarmCategory.SNOOZE -> R.string.cat_snooze
-    AlarmCategory.PROTECTION -> R.string.cat_protection
+    AlarmCategory.STOPPING -> R.string.cat_stopping
+    AlarmCategory.LEAVING -> R.string.cat_leaving
+    AlarmCategory.LIGHT -> R.string.cat_light
+    AlarmCategory.STILL_UP -> R.string.cat_still_up
     AlarmCategory.RULES -> R.string.cat_rules
 }
 
 /** One line that tells the current state of a collapsed category, so nothing needs opening just to check. */
 @Composable
-fun categorySummary(category: AlarmCategory, alarm: Alarm, perAlarm: Boolean): String {
+fun categorySummary(category: AlarmCategory, alarm: Alarm): String {
     val separator = stringResource(R.string.cat_separator)
+    val res = androidx.compose.ui.platform.LocalResources.current
+    val a = alarm.antiOversleep
     return when (category) {
-        AlarmCategory.WAKE_UP -> {
-            val missions = if (alarm.missions.isEmpty()) stringResource(R.string.cat_no_missions)
-            else pluralStringResource(R.plurals.cat_missions, alarm.missions.size, alarm.missions.size)
-            val check = if (alarm.wakeCheck.enabled) stringResource(R.string.cat_still_awake) else null
-            listOfNotNull(missions, check).joinToString(separator)
-        }
-        AlarmCategory.SOUND -> {
-            val tone = rememberSoundTitle(alarm.sound)
-            val voice = if (perAlarm && alarm.voice.enabled) stringResource(R.string.cat_announces) else null
-            val sunrise = if (perAlarm && alarm.sunrise.enabled) stringResource(R.string.cat_sunrise) else null
-            listOfNotNull(tone, voice, sunrise).joinToString(separator)
-        }
         AlarmCategory.VOLUME -> {
             val v = alarm.volume
             val level = if (v.level == 0) stringResource(R.string.cat_system_volume) else "${v.level}%"
             val fade = if (v.rampSeconds > 0) stringResource(R.string.cat_fade_in, fadeLabel(v.rampSeconds)) else null
             val loud = if (v.extraLoudStrength > 0) stringResource(R.string.cat_extra_loud, v.extraLoudStrength) else null
+            val floor = if (a.volumeFloorPercent > 0) stringResource(R.string.cat_floor, a.volumeFloorPercent) else null
             val vibration = if (alarm.vibration.enabled) stringResource(vibrationLabel(alarm.vibration.pattern)) else stringResource(R.string.cat_vibration_off)
-            listOfNotNull(level, loud, fade, vibration).joinToString(separator)
+            listOfNotNull(level, loud, floor, fade, vibration).joinToString(separator)
         }
         AlarmCategory.SNOOZE -> {
             val s = alarm.snooze
@@ -289,13 +275,42 @@ fun categorySummary(category: AlarmCategory, alarm: Alarm, perAlarm: Boolean): S
                 listOf(minutesLabel(s.minutes), limit).joinToString(separator)
             }
         }
-        AlarmCategory.PROTECTION -> {
-            val a = alarm.antiOversleep
+        AlarmCategory.STOPPING -> {
+            val ringing = if (a.ringTimeoutMinutes == AntiOversleepSettings.RING_TIMEOUT_NEVER) stringResource(R.string.cat_keeps_ringing)
+            else stringResource(R.string.cat_stops_after, minutesLabel(a.ringTimeoutMinutes))
             val hold = if (a.holdToDismissSeconds > 0) stringResource(R.string.cat_hold, stringResource(R.string.unit_seconds, a.holdToDismissSeconds)) else null
+            val wayOut = when {
+                alarm.missions.isEmpty() -> null
+                a.wayOutRemoved -> stringResource(R.string.cat_no_way_out)
+                !a.emergencyStopEnabled -> stringResource(R.string.cat_no_emergency_stop)
+                else -> null
+            }
             val backup = if (a.backupEnabled) stringResource(R.string.cat_backup_in, minutesLabel(a.backupDelayMinutes)) else null
-            val lock = if (a.editLockMinutes > 0) stringResource(R.string.cat_edit_lock, com.riyadm.wakenudge.ui.util.LockText.duration(androidx.compose.ui.platform.LocalResources.current, a.editLockMinutes)) else null
-            val noEmergency = if (!a.emergencyStopEnabled) stringResource(R.string.cat_no_emergency_stop) else null
-            listOfNotNull(noEmergency, backup, hold, lock).ifEmpty { listOf(stringResource(R.string.cat_standard)) }.joinToString(separator)
+            listOfNotNull(ringing, wayOut, hold, backup).joinToString(separator)
+        }
+        AlarmCategory.LEAVING -> {
+            val back = when {
+                !a.returnToAlarm -> null
+                a.forceReturn -> stringResource(R.string.cat_comes_back)
+                else -> stringResource(R.string.cat_reminds)
+            }
+            val lock = if (a.editLockMinutes > 0) stringResource(R.string.cat_edit_lock, LockText.duration(res, a.editLockMinutes)) else null
+            val restarts = pluralStringResource(R.plurals.cat_restarts, a.maxResumes, a.maxResumes)
+            listOfNotNull(back, lock, restarts).joinToString(separator)
+        }
+        AlarmCategory.LIGHT -> {
+            val voice = if (alarm.voice.enabled) stringResource(R.string.cat_announces) else null
+            val sunrise = if (alarm.sunrise.enabled) stringResource(R.string.cat_sunrise) else null
+            val bright = if (a.fullBrightness) stringResource(R.string.cat_bright) else null
+            listOfNotNull(voice, sunrise, bright).ifEmpty { listOf(stringResource(R.string.state_off)) }.joinToString(separator)
+        }
+        AlarmCategory.STILL_UP -> {
+            val w = alarm.wakeCheck
+            if (!w.enabled) stringResource(R.string.state_off)
+            else listOfNotNull(
+                stringResource(R.string.cat_check_after, minutesLabel(w.delayMinutes)),
+                if (w.requireProof) stringResource(R.string.cat_with_proof) else null,
+            ).joinToString(separator)
         }
         AlarmCategory.RULES -> {
             val skips = if (alarm.isRepeating && alarm.respectExceptions) stringResource(R.string.cat_skips_holidays) else null

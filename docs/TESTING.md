@@ -4,10 +4,10 @@ An alarm clock is judged on the one morning it fails, so testing is split by wha
 
 | Layer | Where it runs | What it proves |
 |---|---|---|
-| **JVM unit tests** (885) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
+| **JVM unit tests** (904) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
 | **Fuzz tests** (14, part of the JVM tests) | Your computer | 20,000 seeded random alarm/clock/zone combinations never crash the scheduler or yield a time in the past; corrupted and hostile backup files are rejected or sanitised, never half-applied; random commands from stale buttons, keys and forged claims never end a ring whose missions are unfinished |
 | **Instrumented engine tests** (about 130, with the migration tests) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
-| **Instrumented UI tests** (about 70, 25 of them for the update popup and the About screen) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions getting a backup mission (never Continue), Emergency and the way out by click action at font scale 2.0 |
+| **Instrumented UI tests** (about 80, 25 of them for the update popup and the About screen) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions getting a backup mission (never Continue), Emergency and the way out by click action at font scale 2.0 |
 
 Run the JVM tests with `./gradlew :app:testDebugUnitTest`. For the instrumented tests see the warning in the README:
 **target exactly one device**.
@@ -80,12 +80,27 @@ began life as a question; the ones that found real bugs are marked ✱ and were 
     a real snooze without ringing.
   - **Dismiss on a snoozed alarm's notification** skipped the still-awake check and did not delete a delete-after-use alarm.
   - A **timer finishing with a full disk or an unreadable database** stayed silent.
-- `RingTrapTest` takes each level's settings and every mission through its real exits after any number of restarts, and every
+- `HardnessPresetsTest`: each level sets exactly the plan's level table, which the test holds a second time as literal
+  data, so a typo in `HardnessPresets` fails; fields no level owns are kept; a round trip for each level; every owned field
+  changed gives Custom and changed back gives the level again; today's default `Alarm()` is Easy; a new alarm is Normal
+  with the Mixed rotation and a new install's sound is Surprise me; settings saved before levels read as Normal; the
+  mission rule (a mission on Easy moves to Normal, the last one off Normal moves to Easy, Hard and No mercy refuse) and
+  Easy putting missions aside. A reflection test over `AntiOversleepSettings`, `VolumeSettings`, `WakeCheckSettings` and
+  `SnoozeSettings` fails when a field is added that is neither owned by the levels nor listed as not owned. The table
+  check was watched failing with one value changed. `MainViewModelTest`: an alarm set by voice without the editor is Easy.
+- `RingTrapTest` takes each level's settings (taken from `HardnessPresets`, plus a Custom one at a restored file's
+  extremes) and every mission through its real exits after any number of restarts, and every
   limit a restored file can hold through restarts to the end: it fails if a ring has no way to end. It also takes every
   level, every mission and every reason a mission can fail (`FallbackReason`) through the backup mission; every level's way
   out (hold, or the chain after its delay, also after a restart); safe mode, where a mission alarm ends only with the plain
   screen's sums; six Emergency pauses; and, with the way out removed, says explicitly that the only exits left are the
-  backup mission for a detected failure and the restart cap.
+  backup mission for a detected failure and the restart cap. Each level exactly as the editor makes it, Mixed rotation and
+  backup ring included, ends with its missions and by its way out, also after a restart.
+- `CategoriesAndPickerUiTest` and `LevelsEditorUiTest` (compiled, not yet run on a device): picking each level sets and names
+  it, a changed detail shows Custom, the protection line under Hard opens the setup, the slider never reaches "use the phone's
+  alarm volume", "Keep ringing until I finish the mission" is a switch and "Stop ringing after" stops at 1 minute, the way out
+  is Hold, Tasks or (after a rehearsal and a warning) None, every level and option fits 360 dp at font scale 2.0, the real
+  editor saves each level as that level, and an old alarm opened and saved without edits is unchanged.
 - `FallbackChainTest`: the backup length for every reason at every level, never empty or endless whatever a file says, no
   step harder than MEDIUM, no multi-digit multiplication over 2,000 seeds. `WayOutAndEmergencyTest`: the hold, the chain
   opening after its delay and counted one task at a time across a restart, the way out removed, pause counting (two silent,
@@ -99,8 +114,8 @@ began life as a question; the ones that found real bugs are marked ✱ and were 
   time and saved through a restart without the mute coming back, a mute that ends after 20 s without progress however much
   the screen is touched, a key silence spending the same budget, and touches that no longer calm an alarm.
 - `LockCoverageTest`: a Hard alarm at 23:30 for a 07:00 ring cannot be switched off, skipped, edited or deleted, nor
-  defused by a vacation (app or tile), a group or profile switch, a deleted group, an exception day, calendar exceptions,
-  the ringing settings written onto every alarm or a restore, each refused with the same lock; all of it works before the
+  defused by a vacation (app or tile), a group or profile switch, a deleted group, an exception day, calendar exceptions
+  or a restore, each refused with the same lock; all of it works before the
   window; a just-saved alarm stays editable for 10 minutes and a write that changes nothing does not reopen that; a ring or
   snooze of an alarm with a mission is locked with no window and no override. It also lists every public method of the
   classes that change alarms, groups, vacation and exception days, so a new one fails until it is classified. Each fix was

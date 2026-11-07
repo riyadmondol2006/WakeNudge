@@ -213,7 +213,6 @@ class LockCoverageTest {
             "profile" to run { groups.save(AlarmGroup(id = 6, name = "Weekend", enabled = false)); global.activateProfileOnly(6) },
             "exception day" to global.addExceptionDate(tomorrow, "lie-in"),
             "calendar exceptions" to global.setCalendarExceptions(true),
-            "volume keys on every alarm" to global.applyRingingToAll { it.copy(volumeKeyAction = VolumeKeyAction.DISMISS) },
         )
         for ((door, result) in refusals) assertEquals(door, expected, result.locked())
         assertEquals("restore", expected, global.restoreLock())
@@ -248,7 +247,6 @@ class LockCoverageTest {
         assertTrue(global.setGroupEnabled(work.id, true) is ActionResult.Done)
         assertTrue(global.addExceptionDate(tomorrow, "lie-in") is ActionResult.Done)
         assertTrue(global.setCalendarExceptions(true) is ActionResult.Done)
-        assertTrue(global.applyRingingToAll { it.copy(volumeKeyAction = VolumeKeyAction.DISMISS) } is ActionResult.Done)
         assertNull(global.restoreLock())
         assertTrue(actions.skipNext(a.id) is ActionResult.Done)
         assertTrue(actions.setEnabled(a.id, false) is ActionResult.Done)
@@ -322,7 +320,7 @@ class LockCoverageTest {
             "setVacation" to Kind.GUARDED, "replaceVacation" to Kind.GUARDED, "setGroupEnabled" to Kind.GUARDED,
             "activateProfileOnly" to Kind.GUARDED, "restoreGroupStates" to Kind.GUARDED, "deleteGroup" to Kind.GUARDED,
             "addExceptionDate" to Kind.GUARDED, "setCalendarExceptions" to Kind.GUARDED, "selectCalendar" to Kind.GUARDED,
-            "applyRingingToAll" to Kind.GUARDED, "restoreLock" to Kind.NONE, "removeExceptionDate" to Kind.STRENGTHENS,
+            "restoreLock" to Kind.NONE, "removeExceptionDate" to Kind.STRENGTHENS,
         ),
         // The view models only pass on to the two above; listed so a new button that writes directly is noticed.
         AlarmsViewModel::class.java to mapOf(
@@ -330,12 +328,14 @@ class LockCoverageTest {
             "activateProfileOnly" to Kind.GUARDED, "undoProfileOnly" to Kind.GUARDED, "setVacation" to Kind.GUARDED,
             "undoPause" to Kind.GUARDED, "undoDelete" to Kind.STRENGTHENS, "clearSkip" to Kind.STRENGTHENS,
             "duplicate" to Kind.STRENGTHENS, "setFilter" to Kind.NONE, "getState" to Kind.NONE, "getEvents" to Kind.NONE,
+            // Read-only look at the next alarm, and a flag for a one-time card: neither changes an alarm.
+            "refreshReadiness" to Kind.NONE, "getReadiness" to Kind.NONE, "dismissLevelsCard" to Kind.NONE,
         ),
         SettingsViewModel::class.java to mapOf(
-            "setVacation" to Kind.GUARDED, "updateRingingForAllAlarms" to Kind.GUARDED,
+            "setVacation" to Kind.GUARDED,
             // The general settings write and the new-alarm defaults change no existing alarm.
-            "update" to Kind.NONE, "updateDefaults" to Kind.NONE,
-            "getSettings" to Kind.NONE, "getDefaultsAlarm" to Kind.NONE, "getLockNotices" to Kind.NONE,
+            "update" to Kind.NONE, "updateDefaults" to Kind.NONE, "setDefaultLevel" to Kind.NONE,
+            "getSettings" to Kind.NONE, "getDefaultsAlarm" to Kind.NONE, "getDefaultLevel" to Kind.NONE, "getLockNotices" to Kind.NONE,
             "getSoundPreviewer" to Kind.NONE, "getVibrator" to Kind.NONE,
         ),
         GroupsViewModel::class.java to mapOf(

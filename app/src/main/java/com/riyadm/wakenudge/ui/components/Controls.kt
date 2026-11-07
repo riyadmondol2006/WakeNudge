@@ -1,6 +1,7 @@
 package com.riyadm.wakenudge.ui.components
 
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.animateColorAsState
@@ -326,7 +327,9 @@ fun SliderRow(
                 steps = steps,
                 enabled = enabled,
                 onValueChangeFinished = onValueChangeFinished,
-                modifier = Modifier.semantics { contentDescription = "$title, $valueText" },
+                // The row sits close to the screen edge, where gesture navigation reads a drag as Back: without this a
+                // drag that starts at the slider's low end can leave the screen instead of moving the slider.
+                modifier = Modifier.systemGestureExclusion().semantics { contentDescription = "$title, $valueText" },
             )
         },
     )

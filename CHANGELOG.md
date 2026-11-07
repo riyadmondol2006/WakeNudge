@@ -4,6 +4,35 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 Releases are built and published automatically from `main` and numbered `MAJOR.MINOR.N`, where `N` is the commit count
 (see [docs/RELEASING.md](docs/RELEASING.md)); the notes of each GitHub release list the commits it contains.
 
+## How hard? Four levels, and every detail in plain words
+
+- **Each alarm is Easy, Normal, Hard or No mercy**, each explained in one line in the editor. Easy: swipe to stop, snooze.
+  Normal: finish a mission, snooze up to 3 times, keeps ringing. Hard: no snooze, rings until you finish, checks you're
+  still up a few minutes later, comes back after a restart. No mercy: Hard with two checks and the strictest limits.
+  Picking one sets all of its details; changing a detail shows **Custom**, and putting it back shows the level again.
+  No mercy asks once, the first time. Under Hard and No mercy the editor says "Fully protected" or how many setup steps are
+  left, and opens the setup
+- **The editor is shorter**: label, time, repeat, How hard?, mission, sound, and More options for everything else. Every
+  per-alarm detail has a plain control there, including ones only the engine had until now: the volume floor, what the
+  volume buttons do, bringing the alarm back if you leave it, mutes during a mission, full brightness, the phone's speaker,
+  when and how long the way out is, the backup mission's length, how long and how often it comes back after a restart, and
+  unlocking edits with the alarm's own mission
+- **A new alarm is Normal** with a Mixed mission (Focus Tap, Memory or three sums, a different one each morning), and a new
+  install's sound is **Surprise me**, a different tone each morning. An alarm set by voice without opening the app is Easy.
+  Adding a mission to an Easy alarm makes it Normal, removing the last one from Normal makes it Easy, and Hard and No mercy
+  keep at least one. Picking Easy puts missions aside; picking a harder level again brings them back
+- **Existing alarms ring exactly as before.** They show the level they match, or Custom; nothing is made harder. The alarm
+  list shows each alarm's level, a one-time card about levels, and for the next alarm "Ready" or what the evening check
+  would warn about
+- **Settings, While an alarm rings is gone**: volume buttons and coming back to the alarm screen are set on each alarm. New
+  alarm defaults are now how hard, the sound and the vibration
+- **Fixed on the Pixel**: dragging a slider from its left end could trigger the Back gesture and a "Discard changes?"
+  dialog; sliders now keep the back gesture off themselves, and so do slide-to-dismiss and the puzzle boards. The volume
+  slider's lowest position used to mean "leave the system volume", so dragging an alarm quiet could make it ring at the
+  phone's loud level: "Use the phone's alarm volume" is now its own switch and the slider stops at 10 %. "Stop ringing
+  after" no longer steps below 1 minute into Never: that is the switch "Keep ringing until I finish the mission"
+- A settings file from an older version reads as before; new alarms from it start at Normal
+
 ## Protection setup, device admin and a rehearsal before anything hard to undo
 
 - **Settings, Protection** (also linked from the alarm editor) takes a phone that installed WakeNudge from a download to

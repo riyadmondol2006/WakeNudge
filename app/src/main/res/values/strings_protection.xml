@@ -60,7 +60,6 @@
     <string name="protection_open_from_editor">Protection setup</string>
 
     <!-- Way out removed, per alarm -->
-    <string name="ao_way_out_none">No way out without the mission</string>
     <string name="ao_way_out_none_hint">If I get stuck it\'s on me. Emergency and the backup mission stay.</string>
     <string name="ao_way_out_none_locked">Needs a finished rehearsal of this alarm with these missions first: Protection, Try it now.</string>
     <string name="ao_way_out_none_title">Remove the way out?</string>

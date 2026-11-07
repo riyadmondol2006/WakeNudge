@@ -1,11 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Alarm option categories (alarm editor and new-alarm defaults) -->
-    <string name="cat_wake_up">Wake-up challenge</string>
-    <string name="cat_sound">Sound and light</string>
     <string name="cat_volume">Volume and vibration</string>
     <string name="cat_snooze">Snooze</string>
-    <string name="cat_protection">Oversleep protection</string>
     <string name="cat_rules">Schedule rules</string>
 
     <string name="cat_expand">Show options</string>
@@ -15,26 +12,19 @@
 
     <!-- One-line summaries shown while a category is collapsed -->
     <string name="cat_separator" translatable="false">" · "</string>
-    <string name="cat_no_missions">No missions</string>
-    <plurals name="cat_missions">
-        <item quantity="one">%d mission</item>
-        <item quantity="other">%d missions</item>
-    </plurals>
-    <string name="cat_still_awake">Still-awake check</string>
     <string name="cat_announces">Spoken announcement</string>
     <string name="cat_sunrise">Sunrise</string>
     <string name="cat_fade_in">%1$s fade-in</string>
-    <string name="cat_system_volume">System volume</string>
+    <string name="cat_system_volume">Phone\'s volume</string>
     <string name="cat_extra_loud">Extra loud %1$d%%</string>
     <string name="cat_vibration_off">No vibration</string>
     <plurals name="cat_snooze_limit">
         <item quantity="one">up to %d time</item>
         <item quantity="other">up to %d times</item>
     </plurals>
-    <string name="cat_hold">Hold %1$s to dismiss</string>
-    <string name="cat_backup_in">Backup alarm after %1$s</string>
-    <string name="cat_edit_lock">Edit lock %1$s</string>
-    <string name="cat_standard">Standard</string>
+    <string name="cat_hold">Hold %1$s to stop</string>
+    <string name="cat_backup_in">Rings again after %1$s</string>
+    <string name="cat_edit_lock">Locked %1$s before</string>
     <string name="cat_skips_holidays">Skips holidays</string>
     <string name="cat_ignores_vacation">Ignores vacation mode</string>
     <string name="cat_notice">Heads-up %1$s before</string>
@@ -43,4 +33,17 @@
 
     <string name="cat_snooze_switch">Allow snooze</string>
     <string name="cat_no_emergency_stop">Slow way out</string>
+    <string name="cat_no_way_out">No way out</string>
+    <string name="cat_floor">Never below %1$d%%</string>
+    <string name="cat_keeps_ringing">Keeps ringing</string>
+    <string name="cat_stops_after">Stops after %1$s</string>
+    <string name="cat_comes_back">Comes back if left</string>
+    <string name="cat_reminds">Reminds if left</string>
+    <plurals name="cat_restarts">
+        <item quantity="one">Back after %d restart</item>
+        <item quantity="other">Back after up to %d restarts</item>
+    </plurals>
+    <string name="cat_bright">Full brightness</string>
+    <string name="cat_check_after">After %1$s</string>
+    <string name="cat_with_proof">with proof</string>
 </resources>

@@ -168,7 +168,8 @@ fun SoundPickerSheet(
                     item { shape ->
                         com.riyadm.wakenudge.ui.components.ChipChoiceRow(
                             title = stringResource(R.string.sound_mode),
-                            options = SoundMode.entries.toList(),
+                            // Surprise me first: a sound that changes each morning is harder to sleep through.
+                            options = listOf(SoundMode.RANDOM_BUNDLED, SoundMode.SINGLE, SoundMode.RANDOM_CUSTOM),
                             selected = sound.mode,
                             onSelect = { previewer.stop(); onChange(sound.copy(mode = it)) },
                             optionLabel = { stringResource(soundModeLabel(it)) },

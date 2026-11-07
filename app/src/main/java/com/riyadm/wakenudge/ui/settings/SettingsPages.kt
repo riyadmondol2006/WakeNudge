@@ -29,7 +29,6 @@ import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.domain.model.AudioRoute
 import com.riyadm.wakenudge.domain.model.ThemeMode
 import com.riyadm.wakenudge.domain.model.TimeFormat
-import com.riyadm.wakenudge.domain.model.VolumeKeyAction
 import com.riyadm.wakenudge.domain.model.WeekStart
 import com.riyadm.wakenudge.ui.components.ChipChoiceRow
 import com.riyadm.wakenudge.ui.components.SectionTitle
@@ -125,35 +124,6 @@ fun AppearanceSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, 
     }
 }
 
-/** What the phone does while an alarm is on screen: buttons and screen. */
-@Composable
-fun RingingSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
-    com.riyadm.wakenudge.ui.util.LockNotices(viewModel.lockNotices)
-    val s = viewModel.settings.collectAsStateWithLifecycle().value ?: return
-    SettingsPage(stringResource(R.string.settings_ringing), onBack, modifier, intro = stringResource(R.string.settings_ringing_intro)) {
-        item {
-            SectionTitle(stringResource(R.string.settings_ringing_controls))
-            SettingsGroup {
-                item { shape ->
-                    ChipChoiceRow(
-                        title = stringResource(R.string.settings_volume_keys), subtitle = stringResource(R.string.settings_volume_keys_hint),
-                        options = VolumeKeyAction.entries.toList(), selected = s.volumeKeyAction,
-                        onSelect = { a -> viewModel.updateRingingForAllAlarms { it.copy(volumeKeyAction = a) } },
-                        optionLabel = { stringResource(volumeKeyLabel(it)) }, shape = shape,
-                    )
-                }
-                item { shape ->
-                    SwitchRow(
-                        title = stringResource(R.string.settings_keep_front), subtitle = stringResource(R.string.settings_keep_front_hint),
-                        checked = s.keepRingScreenFront, onCheckedChange = { on -> viewModel.updateRingingForAllAlarms { it.copy(keepRingScreenFront = on) } }, shape = shape,
-                    )
-                }
-            }
-        }
-        // The way out's hold is a fixed 10 s now (RingPolicy.WAY_OUT_HOLD_SECONDS), so there is no hold time to set here.
-    }
-}
-
 /** Where the alarm is played and how loud it may be when it would play into someone's ears. */
 @Composable
 fun AudioSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
@@ -242,12 +212,4 @@ private fun weekStartLabel(w: WeekStart) = when (w) {
     WeekStart.MONDAY -> R.string.week_monday
     WeekStart.SATURDAY -> R.string.week_saturday
     WeekStart.SUNDAY -> R.string.week_sunday
-}
-
-private fun volumeKeyLabel(a: VolumeKeyAction) = when (a) {
-    VolumeKeyAction.VOLUME -> R.string.vk_volume
-    VolumeKeyAction.SNOOZE -> R.string.vk_snooze
-    VolumeKeyAction.DISMISS -> R.string.vk_dismiss
-    VolumeKeyAction.SILENCE_TEMPORARILY -> R.string.vk_silence
-    VolumeKeyAction.NOTHING -> R.string.vk_nothing
 }

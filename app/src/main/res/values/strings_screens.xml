@@ -112,9 +112,6 @@
     <string name="week_sunday">Sunday</string>
     <string name="settings_haptics">Haptic feedback</string>
     <string name="settings_haptics_hint">Gentle vibrations when you turn wheels and flip switches.</string>
-    <string name="settings_ringing">While an alarm rings</string>
-    <string name="settings_volume_keys">Volume buttons</string>
-    <string name="settings_volume_keys_hint">What the hardware buttons do while an alarm is ringing. Applies to every alarm.</string>
     <string name="vk_volume">Change volume</string>
     <string name="vk_snooze">Snooze</string>
     <string name="vk_dismiss">Dismiss</string>
@@ -127,10 +124,8 @@
     <string name="settings_hearing_cap">Protect my hearing on headphones</string>
     <string name="settings_hearing_cap_hint">Limits loudness whenever earbuds or a headset would play the alarm.</string>
     <string name="settings_hearing_cap_level">Headphone limit</string>
-    <string name="settings_keep_front">Keep the alarm screen in front</string>
-    <string name="settings_keep_front_hint">If you leave the screen while an alarm rings, it alerts you again. Applies to every alarm.</string>
     <string name="settings_defaults">New alarm defaults</string>
-    <string name="settings_defaults_hint">Sound, volume, vibration, snooze and anti-oversleep for new alarms.</string>
+    <string name="settings_defaults_hint">How hard, sound and vibration for new alarms.</string>
     <string name="settings_vacation">Vacation mode</string>
     <string name="settings_vacation_hint">Pause every alarm that is not marked to ring anyway.</string>
     <string name="settings_vacation_resume">Resume on</string>
@@ -149,7 +144,7 @@
     <string name="settings_backup_hint">Save everything to a file on your device.</string>
     <string name="settings_about">About WakeNudge</string>
     <string name="defaults_title">New alarm defaults</string>
-    <string name="defaults_hint">These settings are copied into every alarm you create. Existing alarms are not changed.</string>
+    <string name="defaults_hint">Every new alarm starts like this. Existing alarms are not changed, and each alarm can be changed in its own editor.</string>
 
     <!-- Profiles -->
     <string name="groups_title">Profiles</string>
@@ -204,7 +199,7 @@
     <string name="onboarding_reliable_title">Rings when it must</string>
     <string name="onboarding_reliable_body">Lock screen, silent mode, battery saver or a restart in the night: the alarm is scheduled the way the system intends, and re-armed after a reboot.</string>
     <string name="onboarding_missions_title">Missions, not mashing</string>
-    <string name="onboarding_missions_body">Solve a sum, scan a barcode, shake, walk or squat before the alarm lets go. Add a backup alarm and a “still awake?” check, and switch any of it off whenever you like.</string>
+    <string name="onboarding_missions_body">Pick how hard each alarm is: Easy, Normal, Hard or No mercy. From Normal up, you finish a mission to stop it: a sum, a code in another room, a quick game. Change it on any alarm, any time it isn\'t about to ring.</string>
     <string name="onboarding_privacy_title">Private by design</string>
     <string name="onboarding_privacy_body">No ads, no accounts, no tracking. The only time WakeNudge goes online is an optional update check (at most once an hour), which you can switch off in About. Everything else stays on your phone.</string>
     <string name="onboarding_permissions_title">One last thing</string>
@@ -286,16 +281,13 @@
 
     <!-- Settings hub -->
     <string name="settings_group_alarms">Alarms</string>
-    <string name="settings_group_ringing">Ringing and sound</string>
+    <string name="settings_group_ringing">Sound and timers</string>
     <string name="settings_group_look">Look and feel</string>
     <string name="settings_group_about">About</string>
     <string name="settings_vacation_holidays">Vacation and holidays</string>
     <string name="settings_vacation_holidays_hint">Pause alarms for a trip, and skip holidays and calendar events.</string>
     <string name="settings_vacation_until">Vacation mode is on until %1$s</string>
     <string name="settings_vacation_on">Vacation mode is on</string>
-    <string name="settings_ringing_hint">Volume buttons and the alarm screen.</string>
-    <string name="settings_ringing_intro">How the phone behaves while an alarm is ringing.</string>
-    <string name="settings_ringing_controls">Buttons and screen</string>
     <string name="settings_audio_page">Audio output and hearing</string>
     <string name="settings_audio_hint">Speaker or headphones, and a volume limit on headphones.</string>
     <string name="settings_hearing">Hearing safety</string>

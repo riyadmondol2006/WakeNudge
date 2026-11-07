@@ -83,6 +83,7 @@ fun AlarmCard(
     val status = statusLine(item, now)
     val summaryOnOff = stringResource(if (on) R.string.state_on else R.string.state_off)
     val extras = extraBadges(item)
+    val level = stringResource(com.riyadm.wakenudge.ui.edit.levelName(com.riyadm.wakenudge.domain.model.HardnessPresets.levelOf(alarm)))
     val spokenTime = TimeText.format(alarm.time, is24)
     val title = alarm.label.ifBlank { null }
     // The card's description replaces its texts for a screen reader, so it has to say everything the card shows: the
@@ -90,6 +91,7 @@ fun AlarmCard(
     val spoken = buildString {
         append(stringResource(R.string.cd_alarm_summary, spokenTime, listOfNotNull(title, repeat).joinToString(", ")))
         if (alarm.enabled) append(". ").append(status.text)
+        append(". ").append(level)
         if (extras.isNotEmpty()) append(". ").append(extras)
     }
     val switchLabel = stringResource(R.string.cd_alarm_switch, listOfNotNull(spokenTime, title).joinToString(", "))
@@ -151,13 +153,22 @@ fun AlarmCard(
                 }
                 CardMenu(item, onSkipNext, onClearSkip, onDuplicate, onDelete)
             }
-            if (extras.isNotEmpty()) {
-                Text(
-                    extras, style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant.copy(alpha = contentAlpha),
-                    modifier = Modifier.padding(bottom = 10.dp),
-                )
-            } else {
-                Box(Modifier.size(2.dp))
+            androidx.compose.foundation.layout.FlowRow(
+                Modifier.padding(bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                // How hard it is, as a chip: the first thing to know about an alarm after its time.
+                Surface(shape = RoundedCornerShape(50), color = scheme.secondaryContainer.copy(alpha = if (on) 1f else 0.6f)) {
+                    Text(
+                        level, style = MaterialTheme.typography.labelMedium, color = scheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                    )
+                }
+                if (extras.isNotEmpty()) {
+                    Text(extras, style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant.copy(alpha = contentAlpha))
+                }
             }
         }
     }

@@ -46,15 +46,27 @@ data class BedtimeSettings(
     val fallAsleepMinutes: Int = 15,
 )
 
-/** Default for every new alarm; copied into the alarm at creation time. */
+/**
+ * Default for every new alarm; copied into the alarm at creation time. [level] decides almost everything; the other
+ * fields stay for the details no level owns and so that an older version of the app can still read the settings.
+ */
 @Serializable
 data class AlarmDefaults(
-    val sound: SoundSettings = SoundSettings(),
+    /** New installs start with a different bundled tone each morning. */
+    val sound: SoundSettings = SoundSettings(mode = SoundMode.RANDOM_BUNDLED),
     val volume: VolumeSettings = VolumeSettings(),
     val vibration: VibrationSettings = VibrationSettings(),
     val snooze: SnoozeSettings = SnoozeSettings(),
     val antiOversleep: AntiOversleepSettings = AntiOversleepSettings(),
-)
+    /** How hard a new alarm is. Never [Hardness.CUSTOM]. */
+    val level: Hardness = Hardness.NORMAL,
+) {
+    /** A new alarm made from these defaults at [level] (or [levelOverride]). */
+    fun newAlarm(base: Alarm = Alarm(), levelOverride: Hardness? = null): Alarm = HardnessPresets.apply(
+        levelOverride ?: level.takeIf { it != Hardness.CUSTOM } ?: Hardness.NORMAL,
+        base.copy(sound = sound, volume = volume, vibration = vibration, snooze = snooze, antiOversleep = antiOversleep),
+    )
+}
 
 /** This alarm's copy of the choices that used to be global, as they were set in [settings]. */
 fun AntiOversleepSettings.withGlobalsOf(settings: AppSettings): AntiOversleepSettings =
@@ -107,6 +119,10 @@ data class AppSettings(
     val lastUpdateCheckAt: Long = 0,
     /** The version (MAJOR.MINOR.PATCH) the user chose "Skip this version" for; empty when none. */
     val skippedUpdateVersion: String = "",
+    /** The alarm list's one-time "choose how hard each alarm is" card was dismissed (or never needed: a new install). */
+    val levelsCardSeen: Boolean = false,
+    /** No mercy was picked once after its warning; later picks don't ask again. */
+    val noMercyConfirmed: Boolean = false,
 ) {
     /**
      * The three update fields describe this installation, not the user's alarm setup, so a backup neither carries

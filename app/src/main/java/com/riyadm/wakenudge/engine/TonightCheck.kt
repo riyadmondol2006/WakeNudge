@@ -183,6 +183,22 @@ class TonightCheck @Inject constructor(
         tell(next.alarm, at, found)
     }
 
+    /**
+     * What the alarm list shows for the next alarm: the same check, read only and at any time of day, with nothing
+     * registered, posted or remembered. A lost trigger is left out: the evening check puts it right without a word.
+     * Null when the check itself could not run.
+     */
+    suspend fun look(alarm: Alarm, at: Long): List<TonightProblem>? = try {
+        val armed = pending.isScheduled(TriggerKind.ALARM, alarm.id)
+        TonightCheckPolicy.problems(health.snapshot(), alarm, at, armed, battery.read(), missions::readiness)
+            .filter { it.kind != TonightProblemKind.TRIGGER_MISSING }
+    } catch (c: CancellationException) {
+        throw c
+    } catch (t: Throwable) {
+        diagnostics.warn("Tonight", "the list's look at the next alarm failed: ${t.message}")
+        null
+    }
+
     /** The silent look shortly before the alarm: register its trigger again, in case Android lost it. Nobody is told unless that fails. */
     suspend fun rearmBeforeAlarm() = guarded("re-arming the next alarm") {
         if (ringing()) return@guarded

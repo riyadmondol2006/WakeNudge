@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.ui.ring
 
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -81,6 +82,8 @@ fun SlideToDismiss(
         modifier
             .fillMaxWidth()
             .heightIn(min = 72.dp)
+            // The thumb starts at the screen edge, where gesture navigation would read the slide as Back.
+            .systemGestureExclusion()
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.primary)
             .semantics {

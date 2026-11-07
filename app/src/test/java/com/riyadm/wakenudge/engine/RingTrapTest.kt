@@ -7,6 +7,8 @@ import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.model.AlarmOutcome
 import com.riyadm.wakenudge.domain.model.AntiOversleepSettings
 import com.riyadm.wakenudge.domain.model.Difficulty
+import com.riyadm.wakenudge.domain.model.Hardness
+import com.riyadm.wakenudge.domain.model.HardnessPresets
 import com.riyadm.wakenudge.domain.model.MissionConfig
 import com.riyadm.wakenudge.domain.model.MissionType
 import com.riyadm.wakenudge.domain.model.SnoozeSettings
@@ -53,13 +55,14 @@ class RingTrapTest {
         wayOutDelayMinutes = delay, wayOutCount = wayOut, fallbackCount = fallback,
     )
 
-    /** The settings of section 2 that matter to whether a ring can end, one per level. */
-    private val shapes: Map<String, AntiOversleepSettings> = mapOf(
-        "Easy" to anti(10, 3, strict = false, never = false),
-        "Normal" to anti(120, 3, strict = false, never = true),
-        "Hard" to anti(720, 5, strict = true, never = true, delay = 3, fallback = 5),
-        "No mercy" to anti(720, 10, strict = true, never = true, delay = 10, wayOut = 20, fallback = 8),
-    )
+    /**
+     * Every level exactly as the editor sets it ([HardnessPresets]), so a change to a level is covered here at once, and a
+     * Custom alarm with the extremes a restored file may hold. The backup ring is off so a test that lets a ring time out
+     * ends it there; the full levels, backup included, have their own test below.
+     */
+    private val shapes: Map<String, AntiOversleepSettings> = HardnessPresets.levels.associate { level ->
+        level.name to HardnessPresets.apply(level, Alarm()).antiOversleep.copy(backupEnabled = false)
+    } + ("Custom" to anti(1_440, AntiOversleepSettings.MAX_RESUMES_LIMIT, strict = true, never = true, delay = 30, wayOut = 30, fallback = 20))
 
     private val missionLists: List<List<MissionConfig>> = MissionType.entries.map { listOf(MissionConfig(it)) } + listOf(
         emptyList(),
@@ -128,6 +131,27 @@ class RingTrapTest {
                 clock.now += 24 * 3_600_000L
             }
         }
+    }
+
+    @Test fun `every level as the editor makes it, Mixed rotation and backup ring included, ends with its missions and by its way out`() = runBlocking {
+        for (level in HardnessPresets.levels) for (end in listOf("missions", "way out")) for (restarts in listOf(0, 1)) {
+            val made = HardnessPresets.apply(level, Alarm(label = "x", hour = 7, minute = 0, repeatDaysMask = Alarm.EVERY_DAY_MASK))
+            if (end == "way out" && made.missions.isEmpty()) continue
+            val a = alarms.add(made)
+            controller.begin(controller.onAlarmFired(a.id, clock.now)!!)
+            repeat(restarts) {
+                restart()
+                comeBack()
+            }
+            val label = "$level, $end, $restarts restarts"
+            assertEquals(label, level, HardnessPresets.levelOf(a))
+            assertTrue(label, if (end == "missions") finish() else takeWayOut())
+            assertNull(label, store.current)
+            assertNull(label, durable.ring())
+            alarms.rows.remove(a.id)
+            clock.now += 24 * 3_600_000L
+        }
+        assertEquals(Hardness.EASY, HardnessPresets.levelOf(Alarm()))
     }
 
     @Test fun `every limit a restored file can hold ends in a missed alarm, not in a ring that returns for ever`() = runBlocking {

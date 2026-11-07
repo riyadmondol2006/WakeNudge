@@ -52,7 +52,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.riyadm.wakenudge.R
+import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.model.Difficulty
+import com.riyadm.wakenudge.domain.model.Hardness
+import com.riyadm.wakenudge.domain.model.HardnessPresets
 import com.riyadm.wakenudge.domain.model.MissionConfig
 import com.riyadm.wakenudge.domain.model.MissionType
 import com.riyadm.wakenudge.domain.model.PuzzleKind
@@ -83,6 +86,8 @@ fun MissionListEditor(
     /** Whether one of the missions is asked for each morning instead of all of them; null where that is not offered. */
     rotate: Boolean? = null,
     onRotateChange: (Boolean) -> Unit = {},
+    /** Set when the level needs a mission: removing the last one says this instead. */
+    lastRequired: String? = null,
 ) {
     val context = LocalContext.current
     val haptics = LocalWakeHaptics.current
@@ -97,6 +102,13 @@ fun MissionListEditor(
             removed = null
         }
     }
+    var refused by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(refused) {
+        if (refused != null) {
+            delay(8_000)
+            refused = null
+        }
+    }
 
     SectionTitle(title)
     Text(hint, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
@@ -106,8 +118,12 @@ fun MissionListEditor(
                 mission = mission, index = index, last = index == missions.lastIndex, enabled = enabled,
                 onChange = { updated -> onChange(missions.toMutableList().also { it[index] = updated }) },
                 onRemove = {
-                    removed = index to mission
-                    onChange(missions.toMutableList().also { it.removeAt(index) })
+                    if (lastRequired != null && missions.size == 1) {
+                        refused = lastRequired
+                    } else {
+                        removed = index to mission
+                        onChange(missions.toMutableList().also { it.removeAt(index) })
+                    }
                 },
                 onMove = { delta ->
                     val target = index + delta
@@ -115,6 +131,12 @@ fun MissionListEditor(
                 },
                 onSetup = { setupIndex = index },
                 onPreview = { previewIndex = index },
+            )
+        }
+        refused?.let { text ->
+            Text(
+                text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(horizontal = 20.dp).semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
         removed?.let { (at, config) ->
@@ -377,6 +399,8 @@ fun missionSlots(): MissionSlots = MissionSlots(
             onChange = { list -> onChange { it.copy(missions = list) } },
             rotate = alarm.antiOversleep.rotateMissions,
             onRotateChange = { on -> onChange { it.copy(antiOversleep = it.antiOversleep.copy(rotateMissions = on)) } },
+            lastRequired = HardnessPresets.levelOf(alarm).takeIf { it == Hardness.HARD || it == Hardness.NO_MERCY }
+                ?.let { stringResource(R.string.level_needs_mission, stringResource(levelName(it))) },
         )
     },
     snoozeMissions = { alarm, enabled, onChange ->
@@ -389,3 +413,14 @@ fun missionSlots(): MissionSlots = MissionSlots(
     },
 )
 
+
+/** The Mission row's one line: none, the Mixed rotation, or the missions by name. */
+@Composable
+fun missionSummary(alarm: Alarm): String {
+    val missions = alarm.missions
+    if (missions.isEmpty()) return stringResource(R.string.edit_mission_none)
+    val rotating = alarm.antiOversleep.rotateMissions && missions.size >= 2
+    if (rotating && HardnessPresets.isMixed(missions)) return stringResource(R.string.edit_mission_mixed)
+    val names = missions.map { stringResource(MissionInfo.titleRes(it.type)) }.distinct().joinToString(", ")
+    return if (rotating) stringResource(R.string.edit_mission_rotating, names) else names
+}

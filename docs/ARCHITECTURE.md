@@ -251,8 +251,8 @@ on an alarm that is on, or clearing a skip that is not there, cannot restart the
 
 Changes that reach beyond one alarm go through `GlobalChanges`, which asks `AlarmActions.guardGlobalChange` whether any
 alarm the change would stop or soften is locked: starting or lengthening a vacation (also from the tile), switching a
-group or profile off, deleting a group, an exception day on a locked ring's date, calendar exceptions, the ringing settings
-written onto every alarm, and a restore (`BackupManager.import`). Changes that only bring alarms back are never refused.
+group or profile off, deleting a group, an exception day on a locked ring's date, calendar exceptions, and a restore
+(`BackupManager.import`). Changes that only bring alarms back are never refused.
 Every refusal shows `LockText.message`, the same words wherever it was tried. `LockCoverageTest` lists every public method
 of these classes and the view models in front of them, so a new way to change an alarm has to be classified. Below that,
 `AlarmScheduler.cancel` and `cancelFollowUps` with `byUser` leave a ring or snooze of an alarm with a mission as it is, so a
@@ -273,7 +273,10 @@ screen comes back to the front, since every step happens in a Settings screen th
    later through the real trigger, service, ring screen and `RingPolicy`, with no snooze, no backup, nothing saved to come
    back after a restart, its way out always there, and a 10-minute timeout. It counts (`RehearsalRecord`, kept in
    `RuntimeState`, not in a backup) only when ended with its missions, and only for the missions it had: changing them needs
-   another. The editor offers it after saving a strict alarm with a mission never rehearsed.
+   another. The editor offers it after saving a Hard or No mercy alarm (or a Custom one that kept their slow way out) with a
+   mission never rehearsed (`HardnessPresets.isStrict`). Under Hard and No mercy the editor's "How hard?" card shows
+   `ProtectionPolicy.stepsLeft` as "Fully protected" or "N steps left to stop you leaving the alarm", read again each time
+   the editor comes back, and opens this screen.
 6. Device admin (`WakeNudgeAdminReceiver`, `res/xml/device_admin.xml` with an empty `<uses-policies/>`), locked until one
    rehearsal has finished. While active, Android refuses Force stop and uninstall. The Turn off row is always shown; it is
    refused only while an alarm rings or is snoozed (storage that cannot be read counts as "not snoozed"), and the system
@@ -385,9 +388,26 @@ fields only need a default.)
 
 ## Alarm options, as the user sees them
 
-Alarm options are grouped into the same six categories in the editor and in "New alarm defaults"
-(`ui/edit/EditCategories.kt`): wake-up challenge, sound and light, volume and vibration, snooze, oversleep protection and
-schedule rules. Choosing a tone in the sound picker plays it immediately (`SoundPreviewer`, alarm stream, stopped
-whenever the picker goes away). Extra Loud is a strength (`VolumeSettings.extraLoudPercent`) that `VolumePlanner`
-turns into a proportion of the full boost, and it is never applied on headphones while hearing protection is on.
+**Levels.** Each alarm is Easy, Normal, Hard or No mercy, or Custom when its details differ from all four. The level is
+never stored: `HardnessPresets.levelOf` works it out from the concrete settings, and `HardnessPresets.apply` sets every
+field a level owns (`OWNED_FIELDS`) and leaves the rest (`NOT_OWNED_FIELDS`: sound, time, rules, which missions, the
+rotation, the torch). The engine never reads a level. Easy has no mission; picking it puts the alarm's missions aside in
+the editor so a harder level gives them back. A level that needs a mission keeps the alarm's own, or gets the Mixed
+rotation (Focus Tap, Memory and three sums, one each morning). Adding a mission to an Easy alarm moves it to Normal,
+removing the last one moves Normal to Easy, and Hard and No mercy refuse to lose their last mission
+(`HardnessPresets.afterMissionChange`). Picking No mercy asks once, the first time ever (`AppSettings.noMercyConfirmed`).
 
+**Editor** (`ui/edit/`): label, time, repeat, "How hard?" (`HowHardRow.kt`), mission, sound, then More options, which holds
+the collapsible groups of `EditCategories.kt`: volume and vibration, snooze, stopping it, if I try to get out of it, voice
+and light, still up?, and schedule rules (with the group). Every per-alarm field has a plain control there except
+`powerGuard`, which belongs to a feature that was not built and is shown nowhere. "Use the phone's alarm volume" is its
+own switch, not the slider's lowest position, and "Keep ringing until I finish the mission" is a switch, not a step below 1
+minute. Sliders exclude themselves from the system back gesture (`systemGestureExclusion`), since they sit near the edge.
+
+**New alarm defaults** are only a level (`AlarmDefaults.level`, Normal unless changed), a sound (Surprise me on a new
+install) and the vibration; `AlarmDefaults.newAlarm` applies the level. An alarm set by voice without the editor is Easy.
+How an alarm behaves while it rings (volume keys, coming back to the screen) is set per alarm; Settings has no page for it.
+
+Choosing a tone in the sound picker plays it immediately (`SoundPreviewer`, alarm stream, stopped whenever the picker goes
+away). Extra Loud is a strength (`VolumeSettings.extraLoudPercent`) that `VolumePlanner` turns into a proportion of the full
+boost, and it is never applied on headphones while hearing protection is on.

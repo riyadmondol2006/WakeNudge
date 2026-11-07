@@ -19,7 +19,6 @@ import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MonitorHeart
 import androidx.compose.material.icons.outlined.Shield
-import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Tune
@@ -57,14 +56,14 @@ class SettingsNav(
     val backup: () -> Unit,
     val about: () -> Unit,
     val appearance: () -> Unit,
-    val ringing: () -> Unit,
     val audio: () -> Unit,
     val timers: () -> Unit,
 )
 
 /**
  * The settings home: a short, grouped list of places rather than one long page of switches.
- * Alarms (what rings and when), Ringing and sound (how it behaves), Look and feel, Reliability and data, About.
+ * Alarms (what rings and when), sound, Look and feel, Reliability and data, About. How an alarm behaves while it rings is
+ * set on each alarm, in its editor.
  */
 @Composable
 fun SettingsScreen(nav: SettingsNav, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
@@ -112,9 +111,6 @@ fun SettingsScreen(nav: SettingsNav, modifier: Modifier = Modifier, viewModel: S
             item {
                 SectionTitle(stringResource(R.string.settings_group_ringing))
                 SettingsGroup {
-                    item { shape ->
-                        NavRow(stringResource(R.string.settings_ringing), shape, nav.ringing, summary = stringResource(R.string.settings_ringing_hint), icon = Icons.Outlined.NotificationsActive)
-                    }
                     item { shape ->
                         NavRow(stringResource(R.string.settings_audio_page), shape, nav.audio, summary = stringResource(R.string.settings_audio_hint), icon = Icons.Outlined.Headphones)
                     }

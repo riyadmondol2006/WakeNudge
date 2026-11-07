@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- How hard? (alarm editor, new-alarm defaults, alarm list) -->
+    <string name="level_title">How hard?</string>
+    <string name="level_easy">Easy</string>
+    <string name="level_normal">Normal</string>
+    <string name="level_hard">Hard</string>
+    <string name="level_no_mercy">No mercy</string>
+    <string name="level_custom">Custom</string>
+    <string name="level_easy_desc">Swipe to stop. You can snooze.</string>
+    <string name="level_normal_desc">Finish a mission to stop. Snooze up to 3 times. Keeps ringing.</string>
+    <string name="level_hard_desc">No snooze. Rings until you finish. Checks you\'re still up a few minutes later. Comes back if you restart the phone.</string>
+    <string name="level_no_mercy_desc">Hard, with two checks and the strictest limits.</string>
+    <string name="level_custom_desc">You changed the details in More options.</string>
+    <string name="level_status_done">Fully protected</string>
+    <plurals name="level_status_left">
+        <item quantity="one">%d step left to stop you leaving the alarm</item>
+        <item quantity="other">%d steps left to stop you leaving the alarm</item>
+    </plurals>
+    <string name="level_status_open">Open the setup</string>
+    <string name="level_no_mercy_title">Use No mercy?</string>
+    <string name="level_no_mercy_body">No snooze and the loudest sound, with Extra loud. Two checks after you\'re up. The way out without the mission opens only after 10 minutes of ringing and takes 20 tasks. You can\'t change this alarm in the 12 hours before it rings. Emergency calls always work.</string>
+    <string name="level_no_mercy_confirm">Use No mercy</string>
+    <string name="level_moved_normal">Now Normal: an alarm with a mission is Normal or harder.</string>
+    <string name="level_moved_easy">Now Easy: there is no mission left.</string>
+    <string name="level_needs_mission">%1$s needs a mission. Pick Normal or Easy first to remove the last one.</string>
+    <string name="level_easy_removes">Easy has no mission: picking it puts this alarm\'s missions aside. Pick another level to get them back.</string>
+
+    <!-- Main editor rows -->
+    <string name="edit_mission_row">Mission</string>
+    <string name="edit_mission_none">None: swipe to stop</string>
+    <string name="edit_mission_mixed">Mixed, changes each morning</string>
+    <string name="edit_mission_rotating">%1$s, changes each morning</string>
+    <string name="edit_more_options">More options</string>
+    <string name="edit_more_options_hint">Volume, snooze, stopping, coming back, checks and rules</string>
+
+    <!-- More options: volume -->
+    <string name="opt_phone_volume">Use the phone\'s alarm volume</string>
+    <string name="opt_phone_volume_hint">Rings at whatever the phone\'s alarm volume is set to.</string>
+    <string name="opt_how_loud">How loud</string>
+    <string name="opt_how_loud_hint">Sets the phone\'s alarm volume while it rings, then puts it back.</string>
+    <string name="opt_fade_in">Fade in over</string>
+    <string name="opt_louder">Get louder if I ignore it</string>
+    <string name="opt_louder_hint">After 40 seconds without a touch it adds an intense layer and turns up.</string>
+    <string name="opt_calm_progress">Only mission progress calms it</string>
+    <string name="opt_calm_progress_hint">Once it got louder, touching the screen is not enough to calm it.</string>
+    <string name="opt_floor">Don\'t let the volume go below</string>
+    <string name="opt_floor_hint">Turning the alarm volume down while it rings doesn\'t stick.</string>
+    <string name="opt_loudest">Loudest the phone allows</string>
+    <string name="opt_speaker">Always the phone\'s speaker</string>
+    <string name="opt_speaker_hint">Not Bluetooth speakers or earbuds, unless they are wired in.</string>
+
+    <!-- More options: stopping -->
+    <string name="cat_stopping">Stopping it</string>
+    <string name="opt_keep_ringing">Keep ringing until I finish the mission</string>
+    <string name="opt_keep_ringing_hint">Without a mission: until I stop or snooze it.</string>
+    <string name="opt_stop_after">Stop ringing after</string>
+    <string name="opt_hold">Hold to stop for</string>
+    <string name="opt_way_out">Way out without the mission</string>
+    <string name="opt_way_out_hint">For the morning the mission can\'t be done. Always recorded as an emergency stop.</string>
+    <string name="opt_way_out_hold">Hold 10 s</string>
+    <string name="opt_way_out_tasks">Tasks</string>
+    <string name="opt_way_out_none">None</string>
+    <string name="opt_way_out_after">Tasks open after</string>
+    <string name="opt_way_out_now">At once</string>
+    <string name="opt_way_out_count">How many tasks</string>
+    <string name="opt_fallback">If the phone can\'t do the mission</string>
+    <plurals name="opt_fallback_value">
+        <item quantity="one">%d task instead</item>
+        <item quantity="other">%d tasks instead</item>
+    </plurals>
+    <string name="opt_fallback_hint">No camera, a sensor that stopped: easy tasks replace it. It is never skipped.</string>
+    <string name="opt_backup">Ring again later if it stopped</string>
+    <string name="opt_backup_hint">If it stopped by itself, it rings again, louder.</string>
+    <string name="opt_backup_after">Again after</string>
+    <string name="opt_backup_times">How many times</string>
+
+    <!-- More options: leaving -->
+    <string name="cat_leaving">If I try to get out of it</string>
+    <string name="opt_return">Bring the alarm back if I leave it</string>
+    <string name="opt_return_off">Off</string>
+    <string name="opt_return_alert">Remind me</string>
+    <string name="opt_return_force">Bring it back</string>
+    <string name="opt_return_hint_off">Leaving the alarm screen is allowed. The alarm keeps ringing.</string>
+    <string name="opt_return_hint_alert">If I leave it, a notification alerts me again every 20 s.</string>
+    <string name="opt_return_hint_force">If I leave it, the alarm screen comes back after a second. Needs "Display over other apps".</string>
+    <string name="opt_volume_keys">Volume buttons do</string>
+    <string name="opt_mute">Mute during a mission</string>
+    <plurals name="opt_mute_times">
+        <item quantity="one">%d time</item>
+        <item quantity="other">%d times</item>
+    </plurals>
+    <string name="opt_mute_off">Never</string>
+    <string name="opt_mute_length">Each mute lasts</string>
+    <string name="opt_restart">Ring again after a restart, for up to</string>
+    <string name="opt_restart_hint">If the phone is restarted while it rings, it rings again within this time, at full volume.</string>
+    <string name="opt_restart_times">Restarts it comes back from</string>
+    <string name="opt_lock">Can\'t change this alarm in the</string>
+    <string name="opt_lock_hint">… before it rings. Switching it off counts as a change.</string>
+    <string name="opt_lock_mission">Unlock it early with its own mission</string>
+    <string name="opt_lock_mission_hint">Instead of a few sums. Not while it rings or is snoozed.</string>
+
+    <!-- More options: voice and light -->
+    <string name="cat_light">Voice and light</string>
+    <string name="opt_say_time">Say the time out loud</string>
+    <string name="opt_glow">Screen glows before the alarm</string>
+    <string name="opt_bright">Full brightness while it rings</string>
+
+    <!-- More options: still up -->
+    <string name="cat_still_up">Still up?</string>
+    <string name="opt_check">Check I\'m still up</string>
+    <string name="opt_check_after">Ask after</string>
+    <string name="opt_check_hint">After you stop the alarm, it asks again a few minutes later and rings if you don\'t answer.</string>
+    <string name="opt_check_proof">Ask for proof</string>
+    <string name="opt_check_proof_hint">One round of Focus Tap, no button. Walking 30 steps also counts.</string>
+
+    <!-- Alarm list -->
+    <string name="levels_card_title">New: choose how hard each alarm is</string>
+    <string name="levels_card_body">Open an alarm and pick Easy, Normal, Hard or No mercy. Your alarms ring as before until you change them.</string>
+    <string name="levels_card_dismiss">Got it</string>
+    <string name="alarms_ready">Ready</string>
+    <string name="alarms_problem">Check: %1$s</string>
+
+    <!-- New alarm defaults -->
+    <string name="defaults_vibration_owned">Always on at Normal and harder.</string>
+</resources>

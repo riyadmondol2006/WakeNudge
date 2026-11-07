@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.ui.clock
 
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -127,7 +128,11 @@ fun WorldClockScreen(modifier: Modifier = Modifier, viewModel: WorldClockViewMod
                             }
                         }
                         // One step per hour, so the slider (and a screen reader's adjust gesture) moves in whole hours.
-                        Slider(value = offsetHours, onValueChange = { offsetHours = Math.round(it).toFloat() }, valueRange = -12f..48f, steps = 59)
+                        Slider(
+                            value = offsetHours, onValueChange = { offsetHours = Math.round(it).toFloat() }, valueRange = -12f..48f, steps = 59,
+                            // Near the screen edge a drag would otherwise be read as the Back gesture.
+                            modifier = Modifier.systemGestureExclusion(),
+                        )
                     }
                 }
             }

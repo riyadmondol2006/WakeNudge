@@ -1,20 +1,18 @@
 package com.riyadm.wakenudge.ui.edit
 
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Vibration
-import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.WbTwilight
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,34 +20,40 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.domain.model.Alarm
+import com.riyadm.wakenudge.domain.model.AntiOversleepSettings
 import com.riyadm.wakenudge.domain.model.VibrationPattern
+import com.riyadm.wakenudge.domain.model.VolumeKeyAction
 import com.riyadm.wakenudge.domain.model.VolumeSettings
+import com.riyadm.wakenudge.domain.model.WakeCheckSettings
 import com.riyadm.wakenudge.engine.audio.AlarmVibrator
 import com.riyadm.wakenudge.engine.audio.SoundPreviewer
 import com.riyadm.wakenudge.ui.components.ChipChoiceRow
+import com.riyadm.wakenudge.ui.components.ConfirmDialog
+import com.riyadm.wakenudge.ui.components.NavRow
 import com.riyadm.wakenudge.ui.components.SectionTitle
 import com.riyadm.wakenudge.ui.components.SettingRow
-import com.riyadm.wakenudge.ui.components.NavRow
 import com.riyadm.wakenudge.ui.components.SettingsGroup
 import com.riyadm.wakenudge.ui.components.SliderRow
 import com.riyadm.wakenudge.ui.components.StepperRow
 import com.riyadm.wakenudge.ui.components.SwitchRow
 import com.riyadm.wakenudge.ui.components.ValueRow
 import com.riyadm.wakenudge.ui.util.FadeInSteps
+import com.riyadm.wakenudge.ui.util.LockText
 import com.riyadm.wakenudge.ui.util.fadeLabel
 import com.riyadm.wakenudge.ui.util.minutesLabel
 import kotlin.math.roundToInt
 
-/** Alarm sound, volume and vibration: shared by the alarm editor and the "new alarm defaults" screen. */
+/** The alarm's sound, as one row that opens the picker: the main editor and the new-alarm defaults both show it. */
 @Composable
-fun SoundSection(alarm: Alarm, enabled: Boolean, previewer: SoundPreviewer, onChange: ((Alarm) -> Alarm) -> Unit, showVoice: Boolean = true) {
+fun SoundRow(alarm: Alarm, enabled: Boolean, previewer: SoundPreviewer, onChange: ((Alarm) -> Alarm) -> Unit) {
     var showPicker by remember { mutableStateOf(false) }
-    SectionTitle(stringResource(R.string.section_sound))
-    SettingsGroup {
+    SettingsGroup(Modifier.padding(top = 8.dp)) {
         item { shape ->
             ValueRow(
                 title = stringResource(R.string.sound_title),
@@ -59,45 +63,6 @@ fun SoundSection(alarm: Alarm, enabled: Boolean, previewer: SoundPreviewer, onCh
                 enabled = enabled,
                 onClick = { showPicker = true },
             )
-        }
-        if (showVoice) item { shape ->
-            val voice = alarm.voice
-            SwitchRow(
-                title = stringResource(R.string.voice_title),
-                subtitle = stringResource(R.string.voice_subtitle),
-                icon = Icons.Outlined.Campaign,
-                checked = voice.enabled,
-                onCheckedChange = { on -> onChange { it.copy(voice = it.voice.copy(enabled = on)) } },
-                shape = shape,
-                enabled = enabled,
-            )
-        }
-        if (showVoice && alarm.voice.enabled) {
-            item { shape ->
-                SwitchRow(
-                    title = stringResource(R.string.voice_announce_time),
-                    checked = alarm.voice.announceTime,
-                    onCheckedChange = { on -> onChange { it.copy(voice = it.voice.copy(announceTime = on)) } },
-                    shape = shape, enabled = enabled,
-                )
-            }
-            item { shape ->
-                SwitchRow(
-                    title = stringResource(R.string.voice_announce_label),
-                    checked = alarm.voice.announceLabel,
-                    onCheckedChange = { on -> onChange { it.copy(voice = it.voice.copy(announceLabel = on)) } },
-                    shape = shape, enabled = enabled,
-                )
-            }
-            item { shape ->
-                SliderRow(
-                    title = stringResource(R.string.voice_repeat),
-                    valueText = stringResource(R.string.unit_seconds, alarm.voice.repeatSeconds),
-                    value = alarm.voice.repeatSeconds.toFloat(),
-                    onValueChange = { v -> onChange { it.copy(voice = it.voice.copy(repeatSeconds = (v / 5).roundToInt() * 5)) } },
-                    valueRange = 15f..120f, steps = 20, shape = shape, enabled = enabled,
-                )
-            }
         }
     }
     if (showPicker) {
@@ -110,27 +75,43 @@ fun SoundSection(alarm: Alarm, enabled: Boolean, previewer: SoundPreviewer, onCh
     }
 }
 
+/**
+ * How loud, and whether it may be turned down. "Use the phone's alarm volume" is its own switch: it used to be the
+ * slider's lowest position, so dragging an alarm quiet could land on it and ring at the phone's (loud) level instead.
+ */
 @Composable
 fun VolumeSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -> Unit) {
     val v = alarm.volume
+    val a = alarm.antiOversleep
     fun set(block: (VolumeSettings) -> VolumeSettings) = onChange { it.copy(volume = block(it.volume)) }
-    SectionTitle(stringResource(R.string.section_volume))
+    fun setAo(block: (AntiOversleepSettings) -> AntiOversleepSettings) = onChange { it.copy(antiOversleep = block(it.antiOversleep)) }
     SettingsGroup {
         item { shape ->
-            SliderRow(
-                title = stringResource(R.string.volume_level),
-                subtitle = stringResource(R.string.volume_level_hint),
-                valueText = if (v.level == 0) stringResource(R.string.volume_system) else "${v.level}%",
-                value = v.level.toFloat(),
-                onValueChange = { x -> set { it.copy(level = if (x < 8f) 0 else (x / 5).roundToInt() * 5) } },
-                valueRange = 0f..100f, steps = 19, shape = shape, enabled = enabled,
+            SwitchRow(
+                title = stringResource(R.string.opt_phone_volume),
+                subtitle = stringResource(R.string.opt_phone_volume_hint),
+                checked = v.level == 0,
+                onCheckedChange = { on -> set { it.copy(level = if (on) 0 else DEFAULT_LEVEL) } },
+                shape = shape, enabled = enabled,
             )
+        }
+        if (v.level != 0) {
+            item { shape ->
+                SliderRow(
+                    title = stringResource(R.string.opt_how_loud),
+                    subtitle = stringResource(R.string.opt_how_loud_hint),
+                    valueText = "${v.level}%",
+                    value = v.level.coerceIn(MIN_LEVEL, 100).toFloat(),
+                    // Never 0 from here: that is the switch above, and a drag must not reach it by accident.
+                    onValueChange = { x -> set { it.copy(level = ((x / 5).roundToInt() * 5).coerceIn(MIN_LEVEL, 100)) } },
+                    valueRange = MIN_LEVEL.toFloat()..100f, steps = (100 - MIN_LEVEL) / 5 - 1, shape = shape, enabled = enabled,
+                )
+            }
         }
         item { shape ->
             val index = FadeInSteps.indexOfFirst { it >= v.rampSeconds }.coerceAtLeast(0)
             SliderRow(
-                title = stringResource(R.string.volume_fade_in),
-                subtitle = stringResource(R.string.volume_fade_in_hint),
+                title = stringResource(R.string.opt_fade_in),
                 valueText = fadeLabel(FadeInSteps[index]),
                 value = index.toFloat(),
                 onValueChange = { x -> set { it.copy(rampSeconds = FadeInSteps[x.roundToInt().coerceIn(0, FadeInSteps.lastIndex)]) } },
@@ -149,23 +130,53 @@ fun VolumeSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -
             }
         }
         item { shape ->
-            // One control for on/off and strength: all the way left is off, otherwise how much of the boost to add.
-            val strength = v.extraLoudStrength
-            SliderRow(
+            SwitchRow(
+                title = stringResource(R.string.opt_louder),
+                subtitle = stringResource(R.string.opt_louder_hint),
+                icon = Icons.Outlined.GraphicEq,
+                checked = v.escalateWhenIgnored,
+                onCheckedChange = { on -> set { it.copy(escalateWhenIgnored = on) } },
+                shape = shape, enabled = enabled,
+            )
+        }
+        if (v.escalateWhenIgnored) {
+            item { shape ->
+                SwitchRow(
+                    title = stringResource(R.string.opt_calm_progress),
+                    subtitle = stringResource(R.string.opt_calm_progress_hint),
+                    checked = a.calmOnlyOnProgress,
+                    onCheckedChange = { on -> setAo { it.copy(calmOnlyOnProgress = on) } },
+                    shape = shape, enabled = enabled,
+                )
+            }
+        }
+        item { shape ->
+            // Chips, not a slider: off or one of a few clear steps, nothing to drag near the screen edge.
+            ChipChoiceRow(
                 title = stringResource(R.string.volume_extra_loud),
                 subtitle = stringResource(R.string.volume_extra_loud_hint),
-                valueText = if (strength == 0) stringResource(R.string.state_off) else "$strength%",
-                value = strength.toFloat(),
-                onValueChange = { x ->
-                    val percent = (x / 5).roundToInt() * 5
-                    set { if (percent <= 0) it.copy(extraLoud = false) else it.copy(extraLoud = true, extraLoudPercent = percent) }
-                },
-                valueRange = 0f..100f, steps = 19, shape = shape, enabled = enabled,
+                options = withCurrent(listOf(0, 25, 50, 75, 100), v.extraLoudStrength),
+                selected = v.extraLoudStrength,
+                onSelect = { p -> set { if (p == 0) it.copy(extraLoud = false) else it.copy(extraLoud = true, extraLoudPercent = p) } },
+                optionLabel = { if (it == 0) stringResource(R.string.state_off) else "$it%" },
+                shape = shape, enabled = enabled,
+            )
+        }
+        item { shape ->
+            val steps = listOf(0, 25, 50, 75, 100)
+            ChipChoiceRow(
+                title = stringResource(R.string.opt_floor),
+                subtitle = stringResource(R.string.opt_floor_hint),
+                options = withCurrent(steps, a.volumeFloorPercent),
+                selected = a.volumeFloorPercent,
+                onSelect = { p -> setAo { it.copy(volumeFloorPercent = p) } },
+                optionLabel = { if (it == 0) stringResource(R.string.state_off) else "$it%" },
+                shape = shape, enabled = enabled,
             )
         }
         item { shape ->
             SwitchRow(
-                title = stringResource(R.string.volume_use_max),
+                title = stringResource(R.string.opt_loudest),
                 subtitle = stringResource(R.string.volume_use_max_hint),
                 checked = v.useMaxSystemVolume,
                 onCheckedChange = { on -> set { it.copy(useMaxSystemVolume = on) } },
@@ -174,11 +185,10 @@ fun VolumeSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -
         }
         item { shape ->
             SwitchRow(
-                title = stringResource(R.string.volume_escalate),
-                subtitle = stringResource(R.string.volume_escalate_hint),
-                icon = Icons.Outlined.GraphicEq,
-                checked = v.escalateWhenIgnored,
-                onCheckedChange = { on -> set { it.copy(escalateWhenIgnored = on) } },
+                title = stringResource(R.string.opt_speaker),
+                subtitle = stringResource(R.string.opt_speaker_hint),
+                checked = a.forceSpeaker,
+                onCheckedChange = { on -> setAo { it.copy(forceSpeaker = on) } },
                 shape = shape, enabled = enabled,
             )
         }
@@ -190,8 +200,21 @@ fun VolumeSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -
     )
 }
 
+/**
+ * A chip row's steps with the alarm's own value among them, so an alarm set to a value between the steps (from an older
+ * version, or a restored file) shows what it really has and is not changed by being looked at.
+ */
+private fun withCurrent(steps: List<Int>, current: Int): List<Int> = (steps + current).distinct().sorted()
+
+private const val DEFAULT_LEVEL = 80
+private const val MIN_LEVEL = 10
+
+/**
+ * [lockedOn]: the level keeps vibration on (Normal and harder), so the switch shows that instead of offering to turn it
+ * off; patterns and strength are still the user's.
+ */
 @Composable
-fun VibrationSection(alarm: Alarm, enabled: Boolean, vibrator: AlarmVibrator, onChange: ((Alarm) -> Alarm) -> Unit) {
+fun VibrationSection(alarm: Alarm, enabled: Boolean, vibrator: AlarmVibrator, onChange: ((Alarm) -> Alarm) -> Unit, lockedOn: Boolean = false) {
     val vib = alarm.vibration
     var recording by remember { mutableStateOf(false) }
     SectionTitle(stringResource(R.string.section_vibration))
@@ -199,14 +222,18 @@ fun VibrationSection(alarm: Alarm, enabled: Boolean, vibrator: AlarmVibrator, on
         item { shape ->
             SwitchRow(
                 title = stringResource(R.string.vibration_title),
-                subtitle = if (vibrator.isAvailable) null else stringResource(R.string.vibration_unavailable),
+                subtitle = when {
+                    !vibrator.isAvailable -> stringResource(R.string.vibration_unavailable)
+                    lockedOn -> stringResource(R.string.defaults_vibration_owned)
+                    else -> null
+                },
                 icon = Icons.Outlined.Vibration,
-                checked = vib.enabled,
+                checked = vib.enabled || lockedOn,
                 onCheckedChange = { on -> onChange { it.copy(vibration = it.vibration.copy(enabled = on)) } },
-                shape = shape, enabled = enabled && vibrator.isAvailable,
+                shape = shape, enabled = enabled && vibrator.isAvailable && !lockedOn,
             )
         }
-        if (vib.enabled) {
+        if (vib.enabled || lockedOn) {
             item { shape ->
                 ChipChoiceRow(
                     title = stringResource(R.string.vibration_pattern),
@@ -335,17 +362,16 @@ fun SnoozeSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -
     }
 }
 
+/** "Still up?": the check a few minutes after the alarm was stopped. */
 @Composable
-fun WakeCheckSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -> Unit) {
+fun StillUpSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -> Unit) {
     val w = alarm.wakeCheck
-    fun set(block: (com.riyadm.wakenudge.domain.model.WakeCheckSettings) -> com.riyadm.wakenudge.domain.model.WakeCheckSettings) =
-        onChange { it.copy(wakeCheck = block(it.wakeCheck)) }
-    SectionTitle(stringResource(R.string.section_wake_check))
+    fun set(block: (WakeCheckSettings) -> WakeCheckSettings) = onChange { it.copy(wakeCheck = block(it.wakeCheck)) }
     SettingsGroup {
         item { shape ->
             SwitchRow(
-                title = stringResource(R.string.wake_check_title),
-                subtitle = stringResource(R.string.wake_check_hint),
+                title = stringResource(R.string.opt_check),
+                subtitle = stringResource(R.string.opt_check_hint),
                 icon = Icons.Outlined.NotificationsActive,
                 checked = w.enabled,
                 onCheckedChange = { on -> set { it.copy(enabled = on) } },
@@ -355,7 +381,7 @@ fun WakeCheckSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm
         if (w.enabled) {
             item { shape ->
                 StepperRow(
-                    title = stringResource(R.string.wake_check_delay),
+                    title = stringResource(R.string.opt_check_after),
                     valueText = minutesLabel(w.delayMinutes),
                     onMinus = { set { it.copy(delayMinutes = (w.delayMinutes - 1).coerceAtLeast(1)) } },
                     onPlus = { set { it.copy(delayMinutes = (w.delayMinutes + 1).coerceAtMost(30)) } },
@@ -363,13 +389,24 @@ fun WakeCheckSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm
                 )
             }
             item { shape ->
-                SliderRow(
+                SwitchRow(
+                    title = stringResource(R.string.opt_check_proof),
+                    subtitle = stringResource(R.string.opt_check_proof_hint),
+                    checked = w.requireProof,
+                    onCheckedChange = { on -> set { it.copy(requireProof = on) } },
+                    shape = shape, enabled = enabled,
+                )
+            }
+            item { shape ->
+                val steps = listOf(15, 30, 60, 90, 120, 180, 300)
+                ChipChoiceRow(
                     title = stringResource(R.string.wake_check_response),
                     subtitle = stringResource(R.string.wake_check_response_hint),
-                    valueText = stringResource(R.string.unit_seconds, w.responseSeconds),
-                    value = w.responseSeconds.toFloat(),
-                    onValueChange = { x -> set { it.copy(responseSeconds = (x / 15).roundToInt() * 15) } },
-                    valueRange = 15f..300f, steps = 18, shape = shape, enabled = enabled,
+                    options = withCurrent(steps, w.responseSeconds),
+                    selected = w.responseSeconds,
+                    onSelect = { sec -> set { it.copy(responseSeconds = sec) } },
+                    optionLabel = { fadeLabel(it) },
+                    shape = shape, enabled = enabled,
                 )
             }
             item { shape ->
@@ -388,43 +425,55 @@ fun WakeCheckSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm
                     subtitle = stringResource(R.string.wake_check_rerings_hint),
                     valueText = w.maxReRings.toString(),
                     onMinus = { set { it.copy(maxReRings = (w.maxReRings - 1).coerceAtLeast(1)) } },
-                    onPlus = { set { it.copy(maxReRings = (w.maxReRings + 1).coerceAtMost(5)) } },
-                    canMinus = w.maxReRings > 1, canPlus = w.maxReRings < 5, shape = shape, enabled = enabled,
+                    onPlus = { set { it.copy(maxReRings = (w.maxReRings + 1).coerceAtMost(MAX_RE_RINGS)) } },
+                    canMinus = w.maxReRings > 1, canPlus = w.maxReRings < MAX_RE_RINGS, shape = shape, enabled = enabled,
                 )
             }
         }
     }
 }
 
+/** What a restored file may hold (BackupSanitizer), and what Hard and No mercy use. */
+private const val MAX_RE_RINGS = 10
+
+private enum class WayOutChoice { HOLD, TASKS, NONE }
+
+/**
+ * How it ends: ringing for ever or not, the hold, the way out without the mission, the backup mission and the backup ring.
+ * The way out can be removed only on an alarm with a mission that had a finished rehearsal ([protection]).
+ */
 @Composable
-fun AntiOversleepSection(
-    alarm: Alarm,
-    enabled: Boolean,
-    onChange: ((Alarm) -> Alarm) -> Unit,
-    showTitle: Boolean = true,
-    protection: ProtectionLink? = null,
-) {
+fun StoppingSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -> Unit, protection: ProtectionLink?) {
     val a = alarm.antiOversleep
-    fun set(block: (com.riyadm.wakenudge.domain.model.AntiOversleepSettings) -> com.riyadm.wakenudge.domain.model.AntiOversleepSettings) =
-        onChange { it.copy(antiOversleep = block(it.antiOversleep)) }
-    var confirmEmergencyOff by remember { mutableStateOf(false) }
-    var confirmWayOutNone by remember { mutableStateOf(false) }
-    if (showTitle) SectionTitle(stringResource(R.string.section_anti_oversleep))
+    fun set(block: (AntiOversleepSettings) -> AntiOversleepSettings) = onChange { it.copy(antiOversleep = block(it.antiOversleep)) }
+    var confirmNone by remember { mutableStateOf(false) }
+    val hasMission = alarm.missions.isNotEmpty()
     SettingsGroup {
         item { shape ->
+            val never = a.ringTimeoutMinutes == AntiOversleepSettings.RING_TIMEOUT_NEVER
             SwitchRow(
-                title = stringResource(R.string.ao_emergency_stop),
-                subtitle = stringResource(if (a.emergencyStopEnabled) R.string.ao_emergency_stop_on else R.string.ao_emergency_stop_off),
-                icon = Icons.Outlined.Shield,
-                checked = a.emergencyStopEnabled,
-                // Switching it ON is always safe and immediate; switching it OFF makes the alarm strict, so ask first.
-                onCheckedChange = { on -> if (on) set { it.copy(emergencyStopEnabled = true) } else confirmEmergencyOff = true },
+                title = stringResource(R.string.opt_keep_ringing),
+                subtitle = stringResource(R.string.opt_keep_ringing_hint),
+                checked = never,
+                onCheckedChange = { on -> set { it.copy(ringTimeoutMinutes = if (on) AntiOversleepSettings.RING_TIMEOUT_NEVER else DEFAULT_TIMEOUT) } },
                 shape = shape, enabled = enabled,
             )
         }
+        if (a.ringTimeoutMinutes != AntiOversleepSettings.RING_TIMEOUT_NEVER) {
+            item { shape ->
+                // 1 to 30 minutes; "for ever" is the switch above, never a step below 1.
+                StepperRow(
+                    title = stringResource(R.string.opt_stop_after),
+                    valueText = minutesLabel(a.ringTimeoutMinutes),
+                    onMinus = { set { it.copy(ringTimeoutMinutes = (a.ringTimeoutMinutes - 1).coerceAtLeast(1)) } },
+                    onPlus = { set { it.copy(ringTimeoutMinutes = (a.ringTimeoutMinutes + 1).coerceAtMost(30)) } },
+                    canMinus = a.ringTimeoutMinutes > 1, canPlus = a.ringTimeoutMinutes < 30, shape = shape, enabled = enabled,
+                )
+            }
+        }
         item { shape ->
             StepperRow(
-                title = stringResource(R.string.ao_hold),
+                title = stringResource(R.string.opt_hold),
                 subtitle = stringResource(R.string.ao_hold_hint),
                 valueText = if (a.holdToDismissSeconds == 0) stringResource(R.string.state_off) else stringResource(R.string.unit_seconds, a.holdToDismissSeconds),
                 onMinus = { set { it.copy(holdToDismissSeconds = (a.holdToDismissSeconds - 1).coerceAtLeast(0)) } },
@@ -432,10 +481,92 @@ fun AntiOversleepSection(
                 canMinus = a.holdToDismissSeconds > 0, canPlus = a.holdToDismissSeconds < 10, shape = shape, enabled = enabled,
             )
         }
+    }
+    // The way out and its backup exist only on an alarm with a mission: without one, stopping it is one gesture anyway.
+    if (hasMission) {
+        SettingsGroup(Modifier.padding(top = 8.dp)) {
+            item { shape ->
+                val rehearsed = protection?.rehearsed?.invoke(alarm) == true
+                val current = when {
+                    a.wayOutRemoved -> WayOutChoice.NONE
+                    a.emergencyStopEnabled -> WayOutChoice.HOLD
+                    else -> WayOutChoice.TASKS
+                }
+                val options = buildList {
+                    add(WayOutChoice.HOLD)
+                    add(WayOutChoice.TASKS)
+                    // None needs a finished rehearsal of these missions; once chosen it can always be taken back.
+                    if (protection != null && (rehearsed || a.wayOutRemoved)) add(WayOutChoice.NONE)
+                }
+                ChipChoiceRow(
+                    title = stringResource(R.string.opt_way_out),
+                    subtitle = stringResource(
+                        when {
+                            current == WayOutChoice.NONE -> R.string.ao_way_out_none_hint
+                            protection != null && !rehearsed -> R.string.ao_way_out_none_locked
+                            else -> R.string.opt_way_out_hint
+                        },
+                    ),
+                    options = options,
+                    selected = current,
+                    onSelect = { choice ->
+                        when (choice) {
+                            WayOutChoice.HOLD -> set { it.copy(emergencyStopEnabled = true, wayOutRemoved = false) }
+                            WayOutChoice.TASKS -> set { it.copy(emergencyStopEnabled = false, wayOutRemoved = false) }
+                            WayOutChoice.NONE -> if (!a.wayOutRemoved) confirmNone = true
+                        }
+                    },
+                    optionLabel = {
+                        stringResource(
+                            when (it) {
+                                WayOutChoice.HOLD -> R.string.opt_way_out_hold
+                                WayOutChoice.TASKS -> R.string.opt_way_out_tasks
+                                WayOutChoice.NONE -> R.string.opt_way_out_none
+                            },
+                        )
+                    },
+                    shape = shape, enabled = enabled,
+                )
+            }
+            if (!a.emergencyStopEnabled && !a.wayOutRemoved) {
+                item { shape ->
+                    val steps = listOf(0, 1, 3, 5, 10, 15, 20, 30)
+                    ChipChoiceRow(
+                        title = stringResource(R.string.opt_way_out_after),
+                        options = withCurrent(steps, a.wayOutDelayMinutes),
+                        selected = a.wayOutDelayMinutes,
+                        onSelect = { m -> set { it.copy(wayOutDelayMinutes = m) } },
+                        optionLabel = { if (it == 0) stringResource(R.string.opt_way_out_now) else minutesLabel(it) },
+                        shape = shape, enabled = enabled,
+                    )
+                }
+            }
+            item { shape ->
+                StepperRow(
+                    title = stringResource(R.string.opt_way_out_count),
+                    valueText = a.wayOutCount.toString(),
+                    onMinus = { set { it.copy(wayOutCount = (a.wayOutCount - 1).coerceAtLeast(MIN_WAY_OUT)) } },
+                    onPlus = { set { it.copy(wayOutCount = (a.wayOutCount + 1).coerceAtMost(MAX_WAY_OUT)) } },
+                    canMinus = a.wayOutCount > MIN_WAY_OUT, canPlus = a.wayOutCount < MAX_WAY_OUT, shape = shape, enabled = enabled,
+                )
+            }
+            item { shape ->
+                StepperRow(
+                    title = stringResource(R.string.opt_fallback),
+                    subtitle = stringResource(R.string.opt_fallback_hint),
+                    valueText = pluralStringResource(R.plurals.opt_fallback_value, a.fallbackCount, a.fallbackCount),
+                    onMinus = { set { it.copy(fallbackCount = (a.fallbackCount - 1).coerceAtLeast(1)) } },
+                    onPlus = { set { it.copy(fallbackCount = (a.fallbackCount + 1).coerceAtMost(MAX_FALLBACK)) } },
+                    canMinus = a.fallbackCount > 1, canPlus = a.fallbackCount < MAX_FALLBACK, shape = shape, enabled = enabled,
+                )
+            }
+        }
+    }
+    SettingsGroup(Modifier.padding(top = 8.dp)) {
         item { shape ->
             SwitchRow(
-                title = stringResource(R.string.ao_backup),
-                subtitle = stringResource(R.string.ao_backup_hint),
+                title = stringResource(R.string.opt_backup),
+                subtitle = stringResource(R.string.opt_backup_hint),
                 checked = a.backupEnabled,
                 onCheckedChange = { on -> set { it.copy(backupEnabled = on) } },
                 shape = shape, enabled = enabled,
@@ -444,7 +575,7 @@ fun AntiOversleepSection(
         if (a.backupEnabled) {
             item { shape ->
                 StepperRow(
-                    title = stringResource(R.string.ao_backup_delay),
+                    title = stringResource(R.string.opt_backup_after),
                     valueText = minutesLabel(a.backupDelayMinutes),
                     onMinus = { set { it.copy(backupDelayMinutes = (a.backupDelayMinutes - 1).coerceAtLeast(1)) } },
                     onPlus = { set { it.copy(backupDelayMinutes = (a.backupDelayMinutes + 1).coerceAtMost(30)) } },
@@ -453,7 +584,7 @@ fun AntiOversleepSection(
             }
             item { shape ->
                 StepperRow(
-                    title = stringResource(R.string.ao_backup_count),
+                    title = stringResource(R.string.opt_backup_times),
                     valueText = a.backupCount.toString(),
                     onMinus = { set { it.copy(backupCount = (a.backupCount - 1).coerceAtLeast(1)) } },
                     onPlus = { set { it.copy(backupCount = (a.backupCount + 1).coerceAtMost(3)) } },
@@ -461,89 +592,218 @@ fun AntiOversleepSection(
                 )
             }
         }
-        item { shape ->
-            val neverValue = com.riyadm.wakenudge.domain.model.AntiOversleepSettings.RING_TIMEOUT_NEVER
-            val never = a.ringTimeoutMinutes == neverValue
-            StepperRow(
-                title = stringResource(R.string.ao_timeout),
-                subtitle = stringResource(if (never) R.string.ao_timeout_hint_never else R.string.ao_timeout_hint),
-                valueText = if (never) stringResource(R.string.ao_timeout_never) else minutesLabel(a.ringTimeoutMinutes),
-                onMinus = { set { it.copy(ringTimeoutMinutes = (a.ringTimeoutMinutes - 1).coerceAtLeast(neverValue)) } },
-                onPlus = { set { it.copy(ringTimeoutMinutes = (a.ringTimeoutMinutes + 1).coerceAtMost(30)) } },
-                canMinus = !never, canPlus = a.ringTimeoutMinutes < 30, shape = shape, enabled = enabled,
-            )
-        }
-        item { shape ->
-            // Up to 12 hours, so the lock can cover the night before as well as the last minutes.
-            val steps = listOf(0, 5, 10, 15, 30, 60, 120, 240, 480, 720)
-            val res = androidx.compose.ui.platform.LocalResources.current
-            ChipChoiceRow(
-                title = stringResource(R.string.ao_edit_lock),
-                subtitle = stringResource(R.string.ao_edit_lock_hint),
-                options = steps,
-                selected = steps.minByOrNull { kotlin.math.abs(it - a.editLockMinutes) } ?: 0,
-                onSelect = { m -> set { it.copy(editLockMinutes = m) } },
-                optionLabel = { if (it == 0) stringResource(R.string.state_off) else com.riyadm.wakenudge.ui.util.LockText.duration(res, it) },
-                shape = shape, enabled = enabled,
-            )
-        }
-    }
-    if (protection != null) {
-        SettingsGroup(Modifier.padding(top = 8.dp)) {
-            // The way out exists only on an alarm with a mission, so only there can it be removed.
-            if (alarm.missions.isNotEmpty()) {
-                item { shape ->
-                    val rehearsed = protection.rehearsed(alarm)
-                    SwitchRow(
-                        title = stringResource(R.string.ao_way_out_none),
-                        subtitle = stringResource(if (rehearsed || a.wayOutRemoved) R.string.ao_way_out_none_hint else R.string.ao_way_out_none_locked),
-                        icon = Icons.Outlined.Shield,
-                        checked = a.wayOutRemoved,
-                        // Putting the way out back is always allowed at once; removing it needs a rehearsal and a warning.
-                        onCheckedChange = { on -> if (!on) set { it.copy(wayOutRemoved = false) } else if (rehearsed) confirmWayOutNone = true },
-                        shape = shape, enabled = enabled && (rehearsed || a.wayOutRemoved),
-                    )
-                }
-            }
-            item { shape -> NavRow(stringResource(R.string.protection_open_from_editor), shape, protection.open, icon = Icons.Outlined.Shield) }
-        }
-    }
-    if (confirmWayOutNone) {
-        val restarts = a.maxResumes.coerceIn(1, com.riyadm.wakenudge.domain.model.AntiOversleepSettings.MAX_RESUMES_LIMIT)
-        com.riyadm.wakenudge.ui.components.ConfirmDialog(
-            title = stringResource(R.string.ao_way_out_none_title),
-            text = androidx.compose.ui.res.pluralStringResource(R.plurals.ao_way_out_none_body, restarts, restarts),
-            confirmLabel = stringResource(R.string.ao_way_out_none_confirm),
-            onConfirm = { set { it.copy(wayOutRemoved = true) }; confirmWayOutNone = false },
-            onDismiss = { confirmWayOutNone = false },
-            destructive = true,
-        )
     }
     Text(
         stringResource(if (a.emergencyStopEnabled) R.string.ao_emergency_note else R.string.ao_emergency_note_off),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
     )
-    if (confirmEmergencyOff) {
-        com.riyadm.wakenudge.ui.components.ConfirmDialog(
-            title = stringResource(R.string.ao_emergency_off_title),
-            text = stringResource(R.string.ao_emergency_off_body),
-            confirmLabel = stringResource(R.string.ao_emergency_off_confirm),
-            onConfirm = { set { it.copy(emergencyStopEnabled = false) }; confirmEmergencyOff = false },
-            onDismiss = { confirmEmergencyOff = false },
+    if (confirmNone) {
+        val restarts = a.maxResumes.coerceIn(1, AntiOversleepSettings.MAX_RESUMES_LIMIT)
+        ConfirmDialog(
+            title = stringResource(R.string.ao_way_out_none_title),
+            text = pluralStringResource(R.plurals.ao_way_out_none_body, restarts, restarts),
+            confirmLabel = stringResource(R.string.ao_way_out_none_confirm),
+            onConfirm = { set { it.copy(wayOutRemoved = true) }; confirmNone = false },
+            onDismiss = { confirmNone = false },
             destructive = true,
         )
     }
 }
 
+private const val DEFAULT_TIMEOUT = 10
+private const val MIN_WAY_OUT = 3
+private const val MAX_WAY_OUT = 30
+private const val MAX_FALLBACK = 20
+
+private enum class ReturnChoice { OFF, ALERT, FORCE }
+
+/** What happens when someone tries to get away from the alarm: leaving its screen, the keys, mutes, restarts, edits. */
 @Composable
-fun SunriseSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -> Unit) {
+fun LeavingSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -> Unit, protection: ProtectionLink?) {
+    val a = alarm.antiOversleep
+    val res = LocalResources.current
+    fun set(block: (AntiOversleepSettings) -> AntiOversleepSettings) = onChange { it.copy(antiOversleep = block(it.antiOversleep)) }
+    SettingsGroup {
+        item { shape ->
+            val current = when {
+                !a.returnToAlarm -> ReturnChoice.OFF
+                a.forceReturn -> ReturnChoice.FORCE
+                else -> ReturnChoice.ALERT
+            }
+            ChipChoiceRow(
+                title = stringResource(R.string.opt_return),
+                subtitle = stringResource(
+                    when (current) {
+                        ReturnChoice.OFF -> R.string.opt_return_hint_off
+                        ReturnChoice.ALERT -> R.string.opt_return_hint_alert
+                        ReturnChoice.FORCE -> R.string.opt_return_hint_force
+                    },
+                ),
+                options = ReturnChoice.entries.toList(),
+                selected = current,
+                onSelect = { c ->
+                    set {
+                        when (c) {
+                            ReturnChoice.OFF -> it.copy(returnToAlarm = false, forceReturn = false)
+                            ReturnChoice.ALERT -> it.copy(returnToAlarm = true, forceReturn = false)
+                            ReturnChoice.FORCE -> it.copy(returnToAlarm = true, forceReturn = true)
+                        }
+                    }
+                },
+                optionLabel = {
+                    stringResource(
+                        when (it) {
+                            ReturnChoice.OFF -> R.string.opt_return_off
+                            ReturnChoice.ALERT -> R.string.opt_return_alert
+                            ReturnChoice.FORCE -> R.string.opt_return_force
+                        },
+                    )
+                },
+                shape = shape, enabled = enabled,
+            )
+        }
+        item { shape ->
+            ChipChoiceRow(
+                title = stringResource(R.string.opt_volume_keys),
+                options = VolumeKeyAction.entries.toList(),
+                selected = a.volumeKeyAction,
+                onSelect = { k -> set { it.copy(volumeKeyAction = k) } },
+                optionLabel = { stringResource(volumeKeyLabel(it)) },
+                shape = shape, enabled = enabled,
+            )
+        }
+        item { shape ->
+            StepperRow(
+                title = stringResource(R.string.opt_mute),
+                valueText = if (a.muteBudget == 0) stringResource(R.string.opt_mute_off) else pluralStringResource(R.plurals.opt_mute_times, a.muteBudget, a.muteBudget),
+                onMinus = { set { it.copy(muteBudget = (a.muteBudget - 1).coerceAtLeast(0)) } },
+                onPlus = { set { it.copy(muteBudget = (a.muteBudget + 1).coerceAtMost(MAX_MUTES)) } },
+                canMinus = a.muteBudget > 0, canPlus = a.muteBudget < MAX_MUTES, shape = shape, enabled = enabled,
+            )
+        }
+        if (a.muteBudget > 0) {
+            item { shape ->
+                StepperRow(
+                    title = stringResource(R.string.opt_mute_length),
+                    valueText = stringResource(R.string.unit_seconds, a.muteSeconds),
+                    onMinus = { set { it.copy(muteSeconds = (a.muteSeconds - 5).coerceAtLeast(5)) } },
+                    onPlus = { set { it.copy(muteSeconds = (a.muteSeconds + 5).coerceAtMost(60)) } },
+                    canMinus = a.muteSeconds > 5, canPlus = a.muteSeconds < 60, shape = shape, enabled = enabled,
+                )
+            }
+        }
+    }
+    SettingsGroup(Modifier.padding(top = 8.dp)) {
+        item { shape ->
+            val steps = listOf(10, 30, 60, 120, 360, 720, 1_440)
+            ChipChoiceRow(
+                title = stringResource(R.string.opt_restart),
+                subtitle = stringResource(R.string.opt_restart_hint),
+                options = withCurrent(steps, a.resumeWindowMinutes),
+                selected = a.resumeWindowMinutes,
+                onSelect = { m -> set { it.copy(resumeWindowMinutes = m) } },
+                optionLabel = { LockText.duration(res, it) },
+                shape = shape, enabled = enabled,
+            )
+        }
+        item { shape ->
+            StepperRow(
+                title = stringResource(R.string.opt_restart_times),
+                valueText = a.maxResumes.toString(),
+                onMinus = { set { it.copy(maxResumes = (a.maxResumes - 1).coerceAtLeast(1)) } },
+                onPlus = { set { it.copy(maxResumes = (a.maxResumes + 1).coerceAtMost(AntiOversleepSettings.MAX_RESUMES_LIMIT)) } },
+                canMinus = a.maxResumes > 1, canPlus = a.maxResumes < AntiOversleepSettings.MAX_RESUMES_LIMIT, shape = shape, enabled = enabled,
+            )
+        }
+        item { shape ->
+            // Up to 12 hours, so the lock can cover the night before as well as the last minutes.
+            val steps = listOf(0, 5, 10, 15, 30, 60, 120, 240, 480, 720)
+            ChipChoiceRow(
+                title = stringResource(R.string.opt_lock),
+                subtitle = stringResource(R.string.opt_lock_hint),
+                options = withCurrent(steps, a.editLockMinutes),
+                selected = a.editLockMinutes,
+                onSelect = { m -> set { it.copy(editLockMinutes = m) } },
+                optionLabel = { if (it == 0) stringResource(R.string.state_off) else LockText.duration(res, it) },
+                shape = shape, enabled = enabled,
+            )
+        }
+        if (a.editLockMinutes > 0 && alarm.missions.isNotEmpty()) {
+            item { shape ->
+                SwitchRow(
+                    title = stringResource(R.string.opt_lock_mission),
+                    subtitle = stringResource(R.string.opt_lock_mission_hint),
+                    checked = a.lockOverrideMission,
+                    onCheckedChange = { on -> set { it.copy(lockOverrideMission = on) } },
+                    shape = shape, enabled = enabled,
+                )
+            }
+        }
+        if (protection != null) {
+            item { shape -> NavRow(stringResource(R.string.protection_open_from_editor), shape, protection.open, icon = Icons.Outlined.Shield) }
+        }
+    }
+}
+
+private const val MAX_MUTES = 5
+
+internal fun volumeKeyLabel(a: VolumeKeyAction) = when (a) {
+    VolumeKeyAction.VOLUME -> R.string.vk_volume
+    VolumeKeyAction.SNOOZE -> R.string.vk_snooze
+    VolumeKeyAction.DISMISS -> R.string.vk_dismiss
+    VolumeKeyAction.SILENCE_TEMPORARILY -> R.string.vk_silence
+    VolumeKeyAction.NOTHING -> R.string.vk_nothing
+}
+
+/** Spoken time, the screen's glow before the alarm and its brightness while it rings. */
+@Composable
+fun LightSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -> Unit) {
+    val voice = alarm.voice
     val s = alarm.sunrise
-    SectionTitle(stringResource(R.string.section_sunrise))
     SettingsGroup {
         item { shape ->
             SwitchRow(
-                title = stringResource(R.string.sunrise_title),
+                title = stringResource(R.string.opt_say_time),
+                subtitle = stringResource(R.string.voice_subtitle),
+                icon = Icons.Outlined.Campaign,
+                checked = voice.enabled,
+                onCheckedChange = { on -> onChange { it.copy(voice = it.voice.copy(enabled = on)) } },
+                shape = shape, enabled = enabled,
+            )
+        }
+        if (voice.enabled) {
+            item { shape ->
+                SwitchRow(
+                    title = stringResource(R.string.voice_announce_time),
+                    checked = voice.announceTime,
+                    onCheckedChange = { on -> onChange { it.copy(voice = it.voice.copy(announceTime = on)) } },
+                    shape = shape, enabled = enabled,
+                )
+            }
+            item { shape ->
+                SwitchRow(
+                    title = stringResource(R.string.voice_announce_label),
+                    checked = voice.announceLabel,
+                    onCheckedChange = { on -> onChange { it.copy(voice = it.voice.copy(announceLabel = on)) } },
+                    shape = shape, enabled = enabled,
+                )
+            }
+            item { shape ->
+                val steps = listOf(15, 30, 45, 60, 90, 120)
+                ChipChoiceRow(
+                    title = stringResource(R.string.voice_repeat),
+                    options = withCurrent(steps, voice.repeatSeconds),
+                    selected = voice.repeatSeconds,
+                    onSelect = { sec -> onChange { it.copy(voice = it.voice.copy(repeatSeconds = sec)) } },
+                    optionLabel = { fadeLabel(it) },
+                    shape = shape, enabled = enabled,
+                )
+            }
+        }
+        item { shape ->
+            SwitchRow(
+                title = stringResource(R.string.opt_glow),
                 subtitle = stringResource(R.string.sunrise_hint),
                 icon = Icons.Outlined.WbTwilight,
                 checked = s.enabled,
@@ -562,13 +822,35 @@ fun SunriseSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) 
                 )
             }
         }
+        item { shape ->
+            SwitchRow(
+                title = stringResource(R.string.opt_bright),
+                icon = Icons.Outlined.LightMode,
+                checked = alarm.antiOversleep.fullBrightness,
+                onCheckedChange = { on -> onChange { it.copy(antiOversleep = it.antiOversleep.copy(fullBrightness = on)) } },
+                shape = shape, enabled = enabled,
+            )
+        }
     }
 }
 
+/** When the alarm applies: its group, holidays, vacation, a heads-up and deleting a one-time alarm after use. */
 @Composable
-fun ExtrasSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -> Unit, showTitle: Boolean = true) {
-    if (showTitle) SectionTitle(stringResource(R.string.section_extras))
+fun ExtrasSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -> Unit, groups: List<com.riyadm.wakenudge.domain.model.AlarmGroup> = emptyList()) {
     SettingsGroup {
+        if (groups.isNotEmpty()) {
+            item { shape ->
+                val options = listOf<Long?>(null) + groups.map { it.id }
+                ChipChoiceRow(
+                    title = stringResource(R.string.edit_group),
+                    options = options,
+                    selected = alarm.groupId?.takeIf { id -> groups.any { it.id == id } },
+                    onSelect = { g -> onChange { it.copy(groupId = g) } },
+                    optionLabel = { id -> if (id == null) stringResource(R.string.group_none) else groups.first { it.id == id }.name },
+                    shape = shape, enabled = enabled,
+                )
+            }
+        }
         if (alarm.isRepeating) {
             item { shape ->
                 SwitchRow(
@@ -590,12 +872,11 @@ fun ExtrasSection(alarm: Alarm, enabled: Boolean, onChange: ((Alarm) -> Alarm) -
             )
         }
         item { shape ->
-            val options = listOf(0, 15, 30, 60, 120)
             ChipChoiceRow(
                 title = stringResource(R.string.extras_upcoming),
                 subtitle = stringResource(R.string.extras_upcoming_hint),
-                options = options,
-                selected = options.minByOrNull { kotlin.math.abs(it - alarm.upcomingNoticeMinutes) } ?: 0,
+                options = withCurrent(listOf(0, 15, 30, 60, 120), alarm.upcomingNoticeMinutes),
+                selected = alarm.upcomingNoticeMinutes,
                 onSelect = { m -> onChange { it.copy(upcomingNoticeMinutes = m) } },
                 optionLabel = { if (it == 0) stringResource(R.string.state_off) else minutesLabel(it) },
                 shape = shape, enabled = enabled,

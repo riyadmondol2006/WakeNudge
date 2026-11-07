@@ -21,6 +21,13 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.riyadm.wakenudge.domain.model.Hardness
+import com.riyadm.wakenudge.domain.model.HardnessPresets
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -103,6 +110,26 @@ fun AlarmEditScreen(
     var afterSave by remember { mutableStateOf<AlarmEditViewModel.AfterSave?>(null) }
     val screenReader = com.riyadm.wakenudge.missions.ui.rememberScreenReaderOn()
     val expanded = rememberExpandedCategories()
+    var missionOpen by rememberSaveable { mutableStateOf(false) }
+    var moreOpen by rememberSaveable { mutableStateOf(false) }
+    var confirmNoMercy by remember { mutableStateOf(false) }
+    val stepsLeft by viewModel.protectionStepsLeft.collectAsStateWithLifecycle()
+    LifecycleResumeEffect(Unit) {
+        viewModel.refreshProtection()
+        onPauseOrDispose { }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.editNotices.collect { notice ->
+            snackbar.showSnackbar(
+                when (notice) {
+                    is EditNotice.Moved -> resources.getString(if (notice.to == Hardness.EASY) R.string.level_moved_easy else R.string.level_moved_normal)
+                    is EditNotice.NeedsMission -> resources.getString(R.string.level_needs_mission, resources.getString(levelName(notice.level)))
+                    EditNotice.MissionsSetAside -> resources.getString(R.string.level_easy_removes)
+                },
+                withDismissAction = true,
+            )
+        }
+    }
 
     BackHandler(enabled = state.dirty) { confirmDiscard = true }
 
@@ -163,6 +190,7 @@ fun AlarmEditScreen(
         val update = viewModel::update
         val is24 = rememberIs24Hour(settings.timeFormat)
         val firstDay = settings.firstDayOfWeek(WeekFields.of(currentLocale()).firstDayOfWeek)
+        val level = HardnessPresets.levelOf(alarm)
 
         LazyColumn(
             modifier = Modifier.fillMaxSize().imePadding(),
@@ -173,8 +201,7 @@ fun AlarmEditScreen(
             if (lock != null && !state.lockOverridden) {
                 item { LockBanner(lock, byMission = alarm.overridesLockByMission, onUnlock = { showOverride = true }) }
             }
-            item { TimeCard(alarm, state.upcoming, is24, enabled, update) }
-            item { ScheduleCard(alarm, firstDay, enabled, update) }
+            // The main editor, in order: label, time, repeat, how hard, mission, sound. Everything else is in More options.
             item {
                 OutlinedTextField(
                     value = alarm.label,
@@ -183,34 +210,60 @@ fun AlarmEditScreen(
                     singleLine = true,
                     enabled = enabled,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 )
             }
-            if (groups.isNotEmpty()) {
-                item {
-                    SettingsGroup {
-                        item { shape ->
-                            val options = listOf<Long?>(null) + groups.map { it.id }
-                            com.riyadm.wakenudge.ui.components.ChipChoiceRow(
-                                title = stringResource(R.string.edit_group),
-                                options = options,
-                                selected = alarm.groupId,
-                                onSelect = { g -> update { it.copy(groupId = g) } },
-                                optionLabel = { id -> if (id == null) stringResource(R.string.group_none) else groups.first { it.id == id }.name },
-                                shape = shape, enabled = enabled,
-                            )
-                        }
-                    }
-                }
+            item { TimeCard(alarm, state.upcoming, is24, enabled, update) }
+            item { ScheduleCard(alarm, firstDay, enabled, update) }
+            item(key = "how-hard") {
+                HowHardCard(
+                    selected = level,
+                    enabled = enabled,
+                    onPick = { picked ->
+                        if (picked == Hardness.NO_MERCY && !settings.noMercyConfirmed) confirmNoMercy = true else viewModel.pickLevel(picked)
+                    },
+                    stepsLeft = stepsLeft,
+                    onOpenProtection = onOpenProtection,
+                )
             }
-            alarmCategories(
-                alarm = alarm, enabled = enabled, expanded = expanded,
-                options = CategoryOptions(perAlarm = true, missionSlots = missionSlots, protection = ProtectionLink(viewModel::isRehearsed, onOpenProtection)),
-                previewer = viewModel.soundPreviewer, vibrator = viewModel.vibrator, onChange = update,
-            )
+            item(key = "mission") {
+                CategoryCard(
+                    icon = Icons.Outlined.TaskAlt,
+                    title = stringResource(R.string.edit_mission_row),
+                    summary = missionSummary(alarm),
+                    expanded = missionOpen,
+                    onToggle = { missionOpen = !missionOpen },
+                ) { missionSlots.missions(alarm, enabled, update) }
+            }
+            item(key = "sound") { SoundRow(alarm, enabled, viewModel.soundPreviewer, update) }
+            item(key = "more") {
+                CategoryCard(
+                    icon = Icons.Outlined.Tune,
+                    title = stringResource(R.string.edit_more_options),
+                    summary = stringResource(R.string.edit_more_options_hint),
+                    expanded = moreOpen,
+                    onToggle = { moreOpen = !moreOpen },
+                ) {}
+            }
+            if (moreOpen) {
+                alarmCategories(
+                    alarm = alarm, enabled = enabled, expanded = expanded,
+                    options = CategoryOptions(missionSlots = missionSlots, protection = ProtectionLink(viewModel::isRehearsed, onOpenProtection), groups = groups),
+                    vibrator = viewModel.vibrator, onChange = update,
+                )
+            }
         }
     }
 
+    if (confirmNoMercy) {
+        ConfirmDialog(
+            title = stringResource(R.string.level_no_mercy_title),
+            text = stringResource(R.string.level_no_mercy_body),
+            confirmLabel = stringResource(R.string.level_no_mercy_confirm),
+            onConfirm = { confirmNoMercy = false; viewModel.confirmNoMercy() },
+            onDismiss = { confirmNoMercy = false },
+        )
+    }
     if (confirmDiscard) {
         ConfirmDialog(
             title = stringResource(R.string.edit_discard_title),

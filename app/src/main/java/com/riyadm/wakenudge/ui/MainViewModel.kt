@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.riyadm.wakenudge.MainActivity
 import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.model.AppSettings
+import com.riyadm.wakenudge.domain.model.Hardness
 import com.riyadm.wakenudge.domain.repository.SettingsRepository
 import com.riyadm.wakenudge.domain.usecase.AlarmActions
 import com.riyadm.wakenudge.engine.TimerController
@@ -62,7 +63,8 @@ class MainViewModel @Inject constructor(
      * someone who installed an old APK hears about the new one straight away, not on their next visit.
      */
     fun finishOnboarding() = viewModelScope.launch {
-        settingsRepo.update { it.copy(onboardingDone = true) }
+        // A new install meets the levels in onboarding and in the editor, so the list's "New: how hard" card is not for it.
+        settingsRepo.update { it.copy(onboardingDone = true, levelsCardSeen = true) }
         updates.checkIfDue()
     }
 
@@ -110,13 +112,11 @@ class MainViewModel @Inject constructor(
             .map { DayOfWeek.of(((it + 5) % 7) + 1) }
         val mask = Alarm.maskOf(days)
         if (intent.getBooleanExtra(AlarmClock.EXTRA_SKIP_UI, false)) {
+            // Easy, whatever the default level: whoever asked never saw the editor, so nothing about this alarm may
+            // surprise them in the morning.
             val defaults = settingsRepo.current().defaults
             alarmActions.save(
-                Alarm(
-                    hour = hour, minute = minute, label = label, repeatDaysMask = mask,
-                    sound = defaults.sound, volume = defaults.volume, vibration = defaults.vibration,
-                    snooze = defaults.snooze, antiOversleep = defaults.antiOversleep,
-                ),
+                defaults.newAlarm(Alarm(hour = hour, minute = minute, label = label, repeatDaysMask = mask), levelOverride = Hardness.EASY),
             )
             _commands.send(AlarmsRoute)
         } else {

@@ -40,8 +40,8 @@ phone is set up to ring.
 
 It runs entirely on your phone and follows your wallpaper colours with Material You. It never traps you: every ring and
 mission screen has an **Emergency** button that pauses the alarm so you can make a call, a mission your phone cannot do is
-replaced by a **backup mission**, and there is a **way out without the mission** (a 10-second hold by default; on a strict
-alarm it opens after a few minutes of ringing and takes a series of tasks).
+replaced by a **backup mission**, and there is a **way out without the mission** (a 10-second hold on Easy and Normal; on Hard
+and No mercy it opens after a few minutes of ringing and takes a series of tasks).
 
 ## Download
 
@@ -91,8 +91,8 @@ Real captures from a Pixel 6 Pro in the dark theme. WakeNudge also has light and
 |---|---|
 | **Ten wake-up missions** | Math, memory, typing, QR/barcode, NFC, shake, steps, squats, puzzles and photo matching. Chain several, pick the difficulty, preview each one. |
 | **Still-awake check** | Dismissed and went back to sleep? WakeNudge asks "Still awake?" after 1 to 30 minutes and rings again if you do not answer. It survives restarts. |
-| **Loud, then louder** | An **Extra Loud strength slider** (you choose how much punch to add), a volume ramp of up to 10 minutes, and a sound that intensifies after 40 seconds without interaction. A separate **backup alarm** rings later if nothing happens. |
-| **Anti-oversleep, with an exit** | Snooze limits (optionally shrinking), hold-to-dismiss, accidental-dismissal protection and an optional edit lock before the alarm. The **way out without the mission** is a 10-second hold by default; **strict alarms** make it open only after a few minutes of ringing and ask for a series of tasks, and can turn snooze off. A mission your phone cannot do (no camera, refused permission, a dead sensor, a black camera) is replaced by a **backup mission**, never skipped. **Emergency**, on every ring, pauses the alarm for a call. An ignored alarm stops after its ring timeout, or, set to **Never**, rings until you deal with it. The edit lock (up to 12 hours before) also covers vacation, profiles, exception days and restoring a backup. **Settings, Protection** walks you through the rest, including a rehearsal of the alarm and optional device admin, which stops a half-asleep force stop or uninstall. |
+| **Loud, then louder** | An **Extra Loud strength** (you choose how much punch to add), a volume ramp of up to 10 minutes, and a sound that intensifies after 40 seconds without interaction. A separate **backup alarm** rings later if nothing happens. |
+| **Anti-oversleep, with an exit** | Snooze limits (optionally shrinking), hold-to-dismiss, accidental-dismissal protection and an optional edit lock before the alarm. The **way out without the mission** is a 10-second hold by default; **Hard and No mercy alarms** make it open only after a few minutes of ringing and ask for a series of tasks, and can turn snooze off. A mission your phone cannot do (no camera, refused permission, a dead sensor, a black camera) is replaced by a **backup mission**, never skipped. **Emergency**, on every ring, pauses the alarm for a call. An ignored alarm stops after its ring timeout, or, set to **Never**, rings until you deal with it. The edit lock (up to 12 hours before) also covers vacation, profiles, exception days and restoring a backup. **Settings, Protection** walks you through the rest, including a rehearsal of the alarm and optional device admin, which stops a half-asleep force stop or uninstall. |
 | **Alarm Health and test alarm** | Checks notifications, full-screen permission, exact alarms, battery restrictions, Do Not Disturb and audio routing, explains each fix, and rings a real test alarm. |
 | **Offline, no ads, no tracking** | No accounts, no analytics, no ad SDKs. The only thing that goes online is the optional update check. See [Privacy](#privacy). |
 | **Open source** | Apache License 2.0, Kotlin and Jetpack Compose, with a large automated test suite. |
@@ -126,7 +126,7 @@ A heavy-sleeper setup that works well: **QR code or NFC** (so you must leave the
 **Alarms and schedules**
 - Unlimited alarms with labels, repeat days, one-time dates and delete-after-use
 - Profiles (Work, Weekend, ...), skip next ring, vacation mode, holiday and calendar exceptions, upcoming-alarm heads-up
-- Alarm options are grouped into collapsible categories (wake-up challenge, sound and light, volume and vibration, snooze, oversleep protection, schedule rules) with a live summary of each; settings is a grouped hub
+- Each alarm is **Easy, Normal, Hard or No mercy**, each explained in one line; the rest is under More options in collapsible groups (volume and vibration, snooze, stopping it, if I try to get out of it, voice and light, still up?, schedule rules) with a live summary of each; settings is a grouped hub
 - Bedtime reminders and a sleep planner (wake-up time or bedtime from 90-minute sleep cycles)
 - A low-battery warning about 8 hours before an alarm when the phone is at 20 % or less and not charging, because a phone that runs flat overnight cannot ring
 - A morning dashboard with history and streaks
@@ -234,7 +234,7 @@ can guarantee a wake-up, but these settings remove the easy ways to fail.
 No. Every ring and mission screen has an **Emergency** button: it pauses the alarm for three minutes and opens the phone
 app (on a locked phone, the unlock screen with its Emergency call button). A mission the phone cannot perform is replaced
 by a backup mission of a few short tasks. And there is a way out without the mission: hold for 10 seconds, or, on a
-strict alarm, a series of tasks that opens after a few minutes of ringing. If you remove the way out yourself (only possible after a
+Hard or No mercy alarm, a series of tasks that opens after a few minutes of ringing. If you remove the way out yourself (only possible after a
 rehearsal of that alarm), the backup mission and the limit on how many restarts a ring comes back from are what is left.
 </details>
 

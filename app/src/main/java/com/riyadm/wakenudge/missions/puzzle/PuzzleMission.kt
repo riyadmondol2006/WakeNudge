@@ -1,5 +1,6 @@
 package com.riyadm.wakenudge.missions.puzzle
 
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.animation.core.animateIntOffsetAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -172,6 +173,7 @@ private fun ColumnScope.SlidingTilesGame(difficulty: Difficulty, onInteraction: 
                             .size(tile)
                             .clip(RoundedCornerShape(if (puzzle.size > 3) 18.dp else 22.dp))
                             .background(container)
+                            .systemGestureExclusion()
                             .pointerInput(index) {
                                 var dx = 0f
                                 var dy = 0f
@@ -351,6 +353,8 @@ private fun ColumnScope.PatternTraceGame(difficulty: Difficulty, onInteraction: 
                 .background(scheme.surfaceContainerLow)
                 .background(feedback.overlay())
                 .semantics { contentDescription = description }
+                // Tracing starts wherever the pattern does, also at the board's edge next to the screen's.
+                .systemGestureExclusion()
                 .pointerInput(pattern, cellPx) {
                     detectDragGestures(
                         onDragStart = { start ->

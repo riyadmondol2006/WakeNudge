@@ -3,10 +3,10 @@ package com.riyadm.wakenudge.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.riyadm.wakenudge.domain.model.Alarm
-import com.riyadm.wakenudge.domain.model.AlarmDefaults
 import com.riyadm.wakenudge.domain.model.AlarmGroup
 import com.riyadm.wakenudge.domain.model.AppSettings
 import com.riyadm.wakenudge.domain.model.ExceptionDate
+import com.riyadm.wakenudge.domain.model.Hardness
 import com.riyadm.wakenudge.domain.model.VacationMode
 import com.riyadm.wakenudge.domain.repository.ExceptionRepository
 import com.riyadm.wakenudge.domain.repository.GroupRepository
@@ -53,28 +53,26 @@ class SettingsViewModel @Inject constructor(
      */
     val settings: StateFlow<AppSettings?> = repo.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    /** The "new alarm defaults" shown through the same editor sections as a real alarm. */
-    val defaultsAlarm: StateFlow<Alarm?> = repo.settings.map { s ->
-        val d = s.defaults
-        Alarm(sound = d.sound, volume = d.volume, vibration = d.vibration, snooze = d.snooze, antiOversleep = d.antiOversleep)
-    }.stateIn<Alarm?>(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    /** The "new alarm defaults" as the alarm they would make, so the shared sections can show their sound and vibration. */
+    val defaultsAlarm: StateFlow<Alarm?> = repo.settings.map { s -> s.defaults.newAlarm() }
+        .stateIn<Alarm?>(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** How hard new alarms start. */
+    val defaultLevel: StateFlow<Hardness?> = repo.settings.map<AppSettings, Hardness?> { it.defaults.level }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun update(block: (AppSettings) -> AppSettings) = viewModelScope.launch { repo.update(block) }
 
-    /**
-     * The volume keys and keeping the alarm screen in front are per alarm now; until the alarm editor has them, this page
-     * sets them for every alarm and for new ones, so the choice made here is the one that rings.
-     */
-    fun updateRingingForAllAlarms(block: (AppSettings) -> AppSettings) = persist {
-        (global.applyRingingToAll(block) as? ActionResult.Locked)?.let { locks.send(it.lock) }
-    }
-
+    /** Only the sound and the vibration are taken from [transform]: the level decides the rest. */
     fun updateDefaults(transform: (Alarm) -> Alarm) = viewModelScope.launch {
         repo.update { s ->
-            val d = s.defaults
-            val a = transform(Alarm(sound = d.sound, volume = d.volume, vibration = d.vibration, snooze = d.snooze, antiOversleep = d.antiOversleep))
-            s.copy(defaults = AlarmDefaults(a.sound, a.volume, a.vibration, a.snooze, a.antiOversleep))
+            val a = transform(s.defaults.newAlarm())
+            s.copy(defaults = s.defaults.copy(sound = a.sound, vibration = a.vibration))
         }
+    }
+
+    fun setDefaultLevel(level: Hardness) = viewModelScope.launch {
+        if (level != Hardness.CUSTOM) repo.update { it.copy(defaults = it.defaults.copy(level = level)) }
     }
 
     fun setVacation(enabled: Boolean, resumeEpochDay: Long?) = persist {

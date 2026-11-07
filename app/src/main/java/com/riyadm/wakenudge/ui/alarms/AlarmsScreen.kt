@@ -1,5 +1,9 @@
 package com.riyadm.wakenudge.ui.alarms
 
+import androidx.compose.ui.semantics.heading
+import androidx.compose.material3.Surface
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.platform.LocalResources
@@ -97,7 +101,13 @@ fun AlarmsScreen(
     viewModel: AlarmsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val readiness by viewModel.readiness.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+    // Looked at again on coming back (a fix is made in Settings) and whenever the next alarm or its time changes.
+    androidx.lifecycle.compose.LifecycleResumeEffect(state.next?.alarm, state.next?.nextAt) {
+        viewModel.refreshReadiness(state.next)
+        onPauseOrDispose { }
+    }
     val context = LocalContext.current
     val resources = LocalResources.current
 
@@ -200,9 +210,13 @@ fun AlarmsScreen(
             item(key = "hero") {
                 NextAlarmHero(
                     state = state,
+                    readiness = readiness,
                     onResume = { viewModel.setVacation(false) },
                     onStartVacation = { viewModel.setVacation(true, null) },
                 )
+            }
+            if (!state.settings.levelsCardSeen && state.items.isNotEmpty()) {
+                item(key = "levels-card") { LevelsCard(onDismiss = viewModel::dismissLevelsCard) }
             }
             if (state.groups.isNotEmpty()) {
                 item(key = "groups") {
@@ -246,7 +260,7 @@ fun AlarmsScreen(
 }
 
 @Composable
-private fun NextAlarmHero(state: AlarmsUiState, onResume: () -> Unit, onStartVacation: () -> Unit) {
+private fun NextAlarmHero(state: AlarmsUiState, readiness: NextReadiness?, onResume: () -> Unit, onStartVacation: () -> Unit) {
     val context = LocalContext.current
     val resources = LocalResources.current
     val scheme = MaterialTheme.colorScheme
@@ -323,6 +337,23 @@ private fun NextAlarmHero(state: AlarmsUiState, onResume: () -> Unit, onStartVac
                                 color = scheme.onPrimaryContainer.copy(alpha = 0.8f), modifier = Modifier.padding(top = 2.dp),
                             )
                         }
+                        // The evening check's answer for this alarm, at any time of day: "Ready", or what to fix.
+                        readiness?.takeIf { it.alarmId == next.alarm.id && it.at == at.toInstant().toEpochMilli() }?.let { r ->
+                            val problem = r.problem
+                            Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    if (problem == null) Icons.Outlined.CheckCircle else Icons.Outlined.ErrorOutline, null,
+                                    tint = if (problem == null) scheme.onPrimaryContainer else scheme.error, modifier = Modifier.size(20.dp),
+                                )
+                                Text(
+                                    if (problem == null) stringResource(R.string.alarms_ready)
+                                    else stringResource(R.string.alarms_problem, com.riyadm.wakenudge.engine.notify.tonightProblemLine(context, problem)),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (problem == null) scheme.onPrimaryContainer else scheme.error,
+                                    modifier = Modifier.padding(start = 8.dp),
+                                )
+                            }
+                        }
                     }
                 }
                 if (!vacation.enabled) {
@@ -332,6 +363,25 @@ private fun NextAlarmHero(state: AlarmsUiState, onResume: () -> Unit, onStartVac
                     }
                 }
             }
+        }
+    }
+}
+
+/** Shown once to someone who had alarms before levels existed; a new install meets them in onboarding instead. */
+@Composable
+private fun LevelsCard(onDismiss: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Surface(color = scheme.secondaryContainer, shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 8.dp)) {
+            Text(
+                stringResource(R.string.levels_card_title), style = MaterialTheme.typography.titleMedium, color = scheme.onSecondaryContainer,
+                modifier = Modifier.semantics { heading() },
+            )
+            Text(
+                stringResource(R.string.levels_card_body), style = MaterialTheme.typography.bodyMedium, color = scheme.onSecondaryContainer,
+                modifier = Modifier.padding(top = 4.dp, end = 8.dp),
+            )
+            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.levels_card_dismiss)) }
         }
     }
 }

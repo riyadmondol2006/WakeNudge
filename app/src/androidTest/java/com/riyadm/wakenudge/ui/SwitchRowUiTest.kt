@@ -37,7 +37,7 @@ import org.junit.runner.RunWith
 class SwitchRowUiTest {
     @get:Rule val compose = createComposeRule()
 
-    private val title = "Keep the alarm screen in front"
+    private val title = "Keep ringing until I finish the mission"
     private val changes = mutableListOf<Boolean>()
 
     private fun setRow(enabled: Boolean = true, initial: Boolean = false) {
@@ -46,7 +46,7 @@ class SwitchRowUiTest {
                 var on by remember { mutableStateOf(initial) }
                 SwitchRow(
                     title = title,
-                    subtitle = "If you leave the screen while an alarm rings, bring it back.",
+                    subtitle = "Without a mission: until I stop or snooze it.",
                     checked = on,
                     onCheckedChange = { on = it; changes += it },
                     shape = RoundedCornerShape(28.dp),

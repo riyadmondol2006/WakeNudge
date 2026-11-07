@@ -28,7 +28,6 @@ data class AlarmEditRoute(
 @Serializable data object BackupRoute
 @Serializable data object AboutRoute
 @Serializable data object AppearanceSettingsRoute
-@Serializable data object RingingSettingsRoute
 @Serializable data object AudioSettingsRoute
 @Serializable data object TimerSettingsRoute
 @Serializable data object ProtectionRoute

@@ -446,23 +446,7 @@ class Notifier @Inject constructor(
 
     fun cancelTonightProblem() = manager.cancel(NotificationIds.TONIGHT_PROBLEM)
 
-    private fun tonightLine(problem: TonightProblem): String {
-        val mission = problem.mission?.let { context.getString(MissionInfo.titleRes(it)) }.orEmpty()
-        return when (problem.kind) {
-            TonightProblemKind.SILENCED_BY_DND -> context.getString(R.string.notif_tonight_dnd)
-            TonightProblemKind.EXACT_ALARMS_OFF -> context.getString(R.string.notif_tonight_exact)
-            TonightProblemKind.MISSION_NEEDS_PERMISSION -> context.getString(R.string.notif_tonight_permission, mission)
-            TonightProblemKind.MISSION_NEEDS_NFC -> context.getString(R.string.notif_tonight_nfc, mission)
-            TonightProblemKind.MISSION_NOT_SET_UP -> context.getString(R.string.notif_tonight_not_set_up, mission)
-            TonightProblemKind.MISSION_NO_HARDWARE -> context.getString(R.string.notif_tonight_no_hardware, mission)
-            TonightProblemKind.NOTIFICATIONS_OFF -> context.getString(R.string.notif_tonight_notifications)
-            TonightProblemKind.FULL_SCREEN_OFF -> context.getString(R.string.notif_tonight_full_screen)
-            TonightProblemKind.BACKGROUND_RESTRICTED -> context.getString(R.string.notif_tonight_background)
-            TonightProblemKind.LOW_BATTERY -> context.getString(R.string.notif_tonight_low_battery)
-            // Put right before anyone is told; if that failed, the scheduling notice says so.
-            TonightProblemKind.TRIGGER_MISSING -> context.getString(R.string.notif_tonight_exact)
-        }
-    }
+    private fun tonightLine(problem: TonightProblem): String = tonightProblemLine(context, problem)
 
     /**
      * Says why an alarm rang late or did not ring. Takes the place of its plain "missed" notice, so one alarm gets one
@@ -583,4 +567,23 @@ class Notifier @Inject constructor(
             .putExtra(Actions.EXTRA_EVENT_ID, eventId),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
+}
+
+/** One line naming what could stop tonight's alarm; the notification and the alarm list say it the same way. */
+fun tonightProblemLine(context: Context, problem: TonightProblem): String {
+    val mission = problem.mission?.let { context.getString(MissionInfo.titleRes(it)) }.orEmpty()
+    return when (problem.kind) {
+        TonightProblemKind.SILENCED_BY_DND -> context.getString(R.string.notif_tonight_dnd)
+        TonightProblemKind.EXACT_ALARMS_OFF -> context.getString(R.string.notif_tonight_exact)
+        TonightProblemKind.MISSION_NEEDS_PERMISSION -> context.getString(R.string.notif_tonight_permission, mission)
+        TonightProblemKind.MISSION_NEEDS_NFC -> context.getString(R.string.notif_tonight_nfc, mission)
+        TonightProblemKind.MISSION_NOT_SET_UP -> context.getString(R.string.notif_tonight_not_set_up, mission)
+        TonightProblemKind.MISSION_NO_HARDWARE -> context.getString(R.string.notif_tonight_no_hardware, mission)
+        TonightProblemKind.NOTIFICATIONS_OFF -> context.getString(R.string.notif_tonight_notifications)
+        TonightProblemKind.FULL_SCREEN_OFF -> context.getString(R.string.notif_tonight_full_screen)
+        TonightProblemKind.BACKGROUND_RESTRICTED -> context.getString(R.string.notif_tonight_background)
+        TonightProblemKind.LOW_BATTERY -> context.getString(R.string.notif_tonight_low_battery)
+        // Put right before anyone is told; if that failed, the scheduling notice says so.
+        TonightProblemKind.TRIGGER_MISSING -> context.getString(R.string.notif_tonight_exact)
+    }
 }

@@ -4,7 +4,6 @@ import com.riyadm.wakenudge.core.TimeSource
 import com.riyadm.wakenudge.domain.model.AppSettings
 import com.riyadm.wakenudge.domain.model.ExceptionDate
 import com.riyadm.wakenudge.domain.model.VacationMode
-import com.riyadm.wakenudge.domain.model.withGlobalsOf
 import com.riyadm.wakenudge.domain.repository.AlarmRepository
 import com.riyadm.wakenudge.domain.repository.ExceptionRepository
 import com.riyadm.wakenudge.domain.repository.GroupRepository
@@ -128,22 +127,6 @@ class GlobalChanges @Inject constructor(
             it.copy(calendarExceptions = it.calendarExceptions.copy(calendarIds = if (selected) ids + id else ids - id))
         }
         scheduler.rescheduleAll("calendar-exceptions")
-        return ActionResult.Done(Unit)
-    }
-
-    /**
-     * The "While an alarm rings" choices, written onto every alarm and the defaults. Refused as a whole while an alarm
-     * it would change is locked: its volume keys or coming back must not be changed the night before.
-     */
-    suspend fun applyRingingToAll(block: (AppSettings) -> AppSettings): ActionResult<Unit> {
-        val next = block(settings.current())
-        guard { a, _ -> a.antiOversleep.withGlobalsOf(next) != a.antiOversleep }?.let { return ActionResult.Locked(it) }
-        settings.update { s -> block(s).let { n -> n.copy(defaults = n.defaults.copy(antiOversleep = n.defaults.antiOversleep.withGlobalsOf(n))) } }
-        val now = settings.current()
-        for (alarm in alarms.getAlarms()) {
-            val copied = alarm.antiOversleep.withGlobalsOf(now)
-            if (copied != alarm.antiOversleep) alarms.save(alarm.copy(antiOversleep = copied))
-        }
         return ActionResult.Done(Unit)
     }
 

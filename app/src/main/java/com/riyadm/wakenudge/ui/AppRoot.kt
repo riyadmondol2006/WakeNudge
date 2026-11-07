@@ -71,7 +71,6 @@ import com.riyadm.wakenudge.ui.nav.HealthRoute
 import com.riyadm.wakenudge.ui.nav.ProtectionRoute
 import com.riyadm.wakenudge.ui.protection.ProtectionScreen
 import com.riyadm.wakenudge.ui.nav.MorningRoute
-import com.riyadm.wakenudge.ui.nav.RingingSettingsRoute
 import com.riyadm.wakenudge.ui.nav.SettingsRoute
 import com.riyadm.wakenudge.ui.nav.SleepRoute
 import com.riyadm.wakenudge.ui.nav.StopwatchRoute
@@ -85,7 +84,6 @@ import com.riyadm.wakenudge.ui.settings.AudioSettingsScreen
 import com.riyadm.wakenudge.ui.settings.DefaultsScreen
 import com.riyadm.wakenudge.ui.settings.ExceptionsScreen
 import com.riyadm.wakenudge.ui.settings.GroupsScreen
-import com.riyadm.wakenudge.ui.settings.RingingSettingsScreen
 import com.riyadm.wakenudge.ui.settings.SettingsNav
 import com.riyadm.wakenudge.ui.settings.SettingsScreen
 import com.riyadm.wakenudge.ui.settings.TimerSettingsScreen
@@ -230,7 +228,6 @@ private fun AppNavHost(nav: NavHostController) {
                     backup = dropUnlessResumed { nav.navigate(BackupRoute) },
                     about = dropUnlessResumed { nav.navigate(AboutRoute) },
                     appearance = dropUnlessResumed { nav.navigate(AppearanceSettingsRoute) },
-                    ringing = dropUnlessResumed { nav.navigate(RingingSettingsRoute) },
                     audio = dropUnlessResumed { nav.navigate(AudioSettingsRoute) },
                     timers = dropUnlessResumed { nav.navigate(TimerSettingsRoute) },
                 ),
@@ -244,7 +241,6 @@ private fun AppNavHost(nav: NavHostController) {
         composable<ProtectionRoute> { ProtectionScreen(onBack = dropUnlessResumed { nav.popBackStack() }) }
         composable<BackupRoute> { BackupScreen(onBack = dropUnlessResumed { nav.popBackStack() }) }
         composable<AppearanceSettingsRoute> { AppearanceSettingsScreen(onBack = dropUnlessResumed { nav.popBackStack() }) }
-        composable<RingingSettingsRoute> { RingingSettingsScreen(onBack = dropUnlessResumed { nav.popBackStack() }) }
         composable<AudioSettingsRoute> { AudioSettingsScreen(onBack = dropUnlessResumed { nav.popBackStack() }) }
         composable<TimerSettingsRoute> { TimerSettingsScreen(onBack = dropUnlessResumed { nav.popBackStack() }) }
     }

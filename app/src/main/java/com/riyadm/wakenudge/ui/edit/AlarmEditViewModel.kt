@@ -9,6 +9,15 @@ import com.riyadm.wakenudge.core.WakeJson
 import com.riyadm.wakenudge.domain.model.Alarm
 import com.riyadm.wakenudge.domain.model.AlarmGroup
 import com.riyadm.wakenudge.domain.model.AppSettings
+import com.riyadm.wakenudge.domain.model.Hardness
+import com.riyadm.wakenudge.domain.model.HardnessPresets
+import com.riyadm.wakenudge.engine.protection.DeviceAdmin
+import com.riyadm.wakenudge.health.HealthChecker
+import com.riyadm.wakenudge.ui.protection.ProtectionInputs
+import com.riyadm.wakenudge.ui.protection.ProtectionPolicy
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.receiveAsFlow
 import com.riyadm.wakenudge.domain.repository.AlarmRepository
 import com.riyadm.wakenudge.domain.repository.GroupRepository
 import com.riyadm.wakenudge.domain.repository.SettingsRepository
@@ -53,6 +62,13 @@ data class EditUiState(
     val readOnly: Boolean get() = lock != null && !lockOverridden
 }
 
+/** Something the level rules did to the draft, or refused. */
+sealed interface EditNotice {
+    data class Moved(val to: Hardness) : EditNotice
+    data class NeedsMission(val level: Hardness) : EditNotice
+    data object MissionsSetAside : EditNotice
+}
+
 sealed interface SaveOutcome {
     data object Saved : SaveOutcome
     data class Locked(val lock: EditLock) : SaveOutcome
@@ -80,6 +96,8 @@ class AlarmEditViewModel @Inject constructor(
     private val rehearsals: Rehearsals,
     private val probe: MissionProbe,
     @ApplicationContext private val context: Context,
+    private val health: HealthChecker,
+    private val admin: DeviceAdmin,
 ) : ViewModel() {
 
     private val route = handle.toRoute<AlarmEditRoute>()
@@ -102,15 +120,15 @@ class AlarmEditViewModel @Inject constructor(
     }
 
     /**
-     * The check on saving. It warns and never refuses: the alarm is already saved. A strict alarm with a mission that
-     * was never rehearsed is offered "Try it now".
+     * The check on saving. It warns and never refuses: the alarm is already saved. A Hard or No mercy alarm (or a Custom
+     * one that kept their slow way out) with a mission that was never rehearsed is offered "Try it now".
      */
     fun afterSave(screenReaderOn: Boolean): AfterSave? {
         val alarm = saved ?: return null
         val activity = android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q ||
             isPermissionGranted(context, android.Manifest.permission.ACTIVITY_RECOGNITION)
         val problems = runCatching { PreflightPolicy.problems(alarm, probe::readiness, activity, screenReaderOn) }.getOrDefault(emptyList())
-        val strict = alarm.missions.isNotEmpty() && !alarm.antiOversleep.emergencyStopEnabled
+        val strict = alarm.missions.isNotEmpty() && HardnessPresets.isStrict(alarm)
         return AfterSave(alarm, problems, offerRehearsal = strict && !rehearsals.isRehearsed(alarm))
     }
 
@@ -142,24 +160,94 @@ class AlarmEditViewModel @Inject constructor(
     }
 
     private fun newAlarm(settings: AppSettings): Alarm {
-        val d = settings.defaults
-        return Alarm(
-            hour = route.hour.takeIf { it in 0..23 } ?: 7,
-            minute = route.minute.takeIf { it in 0..59 } ?: 0,
-            label = route.label,
-            repeatDaysMask = route.daysMask.takeIf { it >= 0 } ?: 0,
-            sound = d.sound, volume = d.volume, vibration = d.vibration, snooze = d.snooze, antiOversleep = d.antiOversleep,
-            upcomingNoticeMinutes = 0,
+        return settings.defaults.newAlarm(
+            Alarm(
+                hour = route.hour.takeIf { it in 0..23 } ?: 7,
+                minute = route.minute.takeIf { it in 0..59 } ?: 0,
+                label = route.label,
+                repeatDaysMask = route.daysMask.takeIf { it >= 0 } ?: 0,
+                upcomingNoticeMinutes = 0,
+            ),
         )
     }
 
     fun update(transform: (Alarm) -> Alarm) {
         val s = _state.value
         if (s.readOnly) return
-        val next = transform(s.draft)
+        val next = when (val rule = HardnessPresets.afterMissionChange(s.draft, transform(s.draft))) {
+            is HardnessPresets.MissionRule.Kept -> rule.alarm
+            is HardnessPresets.MissionRule.Moved -> rule.alarm.also { notices.trySend(EditNotice.Moved(rule.to)) }
+            is HardnessPresets.MissionRule.Refused -> {
+                notices.trySend(EditNotice.NeedsMission(rule.level))
+                return
+            }
+        }
+        commit(s, next)
+    }
+
+    private fun commit(s: EditUiState, next: Alarm) {
         handle[KEY_DRAFT] = WakeJson.instance.encodeToString(Alarm.serializer(), next)
         _state.value = s.copy(draft = next, dirty = true)
         refreshUpcoming(next)
+    }
+
+    /** Missions put aside by picking Easy, for a harder level picked afterwards; kept across process death with the draft. */
+    private var setAside: HardnessPresets.SetAside?
+        get() = handle.get<String>(KEY_SET_ASIDE)?.let { json ->
+            runCatching { WakeJson.instance.decodeFromString(Alarm.serializer(), json) }.getOrNull()
+                ?.let { HardnessPresets.SetAside(it.missions, it.antiOversleep.rotateMissions) }
+        }
+        set(value) {
+            if (value == null) handle.remove<String>(KEY_SET_ASIDE)
+            else handle[KEY_SET_ASIDE] = WakeJson.instance.encodeToString(
+                Alarm.serializer(), Alarm(missions = value.missions, antiOversleep = com.riyadm.wakenudge.domain.model.AntiOversleepSettings(rotateMissions = value.rotate)),
+            )
+        }
+
+    /** "How hard?": sets every setting the level owns, and only those. */
+    fun pickLevel(level: Hardness) {
+        val s = _state.value
+        if (s.readOnly || level == Hardness.CUSTOM) return
+        val hadMissions = s.draft.missions.isNotEmpty()
+        val picked = HardnessPresets.pick(level, s.draft, setAside)
+        setAside = picked.setAside
+        if (level == Hardness.EASY && hadMissions) notices.trySend(EditNotice.MissionsSetAside)
+        commit(s, picked.alarm)
+    }
+
+    /** No mercy was picked after its warning: the warning is shown only the first time, ever. */
+    fun confirmNoMercy() {
+        viewModelScope.launch { runCatching { settingsRepo.update { it.copy(noMercyConfirmed = true) } } }
+        pickLevel(Hardness.NO_MERCY)
+    }
+
+    private val notices = Channel<EditNotice>(Channel.BUFFERED)
+
+    /** What the level rules did or refused, to be said on screen. */
+    val editNotices: Flow<EditNotice> = notices.receiveAsFlow()
+
+    private val _stepsLeft = MutableStateFlow<Int?>(null)
+
+    /** Protection steps still to do, for the line under Hard and No mercy; null until known. */
+    val protectionStepsLeft: StateFlow<Int?> = _stepsLeft.asStateFlow()
+
+    /** Read again each time the editor comes back, since every step is done in a Settings screen. */
+    fun refreshProtection() = viewModelScope.launch {
+        _stepsLeft.value = runCatching {
+            val snapshot = health.snapshot()
+            ProtectionPolicy.stepsLeft(
+                ProtectionInputs(
+                    sdkInt = android.os.Build.VERSION.SDK_INT,
+                    overlayGranted = snapshot.canDrawOverlays,
+                    notificationsOk = snapshot.postNotificationsGranted && snapshot.notificationsEnabled,
+                    fullScreenOk = snapshot.fullScreenIntentAllowed,
+                    batteryExempt = snapshot.ignoringBatteryOptimizations,
+                    anyRehearsalFinished = rehearsals.anyFinished,
+                    adminActive = admin.isActive(),
+                    ringingOrSnoozed = false,
+                ),
+            )
+        }.getOrNull()
     }
 
     private var upcomingJob: Job? = null
@@ -262,5 +350,6 @@ class AlarmEditViewModel @Inject constructor(
 
     private companion object {
         const val KEY_DRAFT = "draft"
+        const val KEY_SET_ASIDE = "set_aside"
     }
 }

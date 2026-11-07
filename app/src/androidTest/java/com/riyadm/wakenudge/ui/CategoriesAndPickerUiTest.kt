@@ -8,7 +8,16 @@ import com.riyadm.wakenudge.ui.ring.RingActions
 import com.riyadm.wakenudge.ui.edit.rememberExpandedCategories
 import com.riyadm.wakenudge.ui.edit.alarmCategories
 import com.riyadm.wakenudge.ui.edit.CategoryOptions
-import com.riyadm.wakenudge.ui.edit.AntiOversleepSection
+import com.riyadm.wakenudge.ui.edit.HowHardCard
+import com.riyadm.wakenudge.ui.edit.ProtectionLink
+import com.riyadm.wakenudge.ui.edit.StoppingSection
+import com.riyadm.wakenudge.ui.edit.VolumeSection
+import com.riyadm.wakenudge.domain.model.Hardness
+import com.riyadm.wakenudge.domain.model.HardnessPresets
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performSemanticsAction
 import com.riyadm.wakenudge.engine.RingSession
 import com.riyadm.wakenudge.engine.RingPhase
 import com.riyadm.wakenudge.engine.RingKind
@@ -52,7 +61,10 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Choosing a sound plays it at once, and the alarm options group into cards that summarise themselves. */
+/**
+ * Choosing a sound plays it at once; "How hard?" sets and names each level; More options groups into cards that summarise
+ * themselves, and every option fits a 360 dp phone at the largest font.
+ */
 @RunWith(AndroidJUnit4::class)
 class CategoriesAndPickerUiTest {
     @get:Rule val compose = createComposeRule()
@@ -108,7 +120,7 @@ class CategoriesAndPickerUiTest {
         compose.setContent {
             WakeNudgeTheme {
                 CategoryCard(
-                    icon = AlarmCategory.SOUND.icon, title = "Sound and light", summary = "Sunrise · Pulse",
+                    icon = AlarmCategory.VOLUME.icon, title = "Sound and light", summary = "Sunrise · Pulse",
                     expanded = open, onToggle = { open = !open },
                 ) { Text("Alarm sound options") }
             }
@@ -131,31 +143,183 @@ class CategoriesAndPickerUiTest {
             missions = listOf(MissionConfig(MissionType.MATH), MissionConfig(MissionType.TYPING)),
             volume = VolumeSettings(level = 70, rampSeconds = 30, extraLoud = true, extraLoudPercent = 60),
             snooze = SnoozeSettings(enabled = true, minutes = 7, maxCount = 2),
-            antiOversleep = AntiOversleepSettings(holdToDismissSeconds = 3, backupEnabled = true, backupDelayMinutes = 12),
+            antiOversleep = AntiOversleepSettings(holdToDismissSeconds = 3, backupEnabled = true, backupDelayMinutes = 12, volumeFloorPercent = 50),
         )
-        val bare = Alarm(snooze = SnoozeSettings(enabled = false), volume = VolumeSettings(extraLoud = false))
+        val bare = Alarm(snooze = SnoozeSettings(enabled = false), volume = VolumeSettings(level = 0, extraLoud = false))
         val summaries = mutableMapOf<AlarmCategory, String>()
         val plain = mutableMapOf<AlarmCategory, String>()
         compose.setContent {
             WakeNudgeTheme {
                 AlarmCategory.entries.forEach {
-                    summaries[it] = categorySummary(it, alarm, perAlarm = true)
-                    plain[it] = categorySummary(it, bare, perAlarm = true)
+                    summaries[it] = categorySummary(it, alarm)
+                    plain[it] = categorySummary(it, bare)
                 }
             }
         }
         compose.waitForIdle()
-        assertTrue(summaries.toString(), summaries.getValue(AlarmCategory.WAKE_UP).startsWith("2 missions"))
         assertTrue(summaries.toString(), summaries.getValue(AlarmCategory.VOLUME).contains("70%"))
         assertTrue(summaries.toString(), summaries.getValue(AlarmCategory.VOLUME).contains("Extra loud 60%"))
+        assertTrue(summaries.toString(), summaries.getValue(AlarmCategory.VOLUME).contains("Never below 50%"))
         assertTrue(summaries.toString(), summaries.getValue(AlarmCategory.SNOOZE).contains("7 min"))
         assertTrue(summaries.toString(), summaries.getValue(AlarmCategory.SNOOZE).contains("up to 2 times"))
-        assertTrue(summaries.toString(), summaries.getValue(AlarmCategory.PROTECTION).contains("Backup alarm after 12 min"))
-        assertTrue(summaries.toString(), summaries.getValue(AlarmCategory.PROTECTION).contains("Hold 3 s to dismiss"))
+        assertTrue(summaries.toString(), summaries.getValue(AlarmCategory.STOPPING).contains("Rings again after 12 min"))
+        assertTrue(summaries.toString(), summaries.getValue(AlarmCategory.STOPPING).contains("Hold 3 s to stop"))
 
-        // A switched-off snooze and an alarm with no missions say so plainly.
+        // A switched-off snooze, no check and the phone's own volume say so plainly.
         assertEquals("Off", plain.getValue(AlarmCategory.SNOOZE))
-        assertEquals("No missions", plain.getValue(AlarmCategory.WAKE_UP))
+        assertEquals("Off", plain.getValue(AlarmCategory.STILL_UP))
+        assertTrue(plain.toString(), plain.getValue(AlarmCategory.VOLUME).startsWith("Phone's volume"))
+    }
+
+    // ---- How hard? ------------------------------------------------------------------------------------------------
+
+    @Test fun pickingALevelSetsItAndTheCardReadsThatLevel() {
+        var alarm by mutableStateOf(Alarm())
+        compose.setContent {
+            WakeNudgeTheme {
+                HowHardCard(selected = HardnessPresets.levelOf(alarm), enabled = true, onPick = { alarm = HardnessPresets.apply(it, alarm) })
+            }
+        }
+        compose.onNodeWithText("Easy").assertIsSelected()
+        compose.onNodeWithText("Custom").assertDoesNotExist()
+        for ((name, level) in listOf("Normal" to Hardness.NORMAL, "Hard" to Hardness.HARD, "No mercy" to Hardness.NO_MERCY, "Easy" to Hardness.EASY)) {
+            compose.onNodeWithText(name).performClick()
+            compose.waitForIdle()
+            assertEquals(name, level, HardnessPresets.levelOf(alarm))
+            compose.onNodeWithText(name).assertIsSelected()
+        }
+        // Every level says what it does, without opening anything.
+        compose.onNodeWithText("Swipe to stop. You can snooze.").assertIsDisplayed()
+        compose.onNodeWithText("Hard, with two checks and the strictest limits.").assertIsDisplayed()
+    }
+
+    @Test fun aChangedDetailShowsCustomAndPuttingItBackShowsTheLevelAgain() {
+        var alarm by mutableStateOf(HardnessPresets.apply(Hardness.HARD, Alarm()))
+        compose.setContent {
+            WakeNudgeTheme {
+                HowHardCard(selected = HardnessPresets.levelOf(alarm), enabled = true, onPick = { alarm = HardnessPresets.apply(it, alarm) })
+            }
+        }
+        compose.onNodeWithText("Hard").assertIsSelected()
+        alarm = alarm.copy(antiOversleep = alarm.antiOversleep.copy(muteBudget = 4))
+        compose.waitForIdle()
+        compose.onNodeWithText("Custom").assertIsSelected()
+        compose.onNodeWithText("You changed the details in More options.").assertIsDisplayed()
+        alarm = alarm.copy(antiOversleep = alarm.antiOversleep.copy(muteBudget = 2))
+        compose.waitForIdle()
+        compose.onNodeWithText("Hard").assertIsSelected()
+        compose.onNodeWithText("Custom").assertDoesNotExist()
+    }
+
+    @Test fun theProtectionLineShowsUnderHardAndOpensTheSetup() {
+        var opened = 0
+        var level by mutableStateOf(Hardness.NORMAL)
+        compose.setContent {
+            WakeNudgeTheme { HowHardCard(selected = level, enabled = true, onPick = { level = it }, stepsLeft = 2, onOpenProtection = { opened++ }) }
+        }
+        compose.onNodeWithText("2 steps left to stop you leaving the alarm").assertDoesNotExist()
+        level = Hardness.HARD
+        compose.waitForIdle()
+        compose.onNodeWithText("2 steps left to stop you leaving the alarm").performClick()
+        assertEquals(1, opened)
+    }
+
+    // ---- More options ---------------------------------------------------------------------------------------------
+
+    @Test fun thePhonesVolumeIsItsOwnSwitchAndTheSliderNeverReachesIt() {
+        var alarm by mutableStateOf(Alarm(volume = VolumeSettings(level = 80)))
+        compose.setContent {
+            WakeNudgeTheme { androidx.compose.foundation.lazy.LazyColumn { item { VolumeSection(alarm, enabled = true, onChange = { f -> alarm = f(alarm) }) } } }
+        }
+        // Dragged all the way down, the slider is at its quietest, not "leave the phone's volume" (which could be loud).
+        compose.onNodeWithContentDescription("How loud, 80%").performSemanticsAction(SemanticsActions.SetProgress) { it(0f) }
+        compose.waitForIdle()
+        assertEquals(10, alarm.volume.level)
+        compose.onNodeWithText("Use the phone's alarm volume").performClick()
+        compose.waitForIdle()
+        assertEquals(0, alarm.volume.level)
+        compose.onNodeWithText("How loud").assertDoesNotExist()
+        compose.onNodeWithText("Use the phone's alarm volume").performClick()
+        compose.waitForIdle()
+        assertEquals(80, alarm.volume.level)
+    }
+
+    @Test fun keepRingingIsASwitchAndStopAfterNeverStepsBelowOneMinute() {
+        var alarm by mutableStateOf(Alarm(antiOversleep = AntiOversleepSettings(ringTimeoutMinutes = 2)))
+        compose.setContent {
+            WakeNudgeTheme { androidx.compose.foundation.lazy.LazyColumn { item { StoppingSection(alarm, enabled = true, onChange = { f -> alarm = f(alarm) }, protection = null) } } }
+        }
+        repeat(3) { runCatching { compose.onNodeWithContentDescription("Decrease Stop ringing after").performClick() } }
+        compose.waitForIdle()
+        assertEquals("one minute is the shortest, never Never", 1, alarm.antiOversleep.ringTimeoutMinutes)
+        compose.onNodeWithText("Keep ringing until I finish the mission").performClick()
+        compose.waitForIdle()
+        assertEquals(AntiOversleepSettings.RING_TIMEOUT_NEVER, alarm.antiOversleep.ringTimeoutMinutes)
+        compose.onNodeWithText("Stop ringing after").assertDoesNotExist()
+        compose.onNodeWithText("Keep ringing until I finish the mission").performClick()
+        compose.waitForIdle()
+        assertEquals(10, alarm.antiOversleep.ringTimeoutMinutes)
+    }
+
+    @Test fun theWayOutIsHoldOrTasksAndNoneNeedsARehearsalAndAWarning() {
+        var rehearsed by mutableStateOf(false)
+        var alarm by mutableStateOf(Alarm(missions = listOf(MissionConfig(MissionType.MATH))))
+        compose.setContent {
+            WakeNudgeTheme {
+                androidx.compose.foundation.lazy.LazyColumn {
+                    item { StoppingSection(alarm, enabled = true, onChange = { f -> alarm = f(alarm) }, protection = ProtectionLink({ rehearsed }, {})) }
+                }
+            }
+        }
+        compose.onNodeWithText("None").assertDoesNotExist()
+        compose.onNodeWithText("Tasks").performClick()
+        compose.waitForIdle()
+        assertEquals(false, alarm.antiOversleep.emergencyStopEnabled)
+        compose.onNodeWithText("Tasks open after").assertIsDisplayed()
+        compose.onNodeWithText("Hold 10 s").performClick()
+        compose.waitForIdle()
+        assertTrue(alarm.antiOversleep.emergencyStopEnabled)
+
+        rehearsed = true
+        compose.waitForIdle()
+        compose.onNodeWithText("None").performClick()
+        compose.waitForIdle()
+        assertEquals("nothing changes before the warning is confirmed", false, alarm.antiOversleep.wayOutRemoved)
+        compose.onNodeWithText("Remove it").performClick()
+        compose.waitForIdle()
+        assertTrue(alarm.antiOversleep.wayOutRemoved)
+        compose.onNodeWithText("Hold 10 s").performClick()
+        compose.waitForIdle()
+        assertEquals("putting it back needs nothing", false, alarm.antiOversleep.wayOutRemoved)
+    }
+
+    @Test fun everyLevelAndEveryOptionFitsAt360dpWithTheLargestFont() {
+        var alarm by mutableStateOf(HardnessPresets.apply(Hardness.HARD, Alarm()))
+        val titles = listOf(
+            "No mercy", "Volume and vibration", "Snooze", "Stopping it", "If I try to get out of it", "Voice and light", "Still up?", "Schedule rules",
+        )
+        compose.setContent {
+            val base = androidx.compose.ui.platform.LocalDensity.current
+            androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(base.density, 2f)) {
+                WakeNudgeTheme {
+                    Box(Modifier.size(360.dp, 640.dp)) {
+                        val expanded = rememberExpandedCategories()
+                        androidx.compose.foundation.lazy.LazyColumn {
+                            item { HowHardCard(selected = HardnessPresets.levelOf(alarm), enabled = true, onPick = { alarm = HardnessPresets.apply(it, alarm) }, stepsLeft = 3, onOpenProtection = {}) }
+                            alarmCategories(alarm, true, expanded, CategoryOptions(protection = ProtectionLink({ true }, {})), vibratorForTest) { f -> alarm = f(alarm) }
+                        }
+                    }
+                }
+            }
+        }
+        for (title in titles) {
+            compose.onNode(androidx.compose.ui.test.hasScrollAction()).performScrollToNode(hasText(title))
+            compose.onNodeWithText(title).assertIsDisplayed()
+        }
+        compose.onNode(androidx.compose.ui.test.hasScrollAction()).performScrollToNode(hasText("No mercy"))
+        compose.onNodeWithText("No mercy").performClick()
+        compose.waitForIdle()
+        assertEquals(Hardness.NO_MERCY, HardnessPresets.levelOf(alarm))
     }
 
     // ---- strict alarms: the way out and snooze are per-alarm switches ----------------------------------------------
@@ -200,35 +364,6 @@ class CategoriesAndPickerUiTest {
         compose.onNodeWithText("Emergency").assertIsDisplayed()
     }
 
-    @Test fun turningTheEmergencyStopOffAsksFirstAndTurningItOnDoesNot() {
-        var alarm by mutableStateOf(Alarm())
-        compose.setContent {
-            WakeNudgeTheme {
-                androidx.compose.foundation.lazy.LazyColumn {
-                    item { AntiOversleepSection(alarm, enabled = true, onChange = { f -> alarm = f(alarm) }, showTitle = false) }
-                }
-            }
-        }
-        compose.onNodeWithText("Way out without the mission").performClick()
-        compose.waitForIdle()
-        compose.onNodeWithText("Make the way out slower?").assertIsDisplayed()
-        assertTrue("nothing changes until the user confirms", alarm.antiOversleep.emergencyStopEnabled)
-
-        compose.onNodeWithText("Cancel").performClick()
-        compose.waitForIdle()
-        assertTrue(alarm.antiOversleep.emergencyStopEnabled)
-
-        compose.onNodeWithText("Way out without the mission").performClick()
-        compose.onNodeWithText("Make it slower").performClick()
-        compose.waitForIdle()
-        assertEquals(false, alarm.antiOversleep.emergencyStopEnabled)
-
-        compose.onNodeWithText("Emergency stop").performClick()   // back on: immediate, no dialog
-        compose.waitForIdle()
-        assertTrue(alarm.antiOversleep.emergencyStopEnabled)
-        compose.onNodeWithText("Turn off the Emergency stop?").assertDoesNotExist()
-    }
-
     @Test fun theSnoozeSwitchOnItsCardWorksWithoutOpeningTheCard() {
         var alarm by mutableStateOf(Alarm())
         compose.setContent {
@@ -236,8 +371,8 @@ class CategoriesAndPickerUiTest {
                 val expanded = rememberExpandedCategories()
                 androidx.compose.foundation.lazy.LazyColumn {
                     alarmCategories(
-                        alarm = alarm, enabled = true, expanded = expanded, options = CategoryOptions(perAlarm = true),
-                        previewer = previewer, vibrator = vibratorForTest, onChange = { f -> alarm = f(alarm) },
+                        alarm = alarm, enabled = true, expanded = expanded, options = CategoryOptions(),
+                        vibrator = vibratorForTest, onChange = { f -> alarm = f(alarm) },
                     )
                 }
             }
