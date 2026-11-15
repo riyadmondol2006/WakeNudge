@@ -125,7 +125,7 @@ class SystemEventHandlerTest {
 
     @Test fun `a failing step never keeps the alarms from being armed or the rest from running`() = runBlocking {
         every { notifier.ensureChannels() } throws IllegalStateException("no channels")
-        every { audio.restoreSystemVolumeIfStale() } throws IllegalStateException("no audio")
+        coEvery { audio.restoreSystemVolumeIfStale() } throws IllegalStateException("no audio")
         coEvery { ring.recoverStaleState() } throws IOException("database")
         handler.handle(Intent.ACTION_LOCKED_BOOT_COMPLETED)
         coVerify { scheduler.rescheduleAll(any()) }

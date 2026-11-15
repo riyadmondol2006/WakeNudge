@@ -90,7 +90,7 @@ class RingServiceInstrumentedTest {
         // A run killed mid-ring (a crash, a force stop, the runner ending) leaves the stream at the ring's level with the
         // user's own level saved. Taking that as the original would make this class put the wrong level back for good and
         // forget the right one, so the saved level goes back first, as the app does on its next start.
-        instrumentation.runOnMainSync { audio.restoreSystemVolumeIfStale() }
+        runBlocking { audio.restoreSystemVolumeIfStale() }
         // Read once for the class, before any ring of it: a level read between two tests could be a ring's, and writing
         // that back at the end of every later test would keep it as the user's level and wipe the one the app saved.
         if (userAlarmVolume < 0) userAlarmVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)

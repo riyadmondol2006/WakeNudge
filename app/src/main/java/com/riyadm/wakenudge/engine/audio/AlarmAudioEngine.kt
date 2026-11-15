@@ -35,6 +35,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -210,11 +211,14 @@ class AlarmAudioEngine @Inject constructor(
     }
 
     /**
-     * Puts the alarm stream back if a previous session was killed before it could. Safe to call any time. A ring the last
-     * process left behind is on its way back, and it owns the saved volume until it ends: restoring now would have it
-     * save its own lowered or raised level as the original, and the phone would keep that level for good.
+     * Puts the alarm stream back if a previous session was killed before it could. Safe to call any time and from any
+     * thread: it runs on the main thread, where every ring starts and ends. Start-up housekeeping calls this from a
+     * background thread, and deciding there let it put the volume back under a ring that had started in the same instant,
+     * which then rang at the phone's own level. A ring the last process left behind is on its way back, and it owns the
+     * saved volume until it ends: restoring now would have it save its own lowered or raised level as the original, and
+     * the phone would keep that level for good.
      */
-    fun restoreSystemVolumeIfStale() {
+    suspend fun restoreSystemVolumeIfStale() = withContext(Dispatchers.Main.immediate) {
         if (config == null && runtime.durableRingJson == null) restoreSystemVolume()
     }
 

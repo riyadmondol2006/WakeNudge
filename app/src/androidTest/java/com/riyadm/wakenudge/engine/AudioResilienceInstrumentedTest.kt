@@ -62,7 +62,7 @@ class AudioResilienceInstrumentedTest {
         // A run killed mid-ring (a crash, a force stop, the runner ending) leaves the stream at the ring's level with the
         // user's own level saved. Taking that as the original would make this class put the wrong level back for good and
         // forget the right one, so the saved level goes back first, as the app does on its next start.
-        onMain { audio.restoreSystemVolumeIfStale() }
+        runBlocking { audio.restoreSystemVolumeIfStale() }
         originalAlarmVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
         runtime.lastAudioProblem = ""
         runtime.clearRingCrashes()
@@ -129,7 +129,7 @@ class AudioResilienceInstrumentedTest {
         runtime.savedAlarmVolume = original
         runtime.durableRingJson = "{}" // it is coming back
 
-        audio.restoreSystemVolumeIfStale()
+        runBlocking { audio.restoreSystemVolumeIfStale() }
         assertEquals("the returning ring owns the saved volume", original, runtime.savedAlarmVolume)
         assertEquals("not put back under a ring about to start", 2, audioManager.getStreamVolume(AudioManager.STREAM_ALARM))
 
@@ -145,8 +145,34 @@ class AudioResilienceInstrumentedTest {
         audioManager.setStreamVolume(AudioManager.STREAM_ALARM, 2, 0)
         runtime.savedAlarmVolume = original
 
-        audio.restoreSystemVolumeIfStale()
+        runBlocking { audio.restoreSystemVolumeIfStale() }
 
+        assertEquals(original, audioManager.getStreamVolume(AudioManager.STREAM_ALARM))
+        assertEquals(-1, runtime.savedAlarmVolume)
+    }
+
+    /**
+     * Start-up housekeeping asks for this from a background thread while a ring may be starting on the main thread. The
+     * decision has to wait its turn there, or it could put the volume back under a ring that had just set its own.
+     */
+    @Test fun aRestoreAskedForFromABackgroundThreadWaitsForTheMainThread() {
+        val original = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+        audioManager.setStreamVolume(AudioManager.STREAM_ALARM, 2, 0)
+        runtime.savedAlarmVolume = original
+        val mainBusy = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        android.os.Handler(android.os.Looper.getMainLooper()).post { mainBusy.countDown(); release.await() }
+        assertTrue(mainBusy.await(5, java.util.concurrent.TimeUnit.SECONDS))
+
+        val asking = CoroutineScope(Dispatchers.Default).launch { audio.restoreSystemVolumeIfStale() }
+        try {
+            Thread.sleep(400)
+            assertEquals("nothing is decided off the main thread", 2, audioManager.getStreamVolume(AudioManager.STREAM_ALARM))
+            assertEquals(original, runtime.savedAlarmVolume)
+        } finally {
+            release.countDown()
+        }
+        runBlocking { asking.join() }
         assertEquals(original, audioManager.getStreamVolume(AudioManager.STREAM_ALARM))
         assertEquals(-1, runtime.savedAlarmVolume)
     }
