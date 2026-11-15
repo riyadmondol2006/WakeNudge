@@ -96,6 +96,9 @@ fun realRuntime(prefs: SharedPreferences = MapPrefs()): RuntimeState {
 class MemoryAlarms : AlarmRepository {
     val rows = LinkedHashMap<Long, Alarm>()
     var failReads: Throwable? = null
+
+    /** Runs inside the next read of one alarm, so a test can hold that read open and interleave something else. */
+    var beforeGetAlarm: (suspend () -> Unit)? = null
     private var nextId = 1L
 
     fun add(alarm: Alarm): Alarm = alarm.copy(id = if (alarm.id == 0L) nextId++ else alarm.id).also { rows[it.id] = it }
@@ -103,7 +106,10 @@ class MemoryAlarms : AlarmRepository {
     override fun observeAlarms(): Flow<List<Alarm>> = flowOf(rows.values.toList())
     override fun observeAlarm(id: Long): Flow<Alarm?> = flowOf(rows[id])
     override suspend fun getAlarms(): List<Alarm> = failReads?.let { throw it } ?: rows.values.toList()
-    override suspend fun getAlarm(id: Long): Alarm? = failReads?.let { throw it } ?: rows[id]
+    override suspend fun getAlarm(id: Long): Alarm? {
+        beforeGetAlarm?.invoke()
+        return failReads?.let { throw it } ?: rows[id]
+    }
     override suspend fun save(alarm: Alarm): Long = add(alarm).id
     override suspend fun delete(id: Long) { rows.remove(id) }
     override suspend fun setEnabled(id: Long, enabled: Boolean) { rows[id]?.let { rows[id] = it.copy(enabled = enabled) } }
@@ -115,12 +121,15 @@ class MemoryAlarms : AlarmRepository {
 class MemoryHistory : HistoryRepository {
     val rows = LinkedHashMap<Long, AlarmEvent>()
     var failure: Throwable? = null
+
+    /** Runs inside the next read of one event, so a test can hold that read open and interleave something else. */
+    var beforeGet: (suspend () -> Unit)? = null
     private var nextId = 1L
     private fun check() { failure?.let { throw it } }
 
     override suspend fun start(event: AlarmEvent): Long { check(); val id = nextId++; rows[id] = event.copy(id = id); return id }
     override suspend fun update(event: AlarmEvent) { check(); rows[event.id] = event }
-    override suspend fun get(id: Long): AlarmEvent? { check(); return rows[id] }
+    override suspend fun get(id: Long): AlarmEvent? { beforeGet?.invoke(); check(); return rows[id] }
     override suspend fun findOccurrence(alarmId: Long, scheduledAt: Long): AlarmEvent? {
         check()
         return rows.values.firstOrNull { it.alarmId == alarmId && it.scheduledAt == scheduledAt }

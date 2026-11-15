@@ -15,6 +15,8 @@ import javax.inject.Singleton
 import kotlin.random.Random
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * The "Still awake?" follow-up. State lives in the database and in AlarmManager triggers, never in memory, so a
@@ -44,9 +46,17 @@ class WakeCheckController @Inject constructor(
     /** Where the extra delay of a check that needs proof comes from; tests pin it. */
     internal var random: Random = Random.Default
 
+    /**
+     * One step of a check at a time. Each step reads the check, decides and writes it back, with storage reads in between;
+     * an answer given in the instant its deadline fired used to interleave with it, and the deadline then wrote its old
+     * copy over the passed check and rang the alarm again. Nothing here calls back into the ring controller, which calls
+     * in while holding its own lock, so the order is always the same and cannot deadlock.
+     */
+    private val mutex = Mutex()
+
     /** Called right after a real dismissal; arms the first prompt. [reRings] carries over earlier unanswered checks. */
-    suspend fun startAfterDismissal(alarm: Alarm, eventId: Long, reRings: Int) {
-        if (!alarm.wakeCheck.enabled || alarm.id < 0) return
+    suspend fun startAfterDismissal(alarm: Alarm, eventId: Long, reRings: Int) = mutex.withLock {
+        if (!alarm.wakeCheck.enabled || alarm.id < 0) return@withLock
         val promptAt = time.nowMillis() + delayMs(alarm)
         if (alarm.wakeCheck.requireProof) takeStepBaseline(alarm.id)
         checks.save(WakeCheck(alarm.id, eventId, WakeCheck.Phase.WAITING, promptAt, 0, checksDone = 0, reRings = reRings))
@@ -71,15 +81,15 @@ class WakeCheckController @Inject constructor(
     }
 
     /** The prompt is due: ask the question and arm the deadline, unless enough steps already answered it. */
-    suspend fun onPrompt(alarmId: Long) {
-        val check = checks.get(alarmId) ?: return
-        val alarm = alarms.getAlarm(alarmId) ?: return abandon(alarmId, WakeCheckStatus.CANCELLED)
+    suspend fun onPrompt(alarmId: Long) = mutex.withLock {
+        val check = checks.get(alarmId) ?: return@withLock
+        val alarm = alarms.getAlarm(alarmId) ?: return@withLock abandonLocked(alarmId, WakeCheckStatus.CANCELLED, checkOver = true)
         if (alarm.wakeCheck.requireProof && check.phase == WakeCheck.Phase.WAITING) {
             val walked = WakeProofPolicy.stepsAnswer(runtime.wakeProofBaseline(alarmId), steps.read())
             if (walked) {
                 diagnostics.info("WakeCheck", "alarm $alarmId: ${WakeProofPolicy.STEPS_NEEDED}+ steps since the dismissal answer the check")
-                answer(alarmId, WakeProof.STEPS)
-                return
+                answerLocked(alarmId, WakeProof.STEPS)
+                return@withLock
             }
         }
         val deadline = time.nowMillis() + alarm.wakeCheck.responseSeconds.coerceIn(15, 600) * 1000L
@@ -93,8 +103,12 @@ class WakeCheckController @Inject constructor(
      * The user confirmed they are awake with [proof]. Returns false when that is not enough: an alarm that asks for
      * proof ignores a plain answer (a tap, a notification button left from before), and the check runs its course.
      */
-    suspend fun answer(alarmId: Long, proof: WakeProof = WakeProof.NONE): Boolean {
+    suspend fun answer(alarmId: Long, proof: WakeProof = WakeProof.NONE): Boolean = mutex.withLock { answerLocked(alarmId, proof) }
+
+    private suspend fun answerLocked(alarmId: Long, proof: WakeProof): Boolean {
         val check = checks.get(alarmId) ?: return false
+        // Its deadline has passed and the alarm is ringing again for it: that ring is what has to be dealt with now.
+        if (check.phase == WakeCheck.Phase.PROMPTED && check.deadlineAt <= 0) return false
         val alarm = alarms.getAlarm(alarmId)
         if (alarm != null && !WakeProofPolicy.accepts(alarm.wakeCheck.requireProof, proof)) {
             diagnostics.warn("WakeCheck", "alarm $alarmId: an answer without proof was ignored")
@@ -123,26 +137,28 @@ class WakeCheckController @Inject constructor(
      * Cancel asked for by the user: the notification, the prompt screen or the morning screen. Refused for an alarm that
      * asks for proof, which would otherwise be answered by its Cancel. Returns whether the check was cancelled.
      */
-    suspend fun cancelByUser(alarmId: Long): Boolean {
+    suspend fun cancelByUser(alarmId: Long): Boolean = mutex.withLock {
         val alarm = alarms.getAlarm(alarmId)
         if (alarm?.wakeCheck?.requireProof == true) {
             diagnostics.warn("WakeCheck", "alarm $alarmId: cancel refused, the check needs proof")
-            return false
+            return@withLock false
         }
-        abandon(alarmId, WakeCheckStatus.CANCELLED)
-        return true
+        abandonLocked(alarmId, WakeCheckStatus.CANCELLED, checkOver = true)
+        true
     }
 
     /** Nobody answered. Returns a ring request when the alarm should sound again, or null when the check is over. */
-    suspend fun onDeadline(alarmId: Long): RingRequest? {
-        val check = checks.get(alarmId) ?: return null
-        if (check.phase != WakeCheck.Phase.PROMPTED) return null
+    suspend fun onDeadline(alarmId: Long): RingRequest? = mutex.withLock {
+        val check = checks.get(alarmId) ?: return@withLock null
+        if (check.phase != WakeCheck.Phase.PROMPTED) return@withLock null
+        // No deadline outstanding: this one was already used up (the alarm is ringing again for it), delivered a second time.
+        if (check.deadlineAt <= 0) return@withLock null
         notifier.cancelWakeCheck(alarmId)
         val alarm = alarms.getAlarm(alarmId)
         if (alarm == null || check.reRings >= alarm.wakeCheck.maxReRings) {
-            abandon(alarmId, WakeCheckStatus.FAILED)
+            abandonLocked(alarmId, WakeCheckStatus.FAILED, checkOver = true)
             diagnostics.warn("WakeCheck", "alarm $alarmId: no answer and re-ring limit reached")
-            return null
+            return@withLock null
         }
         checks.save(check.copy(reRings = check.reRings + 1, deadlineAt = 0))
         val event = history.get(check.eventId)
@@ -150,7 +166,7 @@ class WakeCheckController @Inject constructor(
             history.update(event.copy(outcome = com.riyadm.wakenudge.domain.model.AlarmOutcome.RINGING, endedAt = null, wakeCheckReRings = check.reRings + 1))
         }
         diagnostics.warn("WakeCheck", "alarm $alarmId: no answer, ringing again (${check.reRings + 1}/${alarm.wakeCheck.maxReRings})")
-        return RingRequest(alarmId, check.eventId, event?.scheduledAt ?: time.nowMillis(), RingKind.WAKE_CHECK_RERING)
+        RingRequest(alarmId, check.eventId, event?.scheduledAt ?: time.nowMillis(), RingKind.WAKE_CHECK_RERING)
     }
 
     /**
@@ -158,7 +174,10 @@ class WakeCheckController @Inject constructor(
      * on its own terms (failed, cancelled from its prompt, emergency stop), which lets a delete-after-use alarm go now;
      * when the user changed the alarm (switched it off or on, edited or deleted it) that is their decision instead.
      */
-    suspend fun abandon(alarmId: Long, status: WakeCheckStatus?, checkOver: Boolean = true) {
+    suspend fun abandon(alarmId: Long, status: WakeCheckStatus?, checkOver: Boolean = true) =
+        mutex.withLock { abandonLocked(alarmId, status, checkOver) }
+
+    private suspend fun abandonLocked(alarmId: Long, status: WakeCheckStatus?, checkOver: Boolean) {
         val check = checks.get(alarmId)
         pending.cancel(TriggerKind.WAKE_CHECK_PROMPT, alarmId)
         pending.cancel(TriggerKind.WAKE_CHECK_DEADLINE, alarmId)

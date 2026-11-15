@@ -16,6 +16,7 @@ import androidx.core.app.ServiceCompat
 import com.riyadm.wakenudge.R
 import com.riyadm.wakenudge.core.TimeSource
 import com.riyadm.wakenudge.core.TimeText
+import com.riyadm.wakenudge.domain.model.AppSettings
 import com.riyadm.wakenudge.domain.repository.DiagnosticsLog
 import com.riyadm.wakenudge.domain.repository.SettingsRepository
 import com.riyadm.wakenudge.engine.audio.AlarmAudioEngine
@@ -82,6 +83,9 @@ class RingService : Service() {
     private var observer: Job? = null
     private var ticker: Job? = null
     private var voiceJob: Job? = null
+
+    /** The sound, vibration and voice of the current ring being started; it loads its settings and sound first, which takes a moment. */
+    private var startJob: Job? = null
     private var voice: VoiceAnnouncer? = null
     private val resurface = ResurfacePolicy()
     private var screenReceiver: BroadcastReceiver? = null
@@ -123,12 +127,7 @@ class RingService : Service() {
         startsInFlight++
         scope.launch {
             val session = try {
-                if (check && !controller.stillUnhandled(request)) {
-                    diagnostics.info("Service", "ring of alarm ${request.alarmId} was already handled; not ringing it again")
-                    null
-                } else {
-                    controller.begin(request)
-                }
+                controller.begin(request, onlyIfUnhandled = check)
             } finally {
                 startsInFlight--
             }
@@ -218,7 +217,8 @@ class RingService : Service() {
                             var candidate: RingRequest? = next
                             var session: RingSession? = null
                             while (candidate != null && session == null) {
-                                session = controller.begin(candidate)
+                                // One that was waiting may have been dealt with meanwhile (its snooze dismissed from the notification).
+                                session = controller.begin(candidate, onlyIfUnhandled = candidate.eventId > 0)
                                 if (session == null) candidate = controller.takeQueued()
                             }
                             if (session == null) {
@@ -263,7 +263,7 @@ class RingService : Service() {
         // A different alarm replacing the previous one (the conflated "null" in between may never be seen).
         if (prev != null && (prev.alarm.id != s.alarm.id || prev.eventId != s.eventId)) {
             guard("stopping the previous alarm") {
-                audio.stop(); vibrator.stop(); voiceJob?.cancel(); voice?.shutdown(); voice = null
+                startJob?.cancel(); audio.stop(); vibrator.stop(); voiceJob?.cancel(); voice?.shutdown(); voice = null
             }
             ringingStarted = false
             lastIntensified = false
@@ -306,14 +306,36 @@ class RingService : Service() {
         diagnostics.info("Service", if (paused) "the alarm is quiet for an Emergency pause or a call" else "the alarm sounds again after a pause or a call")
     }
 
+    /**
+     * Loading the settings and the sound takes a moment, and the ring can end or give way to the next one in it. A start
+     * that outlived its ring used to carry on: its sound replaced the next alarm's, or its vibration and voice began after
+     * everything had been stopped. So each ring has one start, cancelled with it, and every step first makes sure the ring
+     * it belongs to is still the one that is on.
+     */
     private fun startRinging(s: RingSession) {
         lastIntensified = s.intensified
-        scope.launch {
-            guard("audio") { audio.start(s.soundAlarm, settings.current(), s.kind, s.intensified) }
+        startJob?.cancel()
+        startJob = scope.launch {
+            // Unreadable settings must not cost the alarm its sound: it rings with the defaults.
+            val appSettings = try {
+                settings.current()
+            } catch (c: CancellationException) {
+                throw c
+            } catch (t: Throwable) {
+                diagnostics.error("Service", "reading settings failed; ringing with the defaults", t)
+                AppSettings()
+            }
+            if (!stillOn(s)) return@launch
+            guard("audio") { audio.start(s.soundAlarm, appSettings, s.kind, s.intensified) }
+            if (!stillOn(s)) return@launch
             guard("vibration") { if (s.alarm.vibration.enabled && !quiet) vibrator.start(s.alarm.vibration, s.intensified) }
             guard("voice announcement") { if (s.alarm.voice.enabled && !s.isTimer) startVoice(s) }
         }
     }
+
+    /** Whether [s] is still the ring that is on, by the same measure [render] uses to tell one ring from the next. */
+    private fun stillOn(s: RingSession): Boolean =
+        store.current.let { it != null && it.alarm.id == s.alarm.id && it.eventId == s.eventId }
 
     private fun startVoice(s: RingSession) {
         voice = VoiceAnnouncer(
@@ -471,6 +493,7 @@ class RingService : Service() {
 
     private fun stopSounds() {
         guard("stopping the sound") {
+            startJob?.cancel()
             voiceJob?.cancel()
             voice?.shutdown()
             voice = null

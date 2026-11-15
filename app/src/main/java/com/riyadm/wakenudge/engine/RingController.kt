@@ -48,6 +48,8 @@ object RingIds {
     /** Timers ring through the alarm pipeline under id TIMER_ALARM_BASE - timerId. */
     const val TIMER_ALARM_BASE = -1000L
     const val MAX_BACKUPS = 3
+    /** An expiry handled this long before the timer's end is an old one, of a timer that was extended since. */
+    const val TIMER_EARLY_SLACK_MS = 2_000L
     const val INACTIVITY_ESCALATION_MS = 40_000L
     const val SILENCE_MS = 30_000L
 
@@ -237,17 +239,20 @@ class RingController @Inject constructor(
      * at once, the second one ringing when the process went down), so an event that is closed, or snoozed into the
      * future, is not rung again. When the history cannot say, it rings: a spurious ring beats a missed one.
      */
-    suspend fun stillUnhandled(request: RingRequest): Boolean = mutex.withLock {
+    suspend fun stillUnhandled(request: RingRequest): Boolean = mutex.withLock { unhandled(request) }
+
+    /** The check behind [stillUnhandled], for a caller that already holds the lock. */
+    private suspend fun unhandled(request: RingRequest): Boolean {
         if (request.kind == RingKind.TIMER) {
             // Only a timer the user started (or paused) again is settled. An idle one is what the start-up housekeeping
             // leaves of a timer that was ringing when the process died, and that one must ring again.
             val timer = tryDb("loading timer ${request.timerId}", null) { timers.getTimer(request.timerId) }
-            return@withLock timer == null || timer.state == TimerState.RINGING || timer.state == TimerState.IDLE
+            return timer == null || timer.state == TimerState.RINGING || timer.state == TimerState.IDLE
         }
-        if (request.eventId <= 0) return@withLock true
-        val event = tryDb("loading the event of a redelivered ring", null) { history.get(request.eventId) } ?: return@withLock true
+        if (request.eventId <= 0) return true
+        val event = tryDb("loading the event of a redelivered ring", null) { history.get(request.eventId) } ?: return true
         val unresolved = event.outcome == AlarmOutcome.RINGING || event.outcome == AlarmOutcome.MISSED
-        unresolved && event.snoozeUntil <= time.nowMillis()
+        return unresolved && event.snoozeUntil <= time.nowMillis()
     }
 
     /**
@@ -274,6 +279,11 @@ class RingController @Inject constructor(
         val timer = tryDb("loading timer $timerId", CountdownTimer(id = timerId, durationMs = 0, state = TimerState.RUNNING)) { timers.getTimer(timerId) }
             ?: return@withLock null
         if (timer.state != TimerState.RUNNING) return@withLock null
+        // Given another minute (or started again) a moment before this expiry was handled: its new trigger rings it.
+        if (timer.endsAtMillis - time.nowMillis() > RingIds.TIMER_EARLY_SLACK_MS) {
+            diagnostics.info("Ring", "timer $timerId was extended; ignoring its old expiry")
+            return@withLock null
+        }
         tryDb("marking timer $timerId as ringing", Unit) { timers.save(timer.copy(state = TimerState.RINGING, remainingMs = 0)) }
         notifier.cancelTimer(timerId)
         surfaces.refreshAll()
@@ -317,8 +327,13 @@ class RingController @Inject constructor(
     // ---- session lifecycle (from the service) --------------------------------------------------------------
 
     /** Never throws: if anything inside fails, the ring starts anyway, from the alarm's saved copy or as a plain default. */
-    suspend fun begin(request: RingRequest): RingSession? = try {
-        beginInternal(request)
+    /**
+     * [onlyIfUnhandled] asks the history first whether this ring was dealt with meanwhile (dismissed, snoozed), in the
+     * same critical section that starts it. Asked separately, a dismissal waiting its turn got in between the question and
+     * the start, and the ring it had just ended started again.
+     */
+    suspend fun begin(request: RingRequest, onlyIfUnhandled: Boolean = false): RingSession? = try {
+        beginInternal(request, onlyIfUnhandled)
     } catch (c: CancellationException) {
         throw c
     } catch (t: Throwable) {
@@ -358,7 +373,11 @@ class RingController @Inject constructor(
         return session
     }
 
-    private suspend fun beginInternal(incoming: RingRequest): RingSession? = mutex.withLock {
+    private suspend fun beginInternal(incoming: RingRequest, onlyIfUnhandled: Boolean): RingSession? = mutex.withLock {
+        if (onlyIfUnhandled && !unhandled(incoming)) {
+            diagnostics.info("Ring", "ring of alarm ${incoming.alarmId} was already handled; not ringing it again")
+            return@withLock null
+        }
         val now = time.nowMillis()
         val elapsed = time.elapsedMillis()
         val appSettings = tryDb("reading settings", AppSettings()) { settings.current() }
