@@ -89,6 +89,46 @@ abstract class VerifyOfflineManifestTask : DefaultTask() {
     }
 }
 
+/**
+ * Fails a minified build if R8 removed a constructor that a library calls by reflection. Debug builds are not minified, so
+ * nothing else notices: release 1.0.85 shipped with WorkManager's input merger stripped of its constructor, and every
+ * home-screen widget stayed on its loading spinner. The mapping lists a class's own `<init>` only when it survived.
+ */
+abstract class VerifyReflectiveConstructorsTask : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val mapping: RegularFileProperty
+
+    /** Class name to the parameter list its reflective caller needs, as the mapping writes it. */
+    @get:Input
+    abstract val required: MapProperty<String, String>
+
+    @TaskAction
+    fun verify() {
+        val wanted = required.get()
+        val seenClasses = mutableSetOf<String>()
+        val found = mutableSetOf<String>()
+        var current: String? = null
+        mapping.get().asFile.useLines { lines ->
+            for (line in lines) {
+                if (line.isEmpty() || line.startsWith("#")) continue
+                if (!line.startsWith(" ")) {
+                    current = line.substringBefore(" -> ").takeIf { it in wanted }?.also { seenClasses += it }
+                } else {
+                    val owner = current ?: continue
+                    // The class's own constructor is written without a class name; an inlined parent's carries one.
+                    if (line.contains("void <init>(${wanted.getValue(owner)})") && line.trimEnd().endsWith("-> <init>")) found += owner
+                }
+            }
+        }
+        val missing = wanted.keys - found
+        check(missing.isEmpty()) {
+            "R8 removed constructors that are called by reflection (add a -keep rule in proguard-rules.pro): " +
+                missing.joinToString { "$it(${wanted.getValue(it)})" + if (it in seenClasses) "" else " [class removed or renamed]" }
+        }
+    }
+}
+
 android {
     namespace = "com.riyadm.wakenudge"
     compileSdk = 37
@@ -180,6 +220,23 @@ androidComponents {
             mergedManifest.set(variant.artifacts.get(SingleArtifact.MERGED_MANIFEST))
         }
         tasks.matching { it.name == "check" }.configureEach { dependsOn(verify) }
+
+        if (variant.isMinifyEnabled) {
+            val constructors = tasks.register<VerifyReflectiveConstructorsTask>("verifyReflectiveConstructors$capName") {
+                mapping.set(variant.artifacts.get(SingleArtifact.OBFUSCATION_MAPPING_FILE))
+                required.set(
+                    mapOf(
+                        // WorkManager, which runs every Glance widget session.
+                        "androidx.work.OverwritingInputMerger" to "",
+                        "androidx.work.impl.WorkDatabase_Impl" to "",
+                        "androidx.glance.session.SessionWorker" to "android.content.Context,androidx.work.WorkerParameters",
+                        // Room creates the generated database by name.
+                        "com.riyadm.wakenudge.data.db.WakeNudgeDatabase_Impl" to "",
+                    ),
+                )
+            }
+            tasks.matching { it.name == "assemble$capName" }.configureEach { dependsOn(constructors) }
+        }
     }
 }
 
