@@ -4,6 +4,32 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 Releases are built and published automatically from `main` and numbered `MAJOR.MINOR.N`, where `N` is the commit count
 (see [docs/RELEASING.md](docs/RELEASING.md)); the notes of each GitHub release list the commits it contains.
 
+## Stability pass: widgets in release builds, and things that arrive in the same instant
+
+Found by running the minified release build on a Pixel 6 (every earlier device run used the debug build) and by an
+independent review of the engine's entry points.
+
+### Fixed
+- **Home-screen widgets stayed on a loading spinner in release builds** (issue #5). The shrinker removed a constructor
+  that WorkManager, which runs each widget session, calls by reflection. It is kept now, and a release build fails if its
+  mapping shows such a constructor gone
+- **An alarm could ring as quietly as the phone was set**: start-up housekeeping put back a volume left by a killed ring
+  from a background thread, and could do so under a ring that started in the same instant. It decides on the main thread
+  now, where every ring starts and ends
+- **A dismissed alarm could start again** when its backup fired in the same instant: "still unhandled?" and "start" were
+  two locked steps, and the dismissal got in between. They are one step now
+- **One alarm's start-up could override the next alarm's** sound, or start its vibration and voice after everything was
+  stopped, when two alarms followed each other while a sound was still loading. Each ring's start is cancelled with it
+- **Answering "Still awake?" as its deadline fired** could leave the check passed and the alarm ringing again. The
+  check's steps run one at a time, a deadline delivered twice counts once, and an answer after the deadline doesn't pass
+- **A timer given another minute in its last second** rang at once and then never at its new end
+- An alarm whose settings can't be read when it starts ringing rings with the default settings instead of without sound
+
+### Known and left as they are
+- The one-time copy of the old global ring settings onto each alarm writes whole alarms, so a change made in the same
+  instant could be lost. It runs once, right after the update that introduced it
+- Restoring a backup is not atomic across the database and the settings file if the process dies in the middle
+
 ## The docs say what the app does on a real phone
 
 - **README**: a short explanation of Easy, Normal, Hard and No mercy for a new user, Focus Tap among the eleven missions,

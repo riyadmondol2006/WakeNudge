@@ -4,9 +4,9 @@ An alarm clock is judged on the one morning it fails, so testing is split by wha
 
 | Layer | Where it runs | What it proves |
 |---|---|---|
-| **JVM unit tests** (940, from the result XML) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
+| **JVM unit tests** (947, from the result XML) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
 | **Fuzz tests** (14, part of the JVM tests) | Your computer | 20,000 seeded random alarm/clock/zone combinations never crash the scheduler or yield a time in the past; corrupted and hostile backup files are rejected or sanitised, never half-applied; random commands from stale buttons, keys and forged claims never end a ring whose missions are unfinished |
-| **Instrumented engine tests** (139, with the migration, update-state and widget tests) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
+| **Instrumented engine tests** (140, with the migration, update-state and widget tests) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
 | **Instrumented UI tests** (89, 22 of them for the update popup and the About screen) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions getting a backup mission (never Continue), Emergency and the way out by click action at font scale 2.0 |
 
 Run the JVM tests with `./gradlew :app:testDebugUnitTest`. For the instrumented tests see the warning in the README:
@@ -202,6 +202,26 @@ blocked, and the ring above is what happens instead.
   export (valid JSON with un-obfuscated field names) and restore (alarm returns and is re-armed).
 - Widgets and the Quick Settings tile are **registered** with Android (three `AppWidgetProvider`s and the tile service
   resolve). Their layouts are covered by JVM tests of the data they show.
+- ✱ **The minified release build after the hard-alarm work** (published 1.0.85, then a local debug-signed build with the
+  fix): the **Next alarm widget placed on the Pixel launcher stayed on its loading spinner** (issue #5), because R8 had
+  removed the no-argument constructor of `androidx.work.OverwritingInputMerger` that WorkManager 2.7.1 (pulled in by
+  Glance) creates by reflection: `E/WM-InputMerger: ... has no zero argument constructor`. With the keep rule the widget
+  drew "No alarms" within seconds. `verifyReflectiveConstructorsRelease` now reads the mapping of every minified build
+  and fails when such a constructor is gone; it was watched failing with the rule removed. On the fixed build: an Easy
+  alarm set through `SET_ALARM` rang, got louder after 40 s and was dismissed from its notification with the volume put
+  back; a Normal alarm rang over the lock screen, came back 27 s after Stop in Active apps from its saved ring (JSON
+  through R8), and was dismissed by solving its three sums. One `SET_ALARM` with `SKIP_UI` sent just after a reinstall,
+  with another app's dialog in front, created no alarm; six further tries (cold start, background, after a reinstall)
+  all did, so it is recorded here and not explained.
+- ✱ **Things that arrive in the same instant** (`RaceAuditFixesTest`, which holds the storage read between the two open
+  so the order that went wrong is the order that runs; five of its tests failed before the fixes): a dismissal against a
+  backup's start, an answer to "Still awake?" against its deadline, a deadline delivered twice, an answer after the
+  deadline, and a timer extended just before its old expiry. The ring service's own part (one start-up per ring,
+  cancelled with it) has no test of its own; the instrumented ring-service tests cover that rings still start and stop.
+- ✱ The stale alarm-volume restore decided off the main thread (`aRestoreAskedForFromABackgroundThreadWaitsForTheMainThread`,
+  which holds the main thread busy and failed with the old behaviour).
+- **After the stability pass: every instrumented class (23), one at a time, on the Pixel 6, 229 tests, all passing**, with
+  the alarm volume 6 before and after each class.
 
 - **The final build, after levels, the morning record and the docs: every instrumented class (23), one at a time, on a
   Pixel 6 (Android 17, gesture navigation), 228 tests, all passing**, with the alarm volume 6 before and after each class.
