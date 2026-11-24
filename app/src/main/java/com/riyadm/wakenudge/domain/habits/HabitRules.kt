@@ -7,7 +7,7 @@ enum class HabitDayState { DONE, MISSED, NOT_DUE, FUTURE }
 object HabitRules {
     fun canToggle(habit: Habit, date: LocalDate, today: LocalDate): Boolean {
         val epochDay = date.toEpochDay()
-        return epochDay >= habit.createdEpochDay &&
+        return habit.isDueOn(date) &&
             epochDay >= today.minusDays((Habit.RECENT_EDIT_DAYS - 1).toLong()).toEpochDay() &&
             epochDay <= today.toEpochDay()
     }

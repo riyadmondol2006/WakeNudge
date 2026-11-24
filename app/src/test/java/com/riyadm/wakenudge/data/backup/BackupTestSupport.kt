@@ -53,7 +53,7 @@ class FakeBackupStore(var contents: BackupFile = BackupFile()) : BackupStore {
     override suspend fun replace(file: BackupFile) {
         replaceCalls++
         failReplaceWith?.let { throw it }
-        contents = file.copy(history = file.history ?: contents.history)
+        contents = file.copy(history = file.history ?: contents.history, habits = file.habits ?: contents.habits)
     }
 }
 

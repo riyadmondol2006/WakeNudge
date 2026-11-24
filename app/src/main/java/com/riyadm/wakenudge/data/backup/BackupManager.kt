@@ -111,6 +111,7 @@ class BackupManager @Inject constructor(
             worldClocks = file.worldClocks.size,
             exceptionDates = file.exceptionDates.size,
             history = file.history?.size,
+            habits = file.habits?.habits?.size,
         )
         return ImportResult.Success(counts, warnings)
     }

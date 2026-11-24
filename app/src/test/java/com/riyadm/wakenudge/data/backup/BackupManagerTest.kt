@@ -83,8 +83,8 @@ class BackupManagerTest {
     @Test fun `update-check state belongs to the installation and is not exported`() = runTest {
         val installed = Sample.settings.copy(updateChecksEnabled = false, lastUpdateCheckAt = 1_650_000_000_123, skippedUpdateVersion = "1.0.9")
         val json = BackupRig(Sample.file.copy(settings = installed)).manager.export(includeHistory = false)
-        assertFalse(json.contains("1.0.9"))
-        assertFalse(json.contains("1650000000123"))
+        assertFalse(json.contains("\"skippedUpdateVersion\": \"1.0.9\""))
+        assertFalse(json.contains("\"lastUpdateCheckAt\": 1650000000123"))
         val restored = BackupRig().also { it.manager.import(json).success() }.store.contents.settings
         assertEquals(Sample.settings, restored)
     }

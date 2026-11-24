@@ -10,6 +10,7 @@ import com.riyadm.wakenudge.domain.model.AlarmGroup
 import com.riyadm.wakenudge.domain.model.AppSettings
 import com.riyadm.wakenudge.domain.model.ExceptionDate
 import com.riyadm.wakenudge.domain.model.WorldClockCity
+import com.riyadm.wakenudge.domain.habits.HabitBackup
 import kotlinx.serialization.Serializable
 
 object BackupFormat {
@@ -35,6 +36,7 @@ data class BackupFile(
     val worldClocks: List<WorldClockCity> = emptyList(),
     val exceptionDates: List<ExceptionDate> = emptyList(),
     val history: List<AlarmEvent>? = null,
+    val habits: HabitBackup? = null,
 )
 
 /** What a restore put into the app. [history] is null when the backup carried none and the stored history stayed. */
@@ -44,6 +46,7 @@ data class ImportCounts(
     val worldClocks: Int,
     val exceptionDates: Int,
     val history: Int?,
+    val habits: Int? = null,
 )
 
 /**

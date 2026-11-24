@@ -19,6 +19,11 @@ class HabitRulesTest {
         assertFalse(HabitRules.canToggle(habit, monday.plusDays(7), monday.plusDays(6)))
     }
 
+    @Test fun `a day the habit is not due cannot be checked`() {
+        val mondays = habit.copy(daysMask = Habit.maskOf(setOf(DayOfWeek.MONDAY)))
+        assertFalse(HabitRules.canToggle(mondays, monday.plusDays(1), monday.plusDays(6)))
+    }
+
     @Test fun `creation is the earliest editable day even inside the recent window`() {
         val created = monday.plusDays(4)
         val recent = habit.copy(createdEpochDay = created.toEpochDay())
