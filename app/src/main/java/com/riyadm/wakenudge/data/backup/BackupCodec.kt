@@ -11,6 +11,9 @@ import com.riyadm.wakenudge.domain.model.ExceptionDate
 import com.riyadm.wakenudge.domain.model.MissionType
 import com.riyadm.wakenudge.domain.model.WorldClockCity
 import com.riyadm.wakenudge.domain.model.withGlobalsOf
+import com.riyadm.wakenudge.domain.habits.Habit
+import com.riyadm.wakenudge.domain.habits.HabitBackup
+import com.riyadm.wakenudge.domain.habits.HabitCheckIn
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -75,6 +78,12 @@ object BackupCodec {
         val history = (root["history"] as? JsonArray)?.let {
             lenientList(root, "history", AlarmEvent.serializer(), R.plurals.backup_warn_history_skipped, warnings)
         }
+        val habits = (root["habits"] as? JsonObject)?.let { backup ->
+            HabitBackup(
+                habits = lenientList(backup, "habits", Habit.serializer(), R.plurals.backup_warn_habits_skipped, warnings),
+                checkIns = lenientList(backup, "checkIns", HabitCheckIn.serializer(), R.plurals.backup_warn_habit_check_ins_skipped, warnings),
+            )
+        }
         if (droppedMissions > 0) warnings += ImportWarning(R.plurals.backup_warn_missions_unknown, count = droppedMissions)
 
         val file = BackupFile(
@@ -88,6 +97,7 @@ object BackupCodec {
             worldClocks = clocks,
             exceptionDates = dates,
             history = history,
+            habits = habits,
         )
         return ParseOutcome.Parsed(file, warnings)
     }

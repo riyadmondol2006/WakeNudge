@@ -10,6 +10,8 @@ import com.riyadm.wakenudge.domain.repository.HistoryRepository
 import com.riyadm.wakenudge.domain.repository.SettingsRepository
 import com.riyadm.wakenudge.domain.repository.WakeCheckRepository
 import com.riyadm.wakenudge.domain.repository.WorldClockRepository
+import com.riyadm.wakenudge.domain.habits.HabitBackup
+import com.riyadm.wakenudge.domain.habits.HabitRepository
 import com.riyadm.wakenudge.engine.PendingAlarms
 import com.riyadm.wakenudge.engine.RingIds
 import com.riyadm.wakenudge.engine.TriggerKind
@@ -48,25 +50,32 @@ class RoomBackupStore @Inject constructor(
     private val wakeChecks: WakeCheckRepository,
     private val pending: PendingAlarms,
     private val notifier: Notifier,
+    private val habits: HabitRepository,
 ) : BackupStore {
 
-    override suspend fun read(includeHistory: Boolean): BackupFile = db.withTransaction {
-        BackupFile(
-            settings = settings.current(),
-            alarms = alarms.getAlarms(),
-            groups = groups.getGroups(),
-            worldClocks = worldClocks.getCities(),
-            exceptionDates = exceptions.getDates(),
-            // Capped so a backup can always be restored: the import refuses files over 16 MB, which about 30,000 events reach.
-            history = if (includeHistory) history.recent(MAX_EXPORTED_EVENTS) else null,
-        )
+    override suspend fun read(includeHistory: Boolean): BackupFile {
+        val habitData = habits.data()
+        return db.withTransaction {
+            BackupFile(
+                settings = settings.current(),
+                alarms = alarms.getAlarms(),
+                groups = groups.getGroups(),
+                worldClocks = worldClocks.getCities(),
+                exceptionDates = exceptions.getDates(),
+                // Capped so a backup can always be restored: the import refuses files over 16 MB, which about 30,000 events reach.
+                history = if (includeHistory) history.recent(MAX_EXPORTED_EVENTS) else null,
+                habits = HabitBackup(habitData.habits, habitData.checkIns.sortedWith(compareBy({ it.habitId }, { it.epochDay }))),
+            )
+        }
     }
 
     override suspend fun replace(file: BackupFile) {
+        val previousHabits = if (file.habits != null) habits.data() else null
         val previousIds = alarms.getAlarms().map { it.id }
         val previousSettings = settings.current()
         var settingsWritten = false
         try {
+            file.habits?.let { habits.replace(it) }
             db.withTransaction {
                 groups.replaceAll(file.groups)
                 alarms.replaceAll(file.alarms)
@@ -99,6 +108,9 @@ class RoomBackupStore @Inject constructor(
             // The settings live outside the database and are not rolled back with it: put them back by hand, so a
             // restore that failed changed nothing, as the result says.
             if (settingsWritten) runCatching { settings.replace(previousSettings) }
+            if (previousHabits != null) {
+                runCatching { habits.replace(HabitBackup(previousHabits.habits, previousHabits.checkIns.toList())) }
+            }
             throw t
         }
         (previousIds + file.alarms.map { it.id }).distinct().forEach(::retireFollowUps)

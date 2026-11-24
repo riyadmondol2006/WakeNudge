@@ -232,9 +232,10 @@ androidComponents {
                         "androidx.glance.session.SessionWorker" to "android.content.Context,androidx.work.WorkerParameters",
                         // Room creates the generated database by name.
                         "com.riyadm.wakenudge.data.db.WakeNudgeDatabase_Impl" to "",
-                        // The sleep sounds' and sleep tracking's own databases, created the same way.
+                        // The sleep sounds' and sleep tracking's and the habits' own databases, created the same way.
                         "com.riyadm.wakenudge.engine.sounds.SleepSoundsDatabase_Impl" to "",
                         "com.riyadm.wakenudge.data.sleep.SleepDatabase_Impl" to "",
+                        "com.riyadm.wakenudge.data.habits.HabitDatabase_Impl" to "",
                     ),
                 )
             }

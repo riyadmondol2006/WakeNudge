@@ -26,6 +26,9 @@ import com.riyadm.wakenudge.domain.model.VoiceSettings
 import com.riyadm.wakenudge.domain.model.VolumeSettings
 import com.riyadm.wakenudge.domain.model.WakeCheckSettings
 import com.riyadm.wakenudge.domain.model.WorldClockCity
+import com.riyadm.wakenudge.domain.habits.Habit
+import com.riyadm.wakenudge.domain.habits.HabitBackup
+import com.riyadm.wakenudge.domain.habits.HabitCheckIn
 import com.riyadm.wakenudge.engine.RingIds
 import com.riyadm.wakenudge.engine.audio.BundledTones
 import java.time.LocalDate
@@ -60,6 +63,7 @@ object BackupSanitizer {
     const val MAX_WORLD_CLOCKS = 100
     const val MAX_EXCEPTION_DATES = 5_000
     const val MAX_HISTORY = 50_000
+    const val MAX_HABIT_CHECK_INS = 100_000
     const val MAX_LABEL = 60
     const val MAX_URI = 2_048
     const val MAX_PARAM_VALUE = 8_192
@@ -89,6 +93,7 @@ object BackupSanitizer {
         val clocks = run.worldClocks(file.worldClocks)
         val dates = run.exceptionDates(file.exceptionDates)
         val history = file.history?.let(run::history)
+        val habits = file.habits?.let(run::habits)
         run.finish()
         val sanitized = file.copy(
             formatVersion = BackupFormat.VERSION,
@@ -101,6 +106,7 @@ object BackupSanitizer {
             worldClocks = clocks,
             exceptionDates = dates,
             history = history,
+            habits = habits,
         )
         return Sanitized(sanitized, run.warnings)
     }
@@ -405,6 +411,44 @@ object BackupSanitizer {
             }
             if (result.size != source.size) warnCount(R.plurals.backup_warn_dates_skipped, source.size - result.size)
             return result
+        }
+
+        fun habits(source: HabitBackup): HabitBackup {
+            if (source.habits.size > Habit.MAX_HABITS) clamped += source.habits.size - Habit.MAX_HABITS
+            val cleaned = source.habits.take(Habit.MAX_HABITS).map { habit ->
+                val rawMask = habit.daysMask and Habit.EVERY_DAY_MASK
+                val mask = rawMask.takeIf { it != 0 } ?: Habit.EVERY_DAY_MASK
+                if (mask != habit.daysMask) clamped++
+                habit.copy(
+                    name = text(habit.name.trim().ifBlank { "Habit" }, Habit.MAX_NAME_LENGTH),
+                    icon = text(habit.icon.ifBlank { Habit.DEFAULT_ICON }, Habit.MAX_ICON_LENGTH),
+                    colorIndex = int(habit.colorIndex, 0 until Habit.PALETTE_SIZE),
+                    daysMask = mask,
+                    reminderMinutes = habit.reminderMinutes?.let { int(it, 0..1_439) },
+                    createdEpochDay = epochDay(habit.createdEpochDay) ?: 0L,
+                    sortOrder = int(habit.sortOrder, -10_000..10_000),
+                )
+            }
+            val ids = uniqueIds(cleaned.map { it.id })
+            val idMap = linkedMapOf<Long, Long>()
+            cleaned.forEachIndexed { index, habit ->
+                if (habit.id > 0 && habit.id !in idMap) idMap[habit.id] = ids[index]
+            }
+            val restored = cleaned.mapIndexed { index, habit -> habit.copy(id = ids[index]) }
+            val createdById = restored.associate { it.id to it.createdEpochDay }
+            val seen = hashSetOf<HabitCheckIn>()
+            val checkIns = source.checkIns.mapNotNull { checkIn ->
+                val habitId = idMap[checkIn.habitId]
+                val date = epochDay(checkIn.epochDay)
+                if (habitId == null || date == null || date < createdById.getValue(habitId)) {
+                    clamped++
+                    null
+                } else {
+                    HabitCheckIn(habitId, date)
+                }
+            }.filter { seen.add(it) }
+            if (checkIns.size > MAX_HABIT_CHECK_INS) clamped += checkIns.size - MAX_HABIT_CHECK_INS
+            return HabitBackup(restored, checkIns.take(MAX_HABIT_CHECK_INS))
         }
 
         fun history(source: List<AlarmEvent>): List<AlarmEvent> {

@@ -53,7 +53,7 @@ class FakeBackupStore(var contents: BackupFile = BackupFile()) : BackupStore {
     override suspend fun replace(file: BackupFile) {
         replaceCalls++
         failReplaceWith?.let { throw it }
-        contents = file.copy(history = file.history ?: contents.history)
+        contents = file.copy(history = file.history ?: contents.history, habits = file.habits ?: contents.habits)
     }
 }
 
@@ -117,7 +117,8 @@ class BackupRig(initial: BackupFile = BackupFile()) {
     /** What edit protection says about a restore right now; null lets it through. */
     var lock: com.riyadm.wakenudge.domain.scheduling.EditLock? = null
     val global = mockk<com.riyadm.wakenudge.domain.usecase.GlobalChanges> { io.mockk.coEvery { restoreLock() } answers { lock } }
-    val manager = BackupManager(mockk<Context>(relaxed = true), store, scheduler, surfaces, FixedTime(), log, runtime, global)
+    val habitReminders = mockk<com.riyadm.wakenudge.engine.habits.HabitReminderScheduler>(relaxed = true)
+    val manager = BackupManager(mockk<Context>(relaxed = true), store, scheduler, surfaces, FixedTime(), log, runtime, global, habitReminders)
 }
 
 /** A backup with every kind of content, all of it already valid so a restore must reproduce it exactly. */

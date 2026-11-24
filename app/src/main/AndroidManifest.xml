@@ -317,5 +317,31 @@
         <!-- Sleep sounds: independent media playback, never the alarm stream. -->
         <service android:name=".engine.sounds.SleepSoundsService"
             android:exported="false" android:foregroundServiceType="mediaPlayback" />
+
+        <!-- Habits: gentle notifications only, isolated from the alarm trigger and ring receivers. -->
+        <activity
+            android:name=".ui.habits.HabitNotificationActivity"
+            android:directBootAware="false"
+            android:exported="false"
+            android:theme="@style/Theme.WakeNudge" />
+
+        <receiver
+            android:name=".engine.habits.HabitReminderReceiver"
+            android:directBootAware="true"
+            android:exported="false" />
+
+        <receiver
+            android:name=".engine.habits.HabitSystemEventsReceiver"
+            android:directBootAware="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

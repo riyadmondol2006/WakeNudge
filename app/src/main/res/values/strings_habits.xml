@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="habits_add">Add a habit</string>
+    <string name="habits_empty_title">Build a routine, one day at a time</string>
+    <string name="habits_empty_body">Add a habit to tick off today and see your streak grow.</string>
+    <string name="habits_mark_done">Mark %1$s done</string>
+    <string name="habits_mark_not_done">Mark %1$s not done</string>
+    <string name="habits_edit">Edit %1$s</string>
+    <string name="habits_delete">Delete %1$s</string>
+    <string name="habits_move_up">Move %1$s up</string>
+    <string name="habits_move_down">Move %1$s down</string>
+    <string name="habits_delete_title">Delete this habit?</string>
+    <string name="habits_delete_body">%1$s and all of its check-ins will be removed.</string>
+    <string name="habits_limit">You can keep up to 30 habits.</string>
+    <string name="habits_new">New habit</string>
+    <string name="habits_edit_title">Edit habit</string>
+    <string name="habits_name">Habit name</string>
+    <string name="habits_name_error">Enter a name.</string>
+    <string name="habits_icon">Emoji or icon</string>
+    <string name="habits_colour">Colour</string>
+    <string name="habits_colour_choice">Colour %1$d</string>
+    <string name="habits_days">Days of the week</string>
+    <string name="habits_reminder">Habit reminder</string>
+    <string name="habits_reminder_summary">A gentle notification on due days</string>
+    <string name="habits_reminder_time">Reminder time</string>
+    <string name="habits_notifications_blocked">Reminders can’t show because notifications are off.</string>
+    <string name="habits_notification_settings">Open notification settings</string>
+    <string name="habits_save">Save habit</string>
+    <string name="habits_day_done">%1$s, done</string>
+    <string name="habits_day_missed">%1$s, missed</string>
+    <string name="habits_day_not_due">%1$s, not due</string>
+    <string name="habits_day_future">%1$s, future</string>
+    <string name="habits_report_title">My habit record</string>
+    <string name="habits_report_previous_week">Previous week</string>
+    <string name="habits_report_next_week">Next week</string>
+    <string name="habits_report_this_week">This week, %1$s</string>
+    <string name="habits_report_week">Week of %1$s</string>
+    <string name="habits_report_empty">No habits yet. Add one to start your weekly record.</string>
+    <string name="habits_report_add">Add a habit</string>
+    <string name="habits_report_completion">%1$d%% complete this week</string>
+    <string name="habits_reminder_channel">Habit reminders</string>
+    <string name="habits_reminder_channel_desc">Gentle check-in reminders for your habits</string>
+    <string name="habits_notification_title">Time for %1$s</string>
+    <string name="habits_notification_body">A small step today keeps your routine going.</string>
+    <string name="habits_notification_done">Done</string>
+    <string name="habits_notification_open">Open</string>
+    <plurals name="habits_current_streak">
+        <item quantity="one">%1$d day streak</item>
+        <item quantity="other">%1$d day streak</item>
+    </plurals>
+    <plurals name="habits_best_streak">
+        <item quantity="one">Best: %1$d day</item>
+        <item quantity="other">Best: %1$d days</item>
+    </plurals>
+    <plurals name="backup_warn_habits_skipped">
+        <item quantity="one">%1$d unreadable habit was skipped.</item>
+        <item quantity="other">%1$d unreadable habits were skipped.</item>
+    </plurals>
+    <plurals name="backup_warn_habit_check_ins_skipped">
+        <item quantity="one">%1$d unreadable habit check-in was skipped.</item>
+        <item quantity="other">%1$d unreadable habit check-ins were skipped.</item>
+    </plurals>
+</resources>
