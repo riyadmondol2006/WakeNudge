@@ -14,6 +14,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Bedtime
+import androidx.compose.material.icons.outlined.Hotel
+import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,6 +49,7 @@ import com.riyadm.wakenudge.domain.scheduling.SleepOption
 import com.riyadm.wakenudge.domain.scheduling.SleepPlanner
 import com.riyadm.wakenudge.ui.components.AlarmTimePicker
 import com.riyadm.wakenudge.ui.components.DayChip
+import com.riyadm.wakenudge.ui.components.NavRow
 import com.riyadm.wakenudge.ui.components.SectionTitle
 import com.riyadm.wakenudge.ui.components.SettingsGroup
 import com.riyadm.wakenudge.ui.components.StepperRow
@@ -66,6 +69,8 @@ private enum class PlannerMode { WAKE_AT, BED_AT }
 fun SleepScreen(
     onBack: () -> Unit,
     onCreateAlarm: (hour: Int, minute: Int) -> Unit,
+    onOpenSleepTracking: () -> Unit,
+    onOpenSleepSounds: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SleepViewModel = hiltViewModel(),
 ) {
@@ -102,6 +107,28 @@ fun SleepScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 4.dp, bottom = padding.calculateBottomPadding() + 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            item {
+                SettingsGroup {
+                    item { shape ->
+                        NavRow(
+                            title = stringResource(R.string.sleep_track_title),
+                            summary = stringResource(R.string.sleep_track_entry_summary),
+                            icon = Icons.Outlined.Hotel,
+                            shape = shape,
+                            onClick = onOpenSleepTracking,
+                        )
+                    }
+                    item { shape ->
+                        NavRow(
+                            title = stringResource(R.string.sleep_sounds_title),
+                            summary = stringResource(R.string.sleep_sounds_entry_summary),
+                            icon = Icons.Outlined.MusicNote,
+                            shape = shape,
+                            onClick = onOpenSleepSounds,
+                        )
+                    }
+                }
+            }
             item {
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     PlannerMode.entries.forEachIndexed { i, m ->

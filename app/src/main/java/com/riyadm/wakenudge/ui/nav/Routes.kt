@@ -20,6 +20,15 @@ data class AlarmEditRoute(
 )
 
 @Serializable data object SleepRoute
+
+/** Sleep tracking: start a night, see last night. Owned by the sleep-tracking feature. */
+@Serializable data object SleepTrackRoute
+
+/** Sounds to fall asleep to. Owned by the sounds feature. */
+@Serializable data object SleepSoundsRoute
+
+/** The habit list, adding and editing habits. Owned by the habits feature. */
+@Serializable data object HabitsRoute
 @Serializable data object HealthRoute
 @Serializable data object SettingsRoute
 @Serializable data object DefaultsRoute

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Report tab and the entry points of sleep tracking, sleep sounds and habits. Each feature keeps its own strings in its own file. -->
+<resources>
+    <string name="nav_report">Report</string>
+    <string name="report_title">Report</string>
+    <string name="report_tab_wake">Wake up</string>
+    <string name="report_tab_sleep">Sleep</string>
+    <string name="report_tab_habits">Habits</string>
+    <string name="report_sleep_placeholder">Track a night to see how you slept.</string>
+    <string name="report_habits_placeholder">Add a habit to see how your week goes.</string>
+    <string name="feature_coming">Coming soon.</string>
+    <string name="sleep_track_title">Track my sleep</string>
+    <string name="sleep_track_open">Track my sleep</string>
+    <string name="sleep_track_entry_summary">Uses the phone on your bed to see how you slept</string>
+    <string name="sleep_sounds_title">Sleep sounds</string>
+    <string name="sleep_sounds_entry_summary">Calm sounds that fade out as you fall asleep</string>
+    <string name="habits_title">Habits</string>
+    <string name="habits_open">Open habits</string>
+</resources>

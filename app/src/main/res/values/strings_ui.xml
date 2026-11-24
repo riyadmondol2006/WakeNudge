@@ -39,7 +39,6 @@
     <string name="nav_clock">Clock</string>
     <string name="nav_timer">Timer</string>
     <string name="nav_stopwatch">Stopwatch</string>
-    <string name="nav_morning">Morning</string>
 
     <!-- Alarms list -->
     <string name="alarms_title">Alarms</string>

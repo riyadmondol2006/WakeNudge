@@ -17,7 +17,6 @@ import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.HourglassBottom
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Timer
-import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -57,7 +56,6 @@ import com.riyadm.wakenudge.ui.edit.missionSlots
 import com.riyadm.wakenudge.ui.health.HealthBadge
 import com.riyadm.wakenudge.ui.health.HealthBanner
 import com.riyadm.wakenudge.ui.health.HealthScreen
-import com.riyadm.wakenudge.ui.morning.MorningScreen
 import com.riyadm.wakenudge.ui.nav.AboutRoute
 import com.riyadm.wakenudge.ui.nav.AlarmEditRoute
 import com.riyadm.wakenudge.ui.nav.AlarmsRoute
@@ -71,6 +69,15 @@ import com.riyadm.wakenudge.ui.nav.HealthRoute
 import com.riyadm.wakenudge.ui.nav.ProtectionRoute
 import com.riyadm.wakenudge.ui.protection.ProtectionScreen
 import com.riyadm.wakenudge.ui.nav.MorningRoute
+import com.riyadm.wakenudge.ui.sounds.SleepSoundsScreen
+import com.riyadm.wakenudge.ui.sleeptrack.SleepTrackScreen
+import com.riyadm.wakenudge.ui.report.ReportScreen
+import com.riyadm.wakenudge.ui.report.ReportNav
+import com.riyadm.wakenudge.ui.nav.SleepTrackRoute
+import com.riyadm.wakenudge.ui.nav.SleepSoundsRoute
+import com.riyadm.wakenudge.ui.nav.HabitsRoute
+import com.riyadm.wakenudge.ui.habits.HabitsScreen
+import androidx.compose.material.icons.outlined.Insights
 import com.riyadm.wakenudge.ui.nav.SettingsRoute
 import com.riyadm.wakenudge.ui.nav.SleepRoute
 import com.riyadm.wakenudge.ui.nav.StopwatchRoute
@@ -100,7 +107,7 @@ private enum class TopLevel(val route: Any, val routeClass: KClass<*>, val label
     Clock(WorldClockRoute, WorldClockRoute::class, R.string.nav_clock, Icons.Outlined.Public),
     Timer(TimerRoute, TimerRoute::class, R.string.nav_timer, Icons.Outlined.HourglassBottom),
     Stopwatch(StopwatchRoute, StopwatchRoute::class, R.string.nav_stopwatch, Icons.Outlined.Timer),
-    Morning(MorningRoute, MorningRoute::class, R.string.nav_morning, Icons.Outlined.WbSunny),
+    Report(MorningRoute, MorningRoute::class, R.string.nav_report, Icons.Outlined.Insights),
 }
 
 @Composable
@@ -198,7 +205,15 @@ private fun AppNavHost(nav: NavHostController) {
         composable<WorldClockRoute>(enterTransition = tabEnter, exitTransition = tabExit, popEnterTransition = tabEnter, popExitTransition = tabExit) { WorldClockScreen() }
         composable<TimerRoute>(enterTransition = tabEnter, exitTransition = tabExit, popEnterTransition = tabEnter, popExitTransition = tabExit) { TimerScreen() }
         composable<StopwatchRoute>(enterTransition = tabEnter, exitTransition = tabExit, popEnterTransition = tabEnter, popExitTransition = tabExit) { StopwatchScreen() }
-        composable<MorningRoute>(enterTransition = tabEnter, exitTransition = tabExit, popEnterTransition = tabEnter, popExitTransition = tabExit) { MorningScreen() }
+        composable<MorningRoute>(enterTransition = tabEnter, exitTransition = tabExit, popEnterTransition = tabEnter, popExitTransition = tabExit) {
+            ReportScreen(
+                ReportNav(
+                    openSleepTracking = dropUnlessResumed { nav.navigate(SleepTrackRoute) },
+                    openSleepSounds = dropUnlessResumed { nav.navigate(SleepSoundsRoute) },
+                    openHabits = dropUnlessResumed { nav.navigate(HabitsRoute) },
+                ),
+            )
+        }
         composable<AlarmEditRoute> { entry ->
             // Closes this editor only while it is still the one on top: a second call (double tap) finds another screen
             // there and does nothing. Not "only while resumed": after a save the editor must close even if a ringing
@@ -213,8 +228,13 @@ private fun AppNavHost(nav: NavHostController) {
             SleepScreen(
                 onBack = dropUnlessResumed { nav.popBackStack() },
                 onCreateAlarm = onceResumed2 { h, m -> nav.navigate(AlarmEditRoute(alarmId = 0, hour = h, minute = m)) },
+                onOpenSleepTracking = dropUnlessResumed { nav.navigate(SleepTrackRoute) },
+                onOpenSleepSounds = dropUnlessResumed { nav.navigate(SleepSoundsRoute) },
             )
         }
+        composable<SleepTrackRoute> { SleepTrackScreen(onBack = dropUnlessResumed { nav.popBackStack() }) }
+        composable<SleepSoundsRoute> { SleepSoundsScreen(onBack = dropUnlessResumed { nav.popBackStack() }) }
+        composable<HabitsRoute> { HabitsScreen(onBack = dropUnlessResumed { nav.popBackStack() }) }
         composable<SettingsRoute> {
             SettingsScreen(
                 SettingsNav(
