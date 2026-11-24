@@ -3,7 +3,7 @@ package com.riyadm.wakenudge.engine.habits
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 import com.riyadm.wakenudge.ui.habits.HabitNotificationActivity
 
 object HabitReminderIds {
@@ -36,7 +36,7 @@ object HabitReminderIntents {
         context,
         HabitReminderIds.openRequest(habitId),
         Intent(context, HabitNotificationActivity::class.java)
-            .setData(Uri.parse("wakenudge://habits/$habitId")),
+            .setData("wakenudge://habits/$habitId".toUri()),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
@@ -46,7 +46,7 @@ object HabitReminderIntents {
             request,
             Intent(context, HabitReminderReceiver::class.java)
                 .setAction(action)
-                .setData(Uri.parse("wakenudge://habit-reminder/$habitId"))
+                .setData("wakenudge://habit-reminder/$habitId".toUri())
                 .putExtra(EXTRA_HABIT_ID, habitId)
                 .putExtra(EXTRA_EPOCH_DAY, epochDay),
             PendingIntent.FLAG_IMMUTABLE or flags,

@@ -44,7 +44,11 @@ class HabitNotifier @Inject constructor(
             .addAction(0, context.getString(R.string.habits_notification_done), HabitReminderIntents.done(context, habit.id, epochDay))
             .addAction(0, context.getString(R.string.habits_notification_open), open)
             .build()
-        runCatching { manager.notify(HabitReminderIds.notification(habit.id), notification) }
+        try {
+            manager.notify(HabitReminderIds.notification(habit.id), notification)
+        } catch (_: SecurityException) {
+        } catch (_: RuntimeException) {
+        }
     }
 
     fun cancel(habitId: Long) = manager.cancel(HabitReminderIds.notification(habitId))

@@ -3,8 +3,6 @@
     <string name="habits_add">Add a habit</string>
     <string name="habits_empty_title">Build a routine, one day at a time</string>
     <string name="habits_empty_body">Add a habit to tick off today and see your streak grow.</string>
-    <string name="habits_today">Today</string>
-    <string name="habits_this_week">This week</string>
     <string name="habits_mark_done">Mark %1$s done</string>
     <string name="habits_mark_not_done">Mark %1$s not done</string>
     <string name="habits_edit">Edit %1$s</string>
@@ -32,7 +30,6 @@
     <string name="habits_day_missed">%1$s, missed</string>
     <string name="habits_day_not_due">%1$s, not due</string>
     <string name="habits_day_future">%1$s, future</string>
-    <string name="habits_day_not_editable">This day can’t be changed.</string>
     <string name="habits_report_title">My habit record</string>
     <string name="habits_report_previous_week">Previous week</string>
     <string name="habits_report_next_week">Next week</string>
@@ -41,7 +38,6 @@
     <string name="habits_report_empty">No habits yet. Add one to start your weekly record.</string>
     <string name="habits_report_add">Add a habit</string>
     <string name="habits_report_completion">%1$d%% complete this week</string>
-    <string name="habits_streak_icon">Current streak</string>
     <string name="habits_reminder_channel">Habit reminders</string>
     <string name="habits_reminder_channel_desc">Gentle check-in reminders for your habits</string>
     <string name="habits_notification_title">Time for %1$s</string>
