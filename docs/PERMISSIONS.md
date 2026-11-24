@@ -16,10 +16,12 @@ manifest (`app/src/main/AndroidManifest.xml`) too.
 |---|---|
 | `USE_EXACT_ALARM` (Android 13+) | An alarm clock is the core use. Lets `AlarmManager.setAlarmClock` fire on time and cannot be revoked by the user, so a restrictive setting cannot silently break a wake-up alarm |
 | `SCHEDULE_EXACT_ALARM` (Android 12L and lower only, `maxSdkVersion=32`) | Same job on releases before `USE_EXACT_ALARM` existed. Android 12 and 12L grant it by default but the user can revoke it in Special app access, which Alarm health detects |
-| `RECEIVE_BOOT_COMPLETED` | Re-arm alarms, snoozes, timers and follow-ups after a restart or app update |
-| `WAKE_LOCK` | Keep the CPU awake while an alarm is ringing |
+| `RECEIVE_BOOT_COMPLETED` | Re-arm alarms, snoozes, timers and follow-ups after a restart or app update; habit reminders are re-armed by their own receiver (`HabitSystemEventsReceiver`) |
+| `WAKE_LOCK` | Keep the CPU awake while an alarm is ringing. Sleep tracking holds one partial wake lock (`WakeNudge:sleep-track`) for the night only on phones without a wake-up accelerometer, so batched movement is not lost while the CPU sleeps |
 | `VIBRATE` | Vibration patterns |
-| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK`, `FOREGROUND_SERVICE_SYSTEM_EXEMPTED` | The ring service plays the alarm sound as a foreground service (`foregroundServiceType="mediaPlayback\|systemExempted"`). `systemExempted`, open to exact-alarm apps on Android 14+, is what lets a ring come back right after a restart; `mediaPlayback` is the fallback and what older Android uses |
+| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK`, `FOREGROUND_SERVICE_SYSTEM_EXEMPTED` | The ring service plays the alarm sound as a foreground service (`foregroundServiceType="mediaPlayback\|systemExempted"`). `systemExempted`, open to exact-alarm apps on Android 14+, is what lets a ring come back right after a restart; `mediaPlayback` is the fallback and what older Android uses. Sleep sounds use `mediaPlayback` too, in a service of their own (`SleepSoundsService`) on the media stream |
+| `FOREGROUND_SERVICE_HEALTH` | Sleep tracking keeps reading the accelerometer with the screen off, as a `health` foreground service (`SleepTrackService`, Android 14+). Android 14+ lets it start only once `ACTIVITY_RECOGNITION` is granted (see below) |
+| `FOREGROUND_SERVICE_MICROPHONE` | The `microphone` type of the same sleep-tracking service, passed only while "Record snoring" is on and only until an alarm rings |
 | `MODIFY_AUDIO_SETTINGS` | Raise the alarm stream to the configured level while ringing, and put it back afterwards; used by the loudness-enhancer effect of Extra Loud mode |
 | `NFC` | The NFC mission (the feature is optional: `required=false`) |
 
@@ -35,9 +37,10 @@ manifest (`app/src/main/AndroidManifest.xml`) too.
 
 | Permission | Feature | When |
 |---|---|---|
-| `POST_NOTIFICATIONS` | The ring notification with Snooze and Dismiss, timer and bedtime notifications | Onboarding, final step |
+| `POST_NOTIFICATIONS` | The ring notification with Snooze and Dismiss, timer and bedtime notifications; the sleep-tracking and sleep-sounds notifications; habit reminders | Onboarding, final step. Also when a habit reminder is saved, and optionally when sleep tracking starts, if not yet granted |
 | `CAMERA` | QR/barcode mission, photo mission | First time you set up or run one of those missions |
-| `ACTIVITY_RECOGNITION` | Steps mission (hardware step counter); a "Still awake?" check that asks for proof reads the counter's total when it starts and when it is due, to pass on its own after 30 steps | First time you set up or run the steps mission. Declining is fine: the steps mission can count with the motion sensor instead, and the check is then answered with a round of Focus Tap |
+| `ACTIVITY_RECOGNITION` | Steps mission (hardware step counter); a "Still awake?" check that asks for proof reads the counter's total when it starts and when it is due, to pass on its own after 30 steps. Sleep tracking on Android 14+: Android requires it before a `health` foreground service may start. There it is only used to feel movement in bed, on the phone | First time you set up or run the steps mission. Declining is fine: the steps mission can count with the motion sensor instead, and the check is then answered with a round of Focus Tap. For sleep tracking, when Start is tapped on Android 14+; declined, a dialog explains why and opens App info, and tracking does not start |
+| `RECORD_AUDIO` | Sleep tracking's optional "Record snoring" (off by default): the room's sound level and snore detection on the phone, and at most 3 clips of 10 s or less a night, deleted after 7 days. Used only while tracking runs, stopped the moment any ring starts, and not used again that night | Only when Record snoring is switched on; declined, the switch stays off with a message. Never otherwise |
 | `READ_CALENDAR` | Optional: treat all-day events in calendars you pick (for example public holidays) as exception days. Only event start and end are read, never titles or descriptions | When you switch on calendar exceptions in Settings |
 
 If you decline a permission, the feature that needs it explains what is missing, and during an alarm a mission that can no
@@ -46,17 +49,18 @@ stopping an alarm, and is never skipped for free either.
 
 ## Hardware is never required
 
-`uses-feature android:required="false"` is declared for `camera`, `camera.autofocus`, `nfc`,
-`sensor.accelerometer`, `sensor.stepcounter` and `touchscreen`, so the app installs on every device, whatever
+`uses-feature android:required="false"` is declared for `camera`, `camera.autofocus`, `microphone`, `nfc`,
+`sensor.accelerometer`, `sensor.stepcounter` and `touchscreen` (`RECORD_AUDIO` would otherwise imply a microphone is
+required), so the app installs on every device, whatever
 hardware it lacks. During an alarm, a mission whose hardware is missing is replaced by a short backup mission
 (`MissionInfo.isSupported`, `MissionGate`, `FallbackChain`).
 
 ## Not used
 
-No location, contacts, microphone, storage/media, phone, SMS, accounts, Bluetooth, `QUERY_ALL_PACKAGES`,
+No location, contacts, storage/media, phone, SMS, accounts, Bluetooth, `QUERY_ALL_PACKAGES`,
 `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, `AD_ID` (no advertising ID), or
-`REQUEST_INSTALL_PACKAGES`. Custom alarm sounds are picked with Android's document picker, which grants access to the
-single file you choose. The only `<queries>` entry is the text-to-speech service (`android.intent.action.TTS_SERVICE`),
+`REQUEST_INSTALL_PACKAGES`. Custom alarm sounds and the sleep-sounds audio file are picked with Android's document
+picker, which grants access to the single file you choose. The only `<queries>` entry is the text-to-speech service (`android.intent.action.TTS_SERVICE`),
 needed on Android 11+ to find the speech engine for spoken announcements.
 
 ## Exported components and who can call them
@@ -74,9 +78,12 @@ list changes, so a new exported component forces a conscious review.
 | `engine.protection.WakeNudgeAdminReceiver` | Device admin, which the system binds | Protected by `android.permission.BIND_DEVICE_ADMIN`, which only the system holds. It declares no policies and its only code returns the warning shown when it is switched off |
 
 Everything else of the app's own (`RingActivity`, `SafeRingActivity`, `WakeCheckActivity`, `RingService`, `AlarmReceiver`,
-`ActionReceiver`) is not exported. All `PendingIntent`s are created with `FLAG_IMMUTABLE`. The app defines no content
-provider and no custom permission of its own (AndroidX adds one signature-level permission for non-exported dynamic
-receivers). Its two runtime receivers, one following the NFC adapter switching on and off during the NFC mission and one
+`ActionReceiver`, and for the features apart from the alarm `SleepTrackService`, `SleepCleanupReceiver`,
+`SleepClipProvider`, `SleepSoundsService`, `HabitNotificationActivity`, `HabitReminderReceiver` and
+`HabitSystemEventsReceiver`) is not exported. All `PendingIntent`s are created with `FLAG_IMMUTABLE`. The app's one content
+provider, `SleepClipProvider` (a `FileProvider`), is not exported: it shares a single snore clip the user chose to share,
+from a cache copy, with read access granted to the chosen app only. The app defines no custom permission of its own
+(AndroidX adds one signature-level permission for non-exported dynamic receivers). Its two runtime receivers, one following the NFC adapter switching on and off during the NFC mission and one
 following the screen going off while an alarm rings, are registered with `RECEIVER_NOT_EXPORTED`.
 
 Libraries add four more exported components, each protected by a permission that only the system can hold, which is the
@@ -90,9 +97,21 @@ manifest and are not ours to remove.
 12+, cloud backup **and** device-to-device transfer) and `backup_rules.xml` (Android 6-11). Alarms live in
 device-protected storage and a raw copy would show alarms that Android has not been told to ring, would carry the
 "onboarding done" flag without the permissions, and would carry a camera fingerprint that belongs to the old phone.
-The in-app backup file (validated, then re-armed on restore) is the supported way to move to a new phone.
+The in-app backup file (validated, then re-armed on restore) is the supported way to move to a new phone. It carries
+alarms, settings and habits (`habits.db`), never sleep nights and clips (`sleep.db` and `noBackupFilesDir/sleep_clips/`)
+or the last sleep-sounds mix (`sleep_sounds.db`).
 
 ## Related behaviour worth knowing
+
+- Sleep tracking's foreground-service types by Android version: 14 and later, `health`, plus `microphone` while Record
+  snoring is on; 11 to 13, `microphone` while recording, else none; 8 to 10, none. It starts only from the user's tap
+  with the app in front; refused, it tries again without the microphone, then tells the user instead of crashing.
+  `ReleaseReadinessTest` fails if any other service gains the `microphone` or `health` type, or if this one is exported or
+  Direct Boot aware.
+- `ACTIVITY_RECOGNITION` is the prerequisite chosen for the `health` type. Declaring `HIGH_SAMPLING_RATE_SENSORS`
+  (granted at install) would avoid the prompt, but would claim a sampling rate the app does not use.
+- When a ring starts, sleep tracking drops the `microphone` type and stops recording at once, and sleep sounds stop and
+  give up audio focus. Neither touches the alarm stream, the ring service or its lock.
 
 - The Emergency button on the ring screen opens the phone app with `ACTION_DIAL` (no number, no permission), or on a locked
   phone the unlock screen and its Emergency call button. Whether a call is going on is read from the audio mode

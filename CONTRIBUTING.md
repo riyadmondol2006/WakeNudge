@@ -19,6 +19,11 @@ Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT
 5. **Say what it can't stop.** WakeNudge makes going back to sleep hard, not impossible: power off isn't blocked, and Safe
    mode, a factory reset and a flat battery beat it. No text may claim otherwise. `HonestClaimsTest` checks the strings,
    the README and the store listing, and the README's "What it can't stop" section must stay true when behaviour changes.
+6. **Keep everything else away from the alarm.** Sleep tracking, sleep sounds and habits have their own databases,
+   services, receivers, notification ids and request codes, and only read `RingSessionStore`; sleep tracking and sleep
+   sounds stop the microphone and their sound when a ring starts. A new feature of that kind does the same: no shared lock, no alarm stream, no change to
+   `WakeNudgeDatabase` for it. See "Sleep tracking, sleep sounds and habits" in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+   Sleep data and recordings never go into a backup, and the microphone stays opt-in (`ReleaseReadinessTest` checks it).
 
 ## Gradle tasks
 

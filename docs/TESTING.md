@@ -4,10 +4,10 @@ An alarm clock is judged on the one morning it fails, so testing is split by wha
 
 | Layer | Where it runs | What it proves |
 |---|---|---|
-| **JVM unit tests** (947, from the result XML) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats, every mission's core logic, backup encode/decode/sanitise, health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses) |
+| **JVM unit tests** (1055, from the result XML) | Your computer | Scheduling maths (including DST), snooze/edit-lock/sleep-planner policies, volume and hearing-safety planning, stats and the weekly wake-up report, every mission's core logic, backup encode/decode/sanitise (habits included), health evaluation, widget/tile text, and the ring state machine, trigger handling, scheduler, system-event handling and crash rescue against storage that fails (full disk, unreadable database, OS that refuses); sleep stage estimation and snore detection, sleep-sound synthesis, habit streaks and reminder planning |
 | **Fuzz tests** (14, part of the JVM tests) | Your computer | 20,000 seeded random alarm/clock/zone combinations never crash the scheduler or yield a time in the past; corrupted and hostile backup files are rejected or sanitised, never half-applied; random commands from stale buttons, keys and forged claims never end a ring whose missions are unfinished |
-| **Instrumented engine tests** (140, with the migration, update-state and widget tests) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
-| **Instrumented UI tests** (89, 22 of them for the update popup and the About screen) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions getting a backup mission (never Continue), Emergency and the way out by click action at font scale 2.0 |
+| **Instrumented engine tests** (147, with the migration, update-state and widget tests, and the 7 sleep and habit storage tests, which have not run on a device yet) | A real device | The real `AlarmManager`, Room, DataStore and audio stack: registration, firing, snooze, wake-check, timers, collisions, recovery, concurrency; plus the reliability audit: real playback attacked (focus stolen, player paused/killed/erroring, slow or missing sound, playlists, headphones), the real `RingService` without any ring screen, and failing storage, a refusing OS, clock changes and crashes mid-ring |
+| **Instrumented UI tests** (90, 22 of them for the update popup and the About screen, and one for sleep sounds, not yet run on a device) | A real device | Ring screen, mission flow, slide-to-dismiss (incl. RTL), font scales 0.85–2.0, hostile labels, unusable missions getting a backup mission (never Continue), Emergency and the way out by click action at font scale 2.0 |
 
 Run the JVM tests with `./gradlew :app:testDebugUnitTest`. For the instrumented tests see the warning in the README:
 **target exactly one device**.
@@ -163,6 +163,51 @@ began life as a question; the ones that found real bugs are marked ✱ and were 
 - Rapid snooze/dismiss mashing, double-delivered triggers, concurrent settings writes, missions that cannot be completed
   on this phone, permission revoked mid-flow, huge and hostile labels, 200 % font, RTL, time-zone jumps, DST gaps.
 
+## Sleep tracking, sleep sounds, habits and the wake-up report
+
+All of these run on the JVM except where marked instrumented. The instrumented ones compile
+(`:app:compileDebugAndroidTestKotlin`) and **have not run on a device yet**; they use in-memory databases and scratch
+folders, so the phone's own nights and habits are not touched.
+
+- **Sleep tracking** (54 JVM tests). `SleepStageEstimatorTest` (13): a typical night's latency, deep only inside the long
+  still run, REM only an hour after falling asleep, an exact 3-minute awake bout, the same result for a noisier sensor,
+  the 10-minute and half-coverage thresholds, gaps, no movement, never settling, a single turn staying sleep, short
+  sessions, snoring ruling out REM, and a loud sound that is not a snore with a twitch counting as awake.
+  `EpochAccumulatorTest` (8): batching, late and early readings, gaps, energy averaging. `SnoreDetectorTest` (10):
+  synthetic sines through the frame analyser; regular, varying, too long, too short, high-pitched and irregular sound.
+  `SleepPoliciesTest` (16): clip choice and expiry, loudness words, which rings end a night, the 16-hour limit, closing a
+  session left open, weeks, the main night of a day, averages. `ClipEnvelopeTest` (3). `SleepServiceTypesTest` (4): the
+  service types per Android version, and notification ids and request codes clear of the engine's.
+  `ReleaseReadinessTest` now allows `RECORD_AUDIO` and fails unless `SleepTrackService` is the only service with the
+  `microphone` or `health` type, typed `health|microphone`, not exported and not Direct Boot aware; `microphone` joins
+  the optional hardware. Instrumented: `SleepStorageInstrumentedTest` (5): a night stored, estimated and deleted with its
+  clips; 7-day and 1-year retention and stray files with real files; a session left open closed after its last epoch;
+  deleting all clips keeps the nights; the real AAC encoder writes a track of about 2 s.
+- **Sleep sounds and alarm music**. `SleepDspTest` (2): seeded output is reproducible and continuous however the buffers
+  are split, samples are finite and bounded with a limited jump between neighbours, each source's level falls in a
+  calibrated RMS range (0.06 to 0.22 over 11 s after warm-up), and the fade ends in silence. `AudioPoliciesTest`'s count of
+  selectable tones went from 12 to 20. Instrumented: `SleepSoundsUiTest` (1), the three-source limit at a large font and
+  in RTL. The eight music files regenerate to byte-identical files with the same encoder, each decodes to exactly 32 s,
+  and they add 865,660 bytes to the minified release APK.
+- **Habits** (32 JVM tests). `HabitRulesTest` (5): only today and the six days before can change, non-due days and days
+  before creation cannot, and the report's done, missed, not-due and future states. `HabitStreakCalculatorTest` (9):
+  current and best streaks, an unfinished today not breaking a streak, non-due days skipped, mid-week creation, unticking,
+  a schedule edit applied to the whole history, DST days and a time-zone change. `HabitReminderPlannerTest` (6): today or
+  the next due day, no catching up, DST gaps and overlaps, a zone change. `HabitReminderHandlerTest` (6): posting and
+  arming the next one, nothing for a habit already done, a stale trigger, a deleted habit, Done using the notification's
+  date, ids clear of the engine's. `HabitBackupTest` (6): a round trip, an old file without habits, an empty habits list,
+  hostile values bounded and check-ins relinked, too many habits and malformed entries, unknown keys. Instrumented:
+  `HabitRepositoryInstrumentedTest` (2): the seven-day window, future days refused, unticking, cascading delete,
+  reordering and replacing through real Room.
+- **Wake-up report**. `WakeReportStatsTest` (19): week starts, empty and single-morning weeks, the earliest dismissal
+  winning, snoozes and backup rings grouped as one occurrence, missed and Emergency-only days, a ring still ringing, timers
+  and test alarms left out, the 03:00 and 15:00 edges, rings after midnight, circular averages near midnight, a DST
+  spring-forward day, a fall-back morning inside the window (Pacific/Chatham), a mid-week time-zone change, and the chart
+  scale adapting and wrapping past midnight. `StatsTest` still passes.
+- ✱ **`BackupManagerTest`** checked that an exported file did not contain the skipped update version "1.0.9", which is a
+  prefix of the app's own version from 1.0.90 on, and the file records that version, so every build from 1.0.90 failed
+  it. It uses a marker no real version contains now.
+
 ## Verified on a real device
 
 Hardware: **Google Pixel 6, Android 17 (API 37), gesture navigation**, with no screen lock PIN. No other physical device
@@ -265,8 +310,9 @@ blocked, and the ring above is what happens instead.
 These could not be done safely or at all in the development setup. They are the first things to test on your own phone.
 In short, nobody has yet seen on a device: ringing before the first unlock on a phone with a PIN, three-button navigation,
 split screen, Clear all, a 5-press SOS, the lock-screen Emergency dialer during a ring, the restricted-settings steps after
-a browser install, any phone but the one Pixel 6, a TalkBack walkthrough, right-to-left on the new controls, and a real
-ring longer than about 13 minutes.
+a browser install, any phone but the one Pixel 6, a TalkBack walkthrough, right-to-left on the new controls, a real
+ring longer than about 13 minutes, and anything of sleep tracking, sleep sounds, habits or the wake-up report (listed
+after the table).
 
 | Scenario | Why it matters / status |
 |---|---|
@@ -306,6 +352,53 @@ ring longer than about 13 minutes.
 | **Tablets and foldables** | Layout adapts by window size; not seen on such hardware |
 | Widgets and tile **placed and interacted with** | Registered, not added to a home screen or tile layout (that would change the owner's launcher) |
 | Android 17 **background-audio hardening** | On the Pixel 6 it logs `AudioHardening ... would be ignored/muted ... level: full` at ring start while the volume changes and the sound plays (above). A later platform update could enforce more |
+
+### Sleep tracking, sleep sounds, habits and the wake-up report: not verified on a device
+
+None of these four features has run on a phone. Their instrumented tests compile but have not run. Useful for that run:
+`adb logcat -s SleepTracker SleepTrackService` while tracking; `dumpsys activity services` on
+`engine.sleeptrack.SleepTrackService` for its types; `adb shell cmd appops get <package> RECORD_AUDIO` for the
+microphone; `run-as <package> ls -l no_backup/sleep_clips` for the clips (at most 3 a night, about 40 kB each);
+`dumpsys alarm` for the clip clean-up alarm (7 days and a minute after the oldest clip).
+
+**Sleep tracking**
+- A real night: whether the stage estimate looks plausible at all. The thresholds (0.1 m/s², the 1.6× and 3× factors, the
+  snore frame rules) are reasoned from typical accelerometer and microphone behaviour, not tuned on real nights
+- The foreground service on a real phone: `health` plus `microphone` while recording (`dumpsys` should show type `0x180`),
+  dropping to `health` only (`0x100`) the moment a test alarm rings, the privacy dot going away, `RECORD_AUDIO` no longer
+  running in `appops`, and the alarm sounding exactly as without tracking (volume, ramp, no stutter)
+- The session ending about 1.5 s after a dismissal, continuing after a snooze, and the refusal dialog when physical
+  activity is denied
+- Whether batching keeps every epoch with the screen off, and whether the Pixel 6's accelerometer is a wake-up sensor
+- Battery use over a full night with and without the microphone, with and without a wake-up accelerometer
+- The AAC encoder on a real device (`SleepStorageInstrumentedTest`), Listen, Share and Delete on real clips, and the 7-day
+  clean-up alarm firing
+- Process death mid-night closing the night at its last stored epoch
+- Whether Android 17 changes anything about `health` or `microphone` services or background sensor batching
+- TalkBack, font scale 2.0, 360 dp, RTL and AMOLED on Track my sleep, the night detail and the Sleep report
+
+**Sleep sounds and alarm music**
+- How the nine sounds and the eight music tracks actually sound: seams at the loop, clipping, the gentle, standard and
+  loud levels compared by ear
+- Playback with the screen locked, the notification's remaining time and Stop, every timer choice and the 30-second fade,
+  "Until my next alarm" with and without an enabled alarm
+- A test alarm and a scheduled locked-screen ring stopping the sounds at once, with the alarm unchanged and nothing
+  coming back after the dismissal
+- Real audio focus (another media app, a call), wired and Bluetooth headphones disconnecting, media volume keys
+- A revoked or deleted personal audio file, overnight battery use, background playback on Android 8, 14 and 17
+- TalkBack, font scale 2.0, 360 dp, RTL and the three themes on the Sleep sounds screen
+
+**Habits**
+- Reminders delivered on a real phone (inexact, within a 10-minute window or later), Done and Open from the notification,
+  and no full-screen ring or alarm sound
+- Reminders re-armed after a restart, an app update, a manual clock change and a time-zone change
+- The warning when notifications are off and its link to the settings
+- A backup round trip with habits, and restoring a file from the previous version (no `habits` key)
+- `HabitRepositoryInstrumentedTest` against real Room on the phone
+- TalkBack, font scale 2.0, 360 dp, RTL and the three themes on the Habits screen, the editor and the Habits report
+
+**Wake-up report**
+- The chart and the daily report with real mornings, TalkBack order, font scale 2.0, RTL and AMOLED
 
 ## Device safety rules used for this project
 

@@ -4,6 +4,67 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 Releases are built and published automatically from `main` and numbered `MAJOR.MINOR.N`, where `N` is the commit count
 (see [docs/RELEASING.md](docs/RELEASING.md)); the notes of each GitHub release list the commits it contains.
 
+## Sleep tracking, sleep sounds, habits and a weekly wake-up report
+
+Four features that sit next to the alarm, not inside it: each keeps its own database, service and receivers, only watches
+whether an alarm is ringing, and gets out of the way when one starts. None of them has been tried on a phone yet;
+[docs/TESTING.md](docs/TESTING.md) lists what is still to check.
+
+### Added
+- **Sleep tracking**: put the phone on the mattress and tap Start on Track my sleep (Report, Sleep, or the sleep planner).
+  From how you move it estimates time asleep, time to fall asleep, time awake after falling asleep, and deep, light and
+  REM stages. **Stages are estimated from movement and sound, not measured** like a sleep lab, and the app says so where
+  they are shown. Tracking ends when you tap I'm up, when you dismiss an alarm that rang during the night (a snooze or a
+  ring left unanswered keeps it going), or after 16 hours. Nights under an hour are kept, marked short and left out of the
+  week's averages
+- **Record snoring**, optional and **off by default**: while tracking, the microphone measures how loud the room is and
+  listens for snoring on the phone, with no model and no download. At most 3 clips of 10 seconds or less are kept a night,
+  compressed, and deleted after 7 days. The microphone stops the moment any ring starts and stays off for the rest of the
+  night. A clip leaves the phone only if you tap its Share button
+- **Sleep sounds**: nine soundscapes generated on the phone (white, pink and brown noise, rain, ocean waves, wind, stream,
+  fan, crackling fire), up to three at once with a level each, plus one audio file of your own. A timer of 15 to 90
+  minutes, or until your next alarm, fades everything out over the last 30 seconds. They play on the media volume and stop
+  for any ring, when another app takes the audio for good, or when headphones disconnect, and never come back on their own
+  after a ring
+- **Eight original looping music tracks** among the alarm sounds, under Music, loudness-matched to the gentle, standard and
+  loud tiers like the other tones (20 in all)
+- **Habit tracker**: up to 30 habits, each with a name, an icon, a colour, the days it is due and an optional reminder.
+  Tick today or any of the six days before, see the current and best streak, reorder, edit and delete. Reminders are
+  ordinary notifications with Done and Open, never a ring, and can arrive 10 minutes late or more when Android saves power
+- **Habits are in the backup file**, with their check-ins. A file from an older version, without habits, restores as before
+  and leaves your habits alone; an older app version reading a new file ignores them
+- **The Report tab replaces the Morning tab**, with three sections. **Wake up**: for any week, the average wake-up time and
+  time to wake up (first ring to dismissal, snoozes included), a bar per day, and a daily report of every ring with its
+  snoozes, missions, way out and still-awake result. **Sleep**: each night's stages as a bar, average time asleep and time
+  to fall asleep, the week's loudest snore, and every night in detail. **Habits**: each day's state and each habit's
+  completion for the week. Streaks, pending still-awake checks, How it went and clear history are still there, below the
+  Wake up week
+
+### Fixed
+- **A backup test failed on every build from app version 1.0.90 on.** It checked that the exported file did not contain
+  the skipped update version "1.0.9", which is a prefix of the app's own version, and the file records that version. It
+  uses a marker no real version contains now; the backup itself was right
+- **The three Report sections share one week picker**: This week or Last week over the dates, arrows to earlier weeks,
+  never past this week. Each had its own before, and they wrote the dates and years differently
+
+### Privacy and permissions
+- New: the microphone (`RECORD_AUDIO`), asked only when Record snoring is switched on, and the `health` and `microphone`
+  foreground-service types, held by the sleep tracking service alone. `ACTIVITY_RECOGNITION`, already used by the steps
+  mission, is asked when tracking starts on Android 14 and later, which requires it for a `health` service. See
+  [PRIVACY.md](PRIVACY.md) and [docs/PERMISSIONS.md](docs/PERMISSIONS.md)
+- New databases, each separate from the alarms: `sleep.db` (nights and clip details), `habits.db` and `sleep_sounds.db`
+  (the last mix). Sleep nights, snore clips and the sleep-sounds mix are never part of a backup
+
+### Known and left as they are
+- Habit weeks always start on Monday; the Wake up and Sleep weeks follow the "week starts on" setting
+- A habit's schedule edit applies to its whole history, and days older than the last seven are read-only. There are no
+  habit widgets or Quick Settings tile
+- Restoring a backup with habits is not atomic across the alarm and habit databases: each is rolled back on failure where
+  possible
+- The alarm that deletes expired snore clips does not survive a restart; expired clips are never listed or played, and are
+  deleted the next time sleep tracking is opened or a night ends
+- After the process dies mid-night, the night ends at its last saved 30 seconds and tracking does not resume by itself
+
 ## Stability pass: widgets in release builds, and things that arrive in the same instant
 
 Found by running the minified release build on a Pixel 6 (every earlier device run used the debug build) and by an

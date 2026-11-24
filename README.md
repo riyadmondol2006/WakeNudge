@@ -110,6 +110,10 @@ and AMOLED themes.
 | **Alarm Health and test alarm** | Checks notifications, full-screen permission, exact alarms, battery restrictions, Do Not Disturb and audio routing, explains each fix, and rings a real test alarm. |
 | **Offline, no ads, no tracking** | No accounts, no analytics, no ad SDKs. The only thing that goes online is the optional update check. See [Privacy](#privacy). |
 | **Open source** | Apache License 2.0, Kotlin and Jetpack Compose, with a large automated test suite. |
+| **Weekly wake-up report** | The Report tab shows, for any week, your average wake-up time, how long it took from the first ring to getting up, a bar per day and a daily report of every ring. Streaks and "How it went" are there too. |
+| **Sleep tracking** | Put the phone on the mattress and tap Start. In the morning: time asleep, time to fall asleep, time awake and stages. **Stages are estimated from movement and sound, not measured.** Snore recording is optional and off by default; the clips stay on the phone and are deleted after 7 days. The microphone stops the moment an alarm rings. |
+| **Sleep sounds** | Rain, ocean, fan, three kinds of noise and more, made on the phone. Mix up to three with your own audio file, and let a timer fade them out, or stop them before your next alarm. Any ring stops them. |
+| **Habits** | Up to 30 habits with their own days, streaks, quiet reminders and a weekly view. They go into your backup file. |
 | **Material You design** | Dynamic colour, light, dark and AMOLED themes, large-text and right-to-left support, TalkBack labels, layouts that adapt to the window size. Alarm options are grouped into collapsible categories with a one-line summary of each, and Settings is a short grouped list. |
 
 ### Wake-up missions
@@ -145,26 +149,37 @@ timing you, and "I can't do timed or physical missions" (Settings, Look and feel
 - Profiles (Work, Weekend, ...), skip next ring, vacation mode, holiday and calendar exceptions, upcoming-alarm heads-up
 - Each alarm is **Easy, Normal, Hard or No mercy**, each explained in one line; the rest is under More options in collapsible groups (volume and vibration, snooze, stopping it, if I try to get out of it, voice and light, still up?, schedule rules) with a live summary of each; settings is a grouped hub
 - Bedtime reminders and a sleep planner (wake-up time or bedtime from 90-minute sleep cycles)
-- A morning dashboard with history and streaks, and "How it went": the backup mission, way outs, missed rings, Emergency
-  pauses, restarts and mutes, this morning and over the last week, counted on the phone
+- A Report tab with three sections, each a week at a time. Wake up: average wake-up time and time to wake up, a chart and
+  a daily report, streaks, and "How it went": the backup mission, way outs, missed rings, Emergency pauses, restarts and
+  mutes, this morning and over the last week. Sleep: each night's estimated stages and the week's averages. Habits: each
+  day and each habit's week, counted on the phone
 - About 8 hours before the next alarm, an evening check that it will really ring (trigger, permissions, Do Not Disturb,
   a low battery that isn't charging, every mission's setup); silent when all is well. When an alarm rang late or not at
   all, the next start says why if the phone can still tell
 
 **Sound**
-- 12 bundled tones in gentle, standard and loud tiers, each loudness-normalised to its target level (plus two internal ones for the intensify layer and backup alarms), or your own local music. Tapping a tone plays it right away
+- 20 bundled tones in gentle, standard and loud tiers, eight of them original looping music tracks, each loudness-normalised to its target level (plus two internal ones for the intensify layer and backup alarms), or your own local music. Tapping a tone plays it right away
 - Random tone per ring, strong vibration patterns or your own recorded rhythm
 - Offline spoken announcements with the phone's text-to-speech engine
 - Sunrise mode (the screen brightens gradually), a separate backup alarm, and an optional torch that flashes once a second
   when an alarm is ignored
 - Hearing safety: a configurable volume cap on headphones, and the system alarm volume is restored afterwards
 
+**Sleep and habits**
+- Track my sleep ends when you tap I'm up, dismiss your alarm or after 16 hours. Movement is kept as a few numbers per
+  30 seconds, never the raw readings. Delete a snore clip, all clips or a whole night whenever you like
+- Sleep sounds play on the media volume, never the alarm stream, and stop when headphones disconnect. Timer from 15 to 90
+  minutes or until your next alarm, with a 30-second fade
+- Habits: tick today or the six days before, see your current and best streak, and get reminders as ordinary
+  notifications with a Done button, never a ring
+
 **Clock tools**
 - Timer, stopwatch with laps, world clock, live countdown to the next alarm
 - Home-screen widgets (next alarm, alarm list, clock) and a Quick Settings tile
 
 **Data**
-- Local backup and restore to a JSON file you choose, with validation and a preview before anything is replaced
+- Local backup and restore to a JSON file you choose, with validation and a preview before anything is replaced. It holds
+  your alarms, settings and habits; sleep nights and snore clips are never in it
 </details>
 
 ## How it stays reliable
@@ -232,9 +247,10 @@ WakeNudge makes getting back to sleep hard. It can't make it impossible, and no 
 
 ## Privacy
 
-No accounts, no ads, no analytics, no crash reporting, no tracking SDKs. Alarms, history and settings are stored
-only in the app's private storage on your phone. Permissions such as camera, step counter and calendar are requested
-only when you use the feature that needs them ([every permission, and why](docs/PERMISSIONS.md)).
+No accounts, no ads, no analytics, no crash reporting, no tracking SDKs. Alarms, history, settings, habits and sleep
+nights are stored only in the app's private storage on your phone. Permissions such as camera, step counter, microphone
+and calendar are requested only when you use the feature that needs them ([every permission, and why](docs/PERMISSIONS.md)).
+The microphone is used only by sleep tracking, and only if you switch on snore recording.
 
 WakeNudge holds one network permission, `INTERNET`, for an **update popup** that checks GitHub at most once an hour for
 a newer release. It sends nothing about you or your alarms, and you can switch it off in **About, then Updates**. Read
@@ -350,7 +366,8 @@ The tests ring real alarms and use real audio. Use a test device, not the phone 
 app/src/main/java/com/riyadm/wakenudge/
   domain/    models, scheduling policies (pure Kotlin), use cases
   data/      Room, DataStore, repositories, backup
-  engine/    scheduler, ring controller/service, audio, wake-check, timers, recovery
+  engine/    scheduler, ring controller/service, audio, wake-check, timers, recovery;
+             apart from the alarm: sleep tracking, sleep sounds and habit reminders
   missions/  the eleven mission types and their host
   health/    Alarm Health checks and diagnostics export
   widget/    Glance widgets          tile/  Quick Settings tile
@@ -366,7 +383,7 @@ More in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 | | |
 |---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How alarms are scheduled, rung and recovered |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How alarms are scheduled, rung and recovered, and how sleep and habits stay out of their way |
 | [docs/TESTING.md](docs/TESTING.md) | Test strategy, what was verified on a device, what was not |
 | [docs/PERMISSIONS.md](docs/PERMISSIONS.md) | Every permission, why it exists and when it is asked for |
 | [PRIVACY.md](PRIVACY.md) | Privacy policy |

@@ -316,7 +316,8 @@ permission, a motion mission while a screen reader is on. Permissions are asked 
 ## Direct Boot
 
 Room, DataStore and SharedPreferences live in **device-protected storage**, and the receivers, ring service and ring
-activity are `directBootAware`, so alarms can ring after a restart before the first unlock.
+activity are `directBootAware`, so alarms can ring after a restart before the first unlock. Habits and their reminder
+receivers are too, so reminders are re-armed on a locked boot. Sleep tracking is the deliberate exception: see below.
 
 ## Receivers and DI
 
@@ -426,7 +427,129 @@ Room's schema is exported to `app/schemas/`. Every schema change bumps `WakeNudg
 `Migration` in `data/db/Migrations.kt` and is covered by `DatabaseMigrationTest`, which builds a real database of the
 previous version, migrates it and checks that no alarm is lost. There is deliberately no destructive fallback:
 an alarm clock must never lose alarms because the app updated. (Settings live in DataStore as one JSON document; new
-fields only need a default.)
+fields only need a default.) The sleep, habit and sleep-sounds databases are separate files at version 1 with exported
+schemas; the same rule applies to them from their first change.
+
+## Sleep tracking, sleep sounds and habits: kept apart from the alarm
+
+Three features live next to the alarm engine without becoming part of it. The rule they follow is that a bug in any of
+them must not be able to stop, delay or quieten a ring.
+
+**Their own storage.** Each has its own Room database, provided by its own Hilt module, with its schema exported under
+`app/schemas/` at version 1: `sleep.db` (`data/sleep/SleepDatabase`: sessions, one row per 30-second epoch, snore clip
+metadata, cascading deletes), `habits.db` (`data/habits/HabitDatabase`: habits, and check-ins keyed by habit and local
+day) and `sleep_sounds.db` (`engine/sounds/SleepSoundsDatabase`: the last mix). `WakeNudgeDatabase`, its migrations and
+`DataModule` are untouched, so a failed open or a future migration of one of these cannot touch the alarms. `sleep.db`
+and the clip files (`noBackupFilesDir/sleep_clips/`) are in credential-encrypted storage on purpose: nothing opens them at
+app start, so a process woken by an alarm before the first unlock never reaches them, and every sleep component is
+`directBootAware="false"`. `habits.db` is device-protected so locked-boot re-arming can read it.
+
+**Their own services and receivers.** `SleepTrackService` (`engine/sleeptrack/`, types `health|microphone`), its
+`SleepCleanupReceiver` (an inexact, non-waking alarm that deletes expired clips) and `SleepClipProvider`;
+`SleepSoundsService` (`engine/sounds/`, `mediaPlayback`, `USAGE_MEDIA`); and `HabitReminderReceiver` and
+`HabitSystemEventsReceiver` (`engine/habits/`, reminders with `AlarmManager.setWindow`, never `setAlarmClock`). None is
+exported, none shares `RingService`, the ring receivers, the alarm stream or the ring locks, and each keeps to its own
+notification ids and request codes, clear of the engine's (notification ids 1001–1005 and 20000 + alarm id; request codes
+0–5): sleep tracking 7001 and 7101–7103, sleep sounds 730001 and 730001–730002, habits 140000 + the habit id's low 16
+bits and 700000–724095. `SleepServiceTypesTest` and `HabitReminderHandlerTest` check those ranges.
+
+**Read-only observation of the ring.** Sleep tracking and sleep sounds only read `RingSessionStore.session`. They never
+call `RingController`, never take its lock, and never touch `STREAM_ALARM` or the ring service. The
+sleep tracker collects on `Dispatchers.Main` (dispatched, not `Main.immediate`), so none of its code runs inside the call
+that changed the ring. Habits do not watch the ring at all.
+
+**Stopping on a ring.**
+- Sleep tracking: any ring in the `RINGING` phase (alarm, test alarm or timer; the silent sunrise glow does not count)
+  stops the microphone at once and for the rest of the session; the service drops its `microphone` type. Movement keeps
+  being tracked. 1.5 s after the ring goes away its outcome is read from the history (`RingWatchPolicy.endsSession`): a
+  dismissal, an Emergency stop or a test alarm ends the night, a snooze or an unanswered timeout keeps tracking, a timer
+  never ends it, and unreadable history counts as dismissed. Listening to a clip stops on any focus loss and when a ring
+  starts, and refuses to start during one.
+- Sleep sounds: any ring (including a test, the sunrise glow or a timer) stops playback and gives up focus; the session is
+  checked before each PCM write and before the user's file starts. They also stop on permanent focus loss and on
+  `AUDIO_BECOMING_NOISY`, duck to 15 % on a transient loss, and never resume by themselves after a ring. The service is not
+  sticky.
+- Habit reminders are ordinary notifications on `habit_reminders_v1`, never full screen, so there is nothing to stop.
+
+**A night's life cycle** (`engine/sleeptrack/`). Track my sleep asks, as needed, for physical activity (Android 14+), the
+microphone (only with Record snoring on) and notifications, then starts the service from that tap
+(`ContextCompat.startForegroundService`); one session runs at a time. While tracking, the screen is black with a dimmed
+clock that moves 8 dp a minute against burn-in; only the window's brightness is lowered, never the system setting, and
+leaving the screen does not stop tracking. The notification (`sleep_tracking_v1`, low importance, silent) has a
+chronometer, says whether the microphone is on, has I'm up, and opens the sleep planner (`MainActivity.ACTION_SHOW_SLEEP`).
+`onTimeout` (Android 15+) ends the night cleanly, `onDestroy` from outside ends it with what was recorded, and
+`START_NOT_STICKY` means a restart by the system stops at once; a session left open by a dead process is closed at its
+last stored epoch the next time sleep tracking opens. A night belongs to the day it ended; nights under an hour are kept
+as short and do not count in the week. The microphone is not started again after a ring, even after a snooze: Android does
+not allow starting microphone use from the background, and it is the more private choice. A ring already on when Start is
+tapped is not treated as part of the session. Logging uses `android.util.Log` (tags `SleepTracker`, `SleepTrackService`),
+never the alarm database's diagnostics table.
+
+**How a night is estimated** (`domain/sleep/`, pure Kotlin; every rule is in `SleepStageEstimator` and `SnoreDetector`).
+The accelerometer runs at 10 Hz with a 20 s batch, a wake-up sensor when the phone has one. `EpochAccumulator` folds the
+readings into 30-second epochs (count, mean and largest change between readings, changes of at least 0.1 m/s²); raw
+samples are never stored. Each epoch is still, twitch or restless relative to the night's own noise floor; awake needs 3
+of the 5 epochs around it restless; sleep starts at the first 10 minutes in a row with nothing restless; deep is inside
+long still runs, REM needs twitches an hour or more after falling asleep, and the rest is light. Too little data (under
+10 minutes of readings, or readings for under half the time) or no movement at all gives no estimate rather than a guess.
+Snoring is a run of low-pitched frames 8 dB or more above the room's quiet level, lasting 0.3 to 3.5 s, counted only as the
+third of a regular series 2 to 12 s apart. Sound comes from `AudioRecord`, mono 16-bit at 16 kHz (44.1 kHz if refused),
+from the `UNPROCESSED` source where the phone has it, else `VOICE_RECOGNITION`, so no automatic gain makes a quiet room look
+loud. Once snoring is confirmed (at most once a minute) the last 10 s are cut and offered to `ClipPolicy`, which keeps the
+3 loudest a night, 5 minutes apart; they are encoded on the phone to AAC-LC 32 kbit/s `.m4a` (about 40 kB) with
+`MediaCodec` and `MediaMuxer`, and shown as Soft, Loud or Very loud (under 15, 15 to 25, 25 dB or more above the room).
+Sharing copies one clip to `cache/sleep_share/`, deleted at the next clean-up or share. These thresholds are reasoned, not
+tuned on real nights, and two people or a pet in the bed, a soft mattress or a phone on the nightstand blur them; the snore
+detector can take a cough or a partner for snoring, which is what Listen is for.
+
+**Sounds.** The eight alarm music tracks are synthesized by `tools/generate_tones.py` like the other bundled tones (no
+samples or third-party audio; Vorbis quality 3, bit-exact encoder flags and fixed seeds, so the same ffmpeg version
+regenerates identical files; `python3 tools/generate_tones.py app/src/main/res/raw --music-only` rebuilds only them, and
+`tools/tones_report.json` holds the loudness of all 22 assets). Sleep sounds are not files: `SleepDsp` generates them at
+24 kHz from a seeded generator whose filter state carries across buffers, with a 250 ms start ramp, bounded sample slew,
+a third of the headroom per layer and a 30-second linear fade on a monotonic deadline. "Until my next alarm" takes the
+next enabled alarm from `AlarmScheduler` when playback starts; later edits do not move it, and with no alarm it refuses
+to start. Sounds can be added, removed and levelled while playing; the personal file and the timer change only when
+stopped. The personal file loops, and a revoked grant or a decode error stops playback. The tracks are 32-second miniatures that loop with their note tails overlapped.
+
+**Habits** (`domain/habits/`, `data/habits/`, `engine/habits/`, `ui/habits/`). Up to 30 habits, each with a name (at most
+40 UTF-16 units), an icon, one of eight colours, a weekday mask, an optional reminder time, a creation date and an order. A
+check-in is one row per habit and local day; a due day can be changed from its creation through today, within today and
+the six days before, by the screen and the notification's Done alike. A streak counts consecutive completed due days;
+non-due days are skipped, and an unfinished today breaks it only once it is past. **Schedule edits apply to the whole
+history** (no schedule revisions are stored): check-ins on days no longer due are kept but do not count. Week completion is
+completed due days over due days from Monday to today (or Sunday for an earlier week), rounded down. Reminders use
+`AlarmManager.setWindow(RTC_WAKEUP, …, 10 minutes)`, so they can come late; only the next due one is armed, and its
+delivery arms the following one. A habit already done that day is not notified. Boot, locked boot, an app update, a manual
+clock change and a time-zone change re-arm them all. `HabitNotificationActivity`, opened by Open, is not Direct Boot aware.
+There are no habit widgets or tile.
+
+**The wake-up report** (`ui/report/`, `domain/stats/WakeReportStats.kt`) needs no isolation of its own: it reads the
+history through `HistoryRepository.observeSince` (120 days) and changes no schema, database or engine code. A day's
+wake-up is the earliest ring that first fired between 03:00 and 15:00 and ended in a real dismissal; time to wake up is
+the epoch difference from that occurrence's first ring to the dismissal, so snoozes count and DST does not distort it.
+Rows sharing alarm and scheduled time are one occurrence, so a backup ring extends the same wake-up. A day with only
+missed or Emergency-stopped morning rings has no wake-up, a ring still going is "still ringing" until it is decided, rings
+outside the window appear in the daily report but never make a wake-up, and test alarms and timers never reach the
+history. A dismissal whose still-awake check failed still counts as the wake-up; the failed check is shown and still
+breaks the streak in `WakeStats`, which is unchanged. The average wake-up time is a circular mean of clock times (23:50 and
+00:10 give 00:00; opposite times give none). The chart's axis fits the week's times (30 minutes or 15 % padding, at least
+two hours, wrapping past midnight when it must). Days are assigned in the zone in force when the report is built, except
+where the calculator's per-ring zone resolver is used; durations are always epoch differences. Weeks go back as far as the
+120 days observed. The three Report sections share `ReportWeekPicker`; Wake up and Sleep weeks follow the "week starts on"
+setting, Habits weeks start on Monday.
+
+**Backups.** The backup file (format version still 1) gains an optional top-level `habits` object holding `habits`
+(`id`, `name`, `icon`, `colorIndex`, `daysMask`, `reminderMinutes`, `createdEpochDay`, `sortOrder`) and `checkIns`
+(`habitId`, `epochDay`). `WakeJson` ignores unknown keys, so older versions read a new file. A file without `habits` leaves
+habits alone; one with it replaces all habits and check-ins, even with an empty list. Sanitising bounds counts, text,
+palette indices, masks, reminder minutes, dates and order, assigns safe ids, relinks check-ins, drops orphan, duplicate and
+pre-creation ones, and reports what it changed through the usual backup warnings; reminders are re-armed after a restore. Restore rolls each database back on failure where it
+can, but there is no transaction spanning `wakenudge.db` and `habits.db`. Sleep data and the sleep-sounds mix are never
+exported, and the app's `allowBackup="false"` and exclude rules already cover the new files.
+
+**Release builds.** `verifyReflectiveConstructorsRelease` also checks the constructors of `SleepDatabase_Impl`,
+`HabitDatabase_Impl` and `SleepSoundsDatabase_Impl` (the last also has a keep rule in `app/proguard-rules.pro`).
 
 ## Alarm options, as the user sees them
 
