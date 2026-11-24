@@ -386,6 +386,62 @@ def t_backup():
     return out
 
 
+# Original 16-bar miniatures. Tails wrap around the cycle, including across the last
+# bar, so the loop has the same overlap as every interior phrase. No borrowed MIDI.
+def music(style):
+    beat = 0.5  # 120 BPM, 16 bars = 32 seconds
+    out = buf(32)
+    chords = [["C4", "E4", "G4", "B4"], ["A3", "C4", "E4", "G4"],
+              ["F3", "A3", "C4", "E4"], ["G3", "B3", "D4", "A4"]]
+    partials = {
+        "piano": [(1, 1), (2, .35), (3, .12)],
+        "lofi": [(1, 1), (2, .15)],
+        "marimba": [(1, 1), (4, .22)],
+        "synth": [(1, 1), (2, .4), (3, .22), (4, .1)],
+        "guitar": [(1, 1), (2, .5), (3, .27), (4, .12)],
+        "choir": [(1, 1), (2, .15), (3, .28)],
+        "brass": [(1, 1), (2, .65), (3, .4), (4, .25)],
+        "box": [(1, 1), (3, .22), (6, .07)],
+    }[style]
+    def wrap(samples, at, gain=1):
+        start = int(at * SR)
+        # Raised-cosine release eliminates note-end truncation clicks.
+        for i, value in enumerate(samples):
+            release = min(1.0, (len(samples) - 1 - i) / (SR * .08))
+            out[(start+i) % len(out)] += value * gain * release
+    rng = random.Random(805)
+    for bar in range(16):
+        chord = chords[(bar // 2) % 4]
+        for step in range(8):
+            note = chord[[0, 2, 1, 3, 2, 1, 3, 2][(step + bar % 2) % 8]]
+            frequency = hz(note) * (2 if style in ("marimba", "box") else 1)
+            pad = style == "choir"
+            if pad and step not in (0, 4):
+                continue
+            duration = 2.8 if pad else 1.25
+            decay = .7 if pad else (6 if style == "marimba" else 3)
+            wavelet = tone(frequency, duration, partials, decay,
+                           attack=.45 if pad else (.045 if style == "brass" else .008),
+                           vel=.5 + .15 * (step % 3))
+            wrap(wavelet, bar * 2 + step * .25)
+        # A separate bass part anchors each chord progression.
+        wrap(tone(hz(chord[0]) / 2, 1.9, [(1, 1), (2, .15)], 2, attack=.02), bar * 2, .45)
+        if style in ("lofi", "synth", "brass"):
+            for hit in range(4):
+                kick = [math.sin(TAU * (52*t + 2*(1-math.exp(-30*t)))) * math.exp(-18*t)
+                        for t in (i/SR for i in range(int(.22*SR)))]
+                wrap(fade_edges(kick), bar*2 + hit*.5, .5)
+                hat = [rng.uniform(-1, 1) * math.exp(-80*i/SR) for i in range(int(.08*SR))]
+                wrap(fade_edges(hat), bar*2 + hit*.5 + .25, .12)
+    return out
+
+
+MUSIC = {"music_" + style: (lambda style=style: music(style), level)
+         for style, level in [("piano", -17.), ("lofi", -15.), ("marimba", -15.),
+                              ("synth", -13.), ("guitar", -16.), ("choir", -18.),
+                              ("brass", -12.), ("box", -16.)]}
+
+
 # id -> (generator, target integrated loudness in LUFS)
 TONES = {
     "sunrise": (t_sunrise, -17.0),
@@ -403,6 +459,7 @@ TONES = {
     "intensify": (t_intensify, -10.0),
     "backup": (t_backup, -10.0),
 }
+TONES.update(MUSIC)
 
 
 def encode_ogg(samples, path):
@@ -414,7 +471,7 @@ def encode_ogg(samples, path):
             w.setframerate(SR)
             w.writeframes(b"".join(struct.pack("<h", int(max(-1.0, min(1.0, v)) * 32767)) for v in samples))
         subprocess.run(
-            ["ffmpeg", "-y", "-loglevel", "error", "-i", str(wav_path), "-c:a", "libvorbis", "-q:a", "5", str(path)],
+            ["ffmpeg", "-y", "-loglevel", "error", "-i", str(wav_path), "-c:a", "libvorbis", "-q:a", "3" if path.stem.startswith("tone_music_") else "5", "-fflags", "+bitexact", "-flags:a", "+bitexact", str(path)],
             check=True,
         )
 
@@ -422,10 +479,12 @@ def encode_ogg(samples, path):
 def main():
     out_dir = Path(sys.argv[1] if len(sys.argv) > 1 else "app/src/main/res/raw")
     out_dir.mkdir(parents=True, exist_ok=True)
-    report = {}
-    for tone_id, (gen, target) in TONES.items():
+    music_only = "--music-only" in sys.argv
+    report_path = Path(__file__).resolve().parent / "tones_report.json"
+    report = json.loads(report_path.read_text()) if music_only and report_path.exists() else {}
+    for tone_id, (gen, target) in (MUSIC if music_only else TONES).items():
         raw = gen()
-        raw = fade_edges(raw, 6)
+        raw = raw if tone_id in MUSIC else fade_edges(raw, 6)
         norm, measured = normalize(raw, target)
         peak = max(abs(v) for v in norm)
         encode_ogg(norm, out_dir / f"tone_{tone_id}.ogg")

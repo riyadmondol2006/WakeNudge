@@ -22,3 +22,6 @@
 -keepclassmembers class * extends androidx.work.ListenableWorker {
     public <init>(android.content.Context, androidx.work.WorkerParameters);
 }
+
+# Room creates the independent sleep sounds settings database by name.
+-keep class com.riyadm.wakenudge.engine.sounds.SleepSoundsDatabase_Impl { public <init>(); }

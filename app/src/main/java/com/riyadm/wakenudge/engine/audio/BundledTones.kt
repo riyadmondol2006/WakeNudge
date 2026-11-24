@@ -31,6 +31,14 @@ object BundledTones {
         BundledTone("classic", R.string.tone_classic, R.raw.tone_classic, ToneCharacter.LOUD, -13.0),
         BundledTone("beacon", R.string.tone_beacon, R.raw.tone_beacon, ToneCharacter.LOUD, -12.0),
         BundledTone("siren", R.string.tone_siren, R.raw.tone_siren, ToneCharacter.LOUD, -11.0),
+        BundledTone("music_piano", R.string.tone_music_piano, R.raw.tone_music_piano, ToneCharacter.GENTLE, -17.0),
+        BundledTone("music_lofi", R.string.tone_music_lofi, R.raw.tone_music_lofi, ToneCharacter.STANDARD, -15.0),
+        BundledTone("music_marimba", R.string.tone_music_marimba, R.raw.tone_music_marimba, ToneCharacter.STANDARD, -15.0),
+        BundledTone("music_synth", R.string.tone_music_synth, R.raw.tone_music_synth, ToneCharacter.LOUD, -13.0),
+        BundledTone("music_guitar", R.string.tone_music_guitar, R.raw.tone_music_guitar, ToneCharacter.GENTLE, -16.0),
+        BundledTone("music_choir", R.string.tone_music_choir, R.raw.tone_music_choir, ToneCharacter.GENTLE, -18.0),
+        BundledTone("music_brass", R.string.tone_music_brass, R.raw.tone_music_brass, ToneCharacter.LOUD, -12.0),
+        BundledTone("music_box", R.string.tone_music_box, R.raw.tone_music_box, ToneCharacter.GENTLE, -16.0),
     )
 
     /** Layer that joins the main tone after 40 s of being ignored. Not user-selectable. */
