@@ -1,0 +1,240 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "6df6e6559e6aed798873610bea9f083f",
+    "entities": [
+      {
+        "tableName": "sleep_session",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `startedAt` INTEGER NOT NULL, `endedAt` INTEGER, `endReason` TEXT, `micUsed` INTEGER NOT NULL, `micStoppedAt` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "startedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endedAt",
+            "columnName": "endedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "endReason",
+            "columnName": "endReason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "micUsed",
+            "columnName": "micUsed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "micStoppedAt",
+            "columnName": "micStoppedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_sleep_session_endedAt",
+            "unique": false,
+            "columnNames": [
+              "endedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sleep_session_endedAt` ON `${TABLE_NAME}` (`endedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "sleep_epoch",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`sessionId` INTEGER NOT NULL, `idx` INTEGER NOT NULL, `samples` INTEGER NOT NULL, `meanDelta` REAL NOT NULL, `maxDelta` REAL NOT NULL, `moveSamples` INTEGER NOT NULL, `soundDb` REAL, `soundPeakDb` REAL, `snores` INTEGER NOT NULL, PRIMARY KEY(`sessionId`, `idx`), FOREIGN KEY(`sessionId`) REFERENCES `sleep_session`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "sessionId",
+            "columnName": "sessionId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idx",
+            "columnName": "idx",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "samples",
+            "columnName": "samples",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "meanDelta",
+            "columnName": "meanDelta",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxDelta",
+            "columnName": "maxDelta",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "moveSamples",
+            "columnName": "moveSamples",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "soundDb",
+            "columnName": "soundDb",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "soundPeakDb",
+            "columnName": "soundPeakDb",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "snores",
+            "columnName": "snores",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "sessionId",
+            "idx"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "sleep_session",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sessionId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "snore_clip",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionId` INTEGER NOT NULL, `recordedAt` INTEGER NOT NULL, `durationMs` INTEGER NOT NULL, `peakDb` REAL NOT NULL, `aboveFloorDb` REAL NOT NULL, `fileName` TEXT NOT NULL, `envelope` TEXT NOT NULL, FOREIGN KEY(`sessionId`) REFERENCES `sleep_session`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessionId",
+            "columnName": "sessionId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordedAt",
+            "columnName": "recordedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMs",
+            "columnName": "durationMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "peakDb",
+            "columnName": "peakDb",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aboveFloorDb",
+            "columnName": "aboveFloorDb",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fileName",
+            "columnName": "fileName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "envelope",
+            "columnName": "envelope",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_snore_clip_sessionId",
+            "unique": false,
+            "columnNames": [
+              "sessionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_snore_clip_sessionId` ON `${TABLE_NAME}` (`sessionId`)"
+          },
+          {
+            "name": "index_snore_clip_recordedAt",
+            "unique": false,
+            "columnNames": [
+              "recordedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_snore_clip_recordedAt` ON `${TABLE_NAME}` (`recordedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "sleep_session",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sessionId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6df6e6559e6aed798873610bea9f083f')"
+    ]
+  }
+}
