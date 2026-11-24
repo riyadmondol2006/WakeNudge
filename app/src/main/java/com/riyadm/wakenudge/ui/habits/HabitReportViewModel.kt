@@ -5,9 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.riyadm.wakenudge.core.TimeSource
 import com.riyadm.wakenudge.domain.habits.HabitData
 import com.riyadm.wakenudge.domain.habits.HabitRepository
+import com.riyadm.wakenudge.domain.repository.SettingsRepository
+import com.riyadm.wakenudge.domain.stats.WakeReportCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.temporal.WeekFields
+import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,14 +31,21 @@ data class HabitReportUiState(
 class HabitReportViewModel @Inject constructor(
     private val repository: HabitRepository,
     private val time: TimeSource,
+    settings: SettingsRepository,
 ) : ViewModel() {
     private val earlierWeeks = MutableStateFlow(0)
+    private val systemFirstDay = MutableStateFlow(WeekFields.of(Locale.getDefault()).firstDayOfWeek)
 
-    val state: StateFlow<HabitReportUiState?> = combine(repository.observe(), earlierWeeks) { data, earlier ->
-        val today = time.now().toLocalDate()
-        val thisWeek = today.minusDays((today.dayOfWeek.value - DayOfWeek.MONDAY.value).toLong())
-        HabitReportUiState(data, today, thisWeek.minusWeeks(earlier.toLong()), earlier)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    /** The week follows the app's "first day of week" setting, like the Wake up and Sleep sections. */
+    val state: StateFlow<HabitReportUiState?> =
+        combine(repository.observe(), earlierWeeks, settings.settings, systemFirstDay) { data, earlier, app, system ->
+            val today = time.now().toLocalDate()
+            val thisWeek = WakeReportCalculator.weekStart(today, app.firstDayOfWeek(system))
+            HabitReportUiState(data, today, thisWeek.minusWeeks(earlier.toLong()), earlier)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** The locale's own first day, used when the setting is "system default". */
+    fun setSystemFirstDay(day: DayOfWeek) { systemFirstDay.value = day }
 
     fun earlier() { earlierWeeks.value++ }
     fun later() { earlierWeeks.value = (earlierWeeks.value - 1).coerceAtLeast(0) }

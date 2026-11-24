@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,12 +48,14 @@ import com.riyadm.wakenudge.ui.habits.habitColour
 import com.riyadm.wakenudge.ui.util.currentLocale
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.temporal.WeekFields
 
 @Composable
 fun HabitReportSection(nav: ReportNav, modifier: Modifier = Modifier, viewModel: HabitReportViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val current = state ?: return
     val locale = currentLocale()
+    LaunchedEffect(locale) { viewModel.setSystemFirstDay(WeekFields.of(locale).firstDayOfWeek) }
+    val current = state ?: return
     LazyColumn(
         modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),

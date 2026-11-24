@@ -86,9 +86,11 @@ import com.riyadm.wakenudge.ui.components.TimeEntryDialog
 import com.riyadm.wakenudge.ui.components.ValueRow
 import com.riyadm.wakenudge.ui.theme.PolygonShape
 import com.riyadm.wakenudge.ui.theme.Blobs
+import com.riyadm.wakenudge.domain.stats.WakeReportCalculator
 import com.riyadm.wakenudge.ui.util.currentLocale
 import com.riyadm.wakenudge.ui.util.rememberIs24Hour
 import java.time.DayOfWeek
+import java.time.temporal.WeekFields
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.TextStyle
@@ -98,6 +100,8 @@ fun HabitsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: H
     val data by viewModel.data.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val today by viewModel.today.collectAsStateWithLifecycle()
+    val locale = currentLocale()
+    val firstDay = settings.firstDayOfWeek(WeekFields.of(locale).firstDayOfWeek)
     val notifications by viewModel.notifications.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -190,6 +194,7 @@ fun HabitsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: H
                         habit = habit,
                         data = data!!,
                         today = today,
+                        firstDay = firstDay,
                         canMoveUp = habits.indexOf(habit) > 0,
                         canMoveDown = habits.indexOf(habit) < habits.lastIndex,
                         onToggle = viewModel::toggle,
@@ -233,6 +238,7 @@ private fun HabitCard(
     habit: Habit,
     data: com.riyadm.wakenudge.domain.habits.HabitData,
     today: LocalDate,
+    firstDay: DayOfWeek,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     onToggle: (Long, LocalDate) -> Unit,
@@ -242,7 +248,7 @@ private fun HabitCard(
 ) {
     val done = data.doneDates(habit.id)
     val streak = HabitStreakCalculator.calculate(habit, done, today)
-    val weekStart = today.minusDays((today.dayOfWeek.value - DayOfWeek.MONDAY.value).toLong())
+    val weekStart = WakeReportCalculator.weekStart(today, firstDay)
     val todayDone = today.toEpochDay() in done
     val dueToday = habit.isDueOn(today)
     val colour = habitColour(habit.colorIndex)
