@@ -159,6 +159,7 @@ class SleepTracker @Inject constructor(
         run.ringAtStart = ringStore.current?.eventId
         session = run
         val status = TrackStatus.Running(run.startedAt, micOn = sound != null, micStoppedForAlarm = false)
+        Log.i(TAG, "session started: microphone ${if (sound != null) "on" else "off"}, wake lock ${wakeLock != null}")
         _status.value = status
         host.showStatus(status)
         val created = scope.launch(io) {
@@ -183,6 +184,7 @@ class SleepTracker @Inject constructor(
             r.ending = true
             r
         }
+        Log.i(TAG, "session ending: $reason")
         run.sound?.stop()
         run.movement.flush()
         scope.launch(io) {
@@ -241,6 +243,7 @@ class SleepTracker @Inject constructor(
             val ends = RingWatchPolicy.endsSession(
                 seen, event.getOrNull()?.outcome, event.getOrNull()?.snoozeUntil ?: 0, historyReadable = event.isSuccess && (seen.eventId <= 0 || event.getOrNull() != null),
             )
+            Log.i(TAG, "ring ${seen.eventId} gone (test=${seen.isTest}, timer=${seen.isTimer}, outcome=${event.getOrNull()?.outcome}): ${if (ends) "ending" else "still tracking"}")
             if (ends) stop(SessionEnd.ALARM_DISMISSED)
         }
     }
@@ -249,6 +252,7 @@ class SleepTracker @Inject constructor(
         val sound = run.sound ?: return
         if (run.micStoppedForAlarm) return
         sound.stop()
+        Log.i(TAG, "microphone stopped: a ring started")
         run.micStoppedForAlarm = true
         runCatching { run.host.dropMicrophone() }
         val status = TrackStatus.Running(run.startedAt, micOn = false, micStoppedForAlarm = true)
@@ -264,7 +268,8 @@ class SleepTracker @Inject constructor(
             val id = run.sessionId ?: return@launch
             if (run.ending) return@launch
             val recordedAt = run.startedAt + (candidate.startElapsedMs - run.startElapsed)
-            when (val decision = ClipPolicy.decide(run.clips, recordedAt, candidate.peakDb)) {
+            val decision = ClipPolicy.decide(run.clips, recordedAt, candidate.peakDb)
+            when (decision) {
                 ClipDecision.Drop -> return@launch
                 is ClipDecision.Replace -> {
                     runCatching { repo.deleteClip(decision.id) }
@@ -285,6 +290,7 @@ class SleepTracker @Inject constructor(
                 )
             }.getOrNull()
             if (clipId == null) file.delete() else run.clips += ClipRef(clipId, recordedAt, candidate.peakDb)
+            Log.i(TAG, "snore clip ${if (clipId == null) "not stored" else "kept"} ($decision)")
         }
     }
 
