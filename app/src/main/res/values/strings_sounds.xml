@@ -1,0 +1,36 @@
+<resources>
+    <string name="sounds_intro">Build a quieter evening. Choose up to three sounds and set each level.</string>
+    <string name="sounds_added">In your mix</string>
+    <string name="sounds_not_added">Not in your mix</string>
+    <string name="sounds_white">White noise</string>
+    <string name="sounds_pink">Pink noise</string>
+    <string name="sounds_brown">Brown noise</string>
+    <string name="sounds_rain">Rain</string>
+    <string name="sounds_ocean">Ocean waves</string>
+    <string name="sounds_wind">Wind</string>
+    <string name="sounds_stream">Stream</string>
+    <string name="sounds_fan">Fan</string>
+    <string name="sounds_fire">Crackling fire</string>
+    <string name="sounds_volume">%1$s volume</string>
+    <string name="sounds_add_file">Add an audio file</string>
+    <string name="sounds_replace_file">Replace audio file</string>
+    <string name="sounds_file">Your audio file</string>
+    <string name="sounds_file_volume">Audio file volume</string>
+    <string name="sounds_remove_file">Remove audio file</string>
+    <string name="sounds_timer">Sleep timer: %1$d min</string>
+    <string name="sounds_next_alarm">Until my next alarm</string>
+    <string name="sounds_remaining">%1$d min remaining</string>
+    <string name="sounds_stop">Stop sleep sounds</string>
+    <string name="sounds_play">Play mix</string>
+    <string name="sounds_error">Could not start or continue playback. Check your file and audio output. For “until my next alarm”, enable an upcoming alarm.</string>
+    <string name="sounds_footer">Fades out over the last 30 seconds. Stops for an alarm or when headphones disconnect. Uses media volume.</string>
+    <string name="sounds_music">Music</string>
+    <string name="tone_music_piano">Daybreak keys</string>
+    <string name="tone_music_lofi">Early groove</string>
+    <string name="tone_music_marimba">Woodland dance</string>
+    <string name="tone_music_synth">Bright horizon</string>
+    <string name="tone_music_guitar">First light strings</string>
+    <string name="tone_music_choir">Morning air</string>
+    <string name="tone_music_brass">Open sky</string>
+    <string name="tone_music_box">Little constellation</string>
+</resources>

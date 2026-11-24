@@ -188,9 +188,9 @@ fun SoundPickerSheet(
             }
             when (sound.mode) {
                 SoundMode.SINGLE -> {
-                    ToneCharacter.entries.forEach { character ->
-                        item(key = "h-$character") { SectionTitle(stringResource(characterLabel(character))) }
-                        items(BundledTones.all.filter { it.character == character }, key = { it.id }) { tone ->
+                    (ToneCharacter.entries.map { it to characterLabel(it) } + (null to R.string.sounds_music)).forEach { (character, label) ->
+                        item(key = "h-$character") { SectionTitle(stringResource(label)) }
+                        items(BundledTones.all.filter { if (character == null) it.id.startsWith("music_") else it.character == character && !it.id.startsWith("music_") }, key = { it.id }) { tone ->
                             ToneRow(
                                 tone = tone,
                                 selected = sound.source == SoundSource.BUNDLED && sound.bundledId == tone.id,

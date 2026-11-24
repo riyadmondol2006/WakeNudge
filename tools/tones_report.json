@@ -82,5 +82,53 @@
     "target_lufs": -10.0,
     "measured_lufs": -10.0,
     "peak_dbfs": -2.67
+  },
+  "music_piano": {
+    "seconds": 32.0,
+    "target_lufs": -17.0,
+    "measured_lufs": -17.0,
+    "peak_dbfs": -4.76
+  },
+  "music_lofi": {
+    "seconds": 32.0,
+    "target_lufs": -15.0,
+    "measured_lufs": -15.0,
+    "peak_dbfs": -1.97
+  },
+  "music_marimba": {
+    "seconds": 32.0,
+    "target_lufs": -15.0,
+    "measured_lufs": -15.0,
+    "peak_dbfs": -2.14
+  },
+  "music_synth": {
+    "seconds": 32.0,
+    "target_lufs": -13.0,
+    "measured_lufs": -13.01,
+    "peak_dbfs": -1.12
+  },
+  "music_guitar": {
+    "seconds": 32.0,
+    "target_lufs": -16.0,
+    "measured_lufs": -16.0,
+    "peak_dbfs": -3.21
+  },
+  "music_choir": {
+    "seconds": 32.0,
+    "target_lufs": -18.0,
+    "measured_lufs": -18.0,
+    "peak_dbfs": -7.87
+  },
+  "music_brass": {
+    "seconds": 32.0,
+    "target_lufs": -12.0,
+    "measured_lufs": -12.03,
+    "peak_dbfs": -1.11
+  },
+  "music_box": {
+    "seconds": 32.0,
+    "target_lufs": -16.0,
+    "measured_lufs": -16.0,
+    "peak_dbfs": -4.93
   }
 }

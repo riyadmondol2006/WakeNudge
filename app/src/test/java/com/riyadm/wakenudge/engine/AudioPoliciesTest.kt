@@ -184,7 +184,7 @@ class SoundResolverTest {
     @Test fun `every selectable bundled tone has loudness metadata in a sane range`() {
         BundledTones.all.forEach { assertTrue("${it.id} ${it.lufs}", it.lufs in -20.0..-9.0) }
         assertNotNull(BundledTones.byId("siren"))
-        assertEquals(12, BundledTones.all.map { it.id }.toSet().size)
+        assertEquals(20, BundledTones.all.map { it.id }.toSet().size)
     }
 }
 
