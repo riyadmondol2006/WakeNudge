@@ -37,8 +37,16 @@ class HabitRulesTest {
         val done = setOf(monday.toEpochDay())
         assertEquals(HabitDayState.DONE, HabitRules.dayState(weekdays, monday, today, done))
         assertEquals(HabitDayState.NOT_DUE, HabitRules.dayState(weekdays, monday.plusDays(1), today, done))
-        assertEquals(HabitDayState.MISSED, HabitRules.dayState(weekdays, today, today, done))
+        assertEquals(HabitDayState.OPEN, HabitRules.dayState(weekdays, today, today, done))
         assertEquals(HabitDayState.FUTURE, HabitRules.dayState(weekdays, monday.plusDays(4), today, done))
+        assertEquals(HabitDayState.MISSED, HabitRules.dayState(weekdays, today, today.plusDays(1), done))
+    }
+
+    @Test fun `today is open until it is done, and only a past day can be missed`() {
+        val today = monday.plusDays(1)
+        assertEquals(HabitDayState.OPEN, HabitRules.dayState(habit, today, today, emptySet()))
+        assertEquals(HabitDayState.DONE, HabitRules.dayState(habit, today, today, setOf(today.toEpochDay())))
+        assertEquals(HabitDayState.MISSED, HabitRules.dayState(habit, monday, today, emptySet()))
     }
 
     @Test fun `days before creation are not due or missed`() {

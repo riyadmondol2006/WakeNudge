@@ -27,6 +27,7 @@
     <string name="habits_notification_settings">Open notification settings</string>
     <string name="habits_save">Save habit</string>
     <string name="habits_day_done">%1$s, done</string>
+    <string name="habits_day_open">%1$s, today, not done yet</string>
     <string name="habits_day_missed">%1$s, missed</string>
     <string name="habits_day_not_due">%1$s, not due</string>
     <string name="habits_day_future">%1$s, future</string>

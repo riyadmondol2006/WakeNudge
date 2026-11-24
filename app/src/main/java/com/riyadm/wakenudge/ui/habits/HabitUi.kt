@@ -102,6 +102,7 @@ fun HabitWeekRow(
             val fullDate = date.format(java.time.format.DateTimeFormatter.ofPattern("EEEE, MMM d", locale))
             val description = stringResource(when (state) {
                 HabitDayState.DONE -> R.string.habits_day_done
+                HabitDayState.OPEN -> R.string.habits_day_open
                 HabitDayState.MISSED -> R.string.habits_day_missed
                 HabitDayState.NOT_DUE -> R.string.habits_day_not_due
                 HabitDayState.FUTURE -> R.string.habits_day_future
@@ -134,6 +135,7 @@ fun HabitWeekRow(
                         .clip(CircleShape)
                         .then(when (state) {
                             HabitDayState.DONE -> Modifier.background(colour)
+                            HabitDayState.OPEN -> Modifier.border(2.dp, colour, CircleShape)
                             HabitDayState.MISSED -> Modifier.border(1.5.dp, MaterialTheme.colorScheme.outline, CircleShape)
                             else -> Modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f))
                         }),
@@ -147,6 +149,7 @@ fun HabitWeekRow(
                             modifier = Modifier.size(20.dp),
                         )
                         HabitDayState.MISSED -> Box(Modifier.size(5.dp).clip(CircleShape).background(MaterialTheme.colorScheme.outline))
+                        HabitDayState.OPEN -> Unit
                         HabitDayState.NOT_DUE, HabitDayState.FUTURE -> Text("·", color = MaterialTheme.colorScheme.outline)
                     }
                 }

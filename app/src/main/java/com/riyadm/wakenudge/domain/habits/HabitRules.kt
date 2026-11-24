@@ -2,7 +2,8 @@ package com.riyadm.wakenudge.domain.habits
 
 import java.time.LocalDate
 
-enum class HabitDayState { DONE, MISSED, NOT_DUE, FUTURE }
+/** [OPEN] is a due today not ticked yet: it becomes [MISSED] only once the day is over. */
+enum class HabitDayState { DONE, OPEN, MISSED, NOT_DUE, FUTURE }
 
 object HabitRules {
     fun canToggle(habit: Habit, date: LocalDate, today: LocalDate): Boolean {
@@ -16,6 +17,7 @@ object HabitRules {
         date.isAfter(today) -> HabitDayState.FUTURE
         !habit.isDueOn(date) -> HabitDayState.NOT_DUE
         date.toEpochDay() in done -> HabitDayState.DONE
+        date == today -> HabitDayState.OPEN
         else -> HabitDayState.MISSED
     }
 
