@@ -141,7 +141,7 @@ class ReleaseReadinessTest {
     @Test fun `the microphone is used by the sleep tracking service alone, and only as an opt-in`() {
         // Sleep tracking's "Record snoring" (off by default) is the one user of RECORD_AUDIO. The only service that may hold
         // the microphone type is its own, which is not exported, never runs before the first unlock, and also needs the
-        // health type for movement. On Android 14+ that type requires ACTIVITY_RECOGNITION. See docs/features/sleep-tracking.md.
+        // health type for movement. On Android 14+ that type requires ACTIVITY_RECOGNITION. See docs/ARCHITECTURE.md and docs/PERMISSIONS.md.
         val permissions = manifest.children("uses-permission").map { it.getAttribute("android:name") }.toSet()
         assertTrue(permissions.contains("android.permission.RECORD_AUDIO"))
         assertTrue(permissions.contains("android.permission.FOREGROUND_SERVICE_MICROPHONE"))

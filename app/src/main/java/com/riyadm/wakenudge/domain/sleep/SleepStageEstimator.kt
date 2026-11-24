@@ -6,7 +6,7 @@ import kotlin.math.max
 /**
  * Turns a night of 30-second epochs into estimated stages. This is a transparent rule of thumb, not a measurement: a
  * phone on a mattress feels the body move and (with the microphone on) hears the room. It cannot see brain waves, so the
- * stages are a guess shaped by what sleep usually looks like. Every rule is here and in docs/features/sleep-tracking.md.
+ * stages are a guess shaped by what sleep usually looks like. Every rule is here and in docs/ARCHITECTURE.md.
  *
  * 1. **Enough data?** Fewer than [MIN_DATA_EPOCHS] epochs with readings, or readings for less than [MIN_COVERAGE] of the
  *    time in bed, gives [NightVerdict.TOO_LITTLE_DATA]. Not a single reading above [EpochAccumulator.MOVE_THRESHOLD] in

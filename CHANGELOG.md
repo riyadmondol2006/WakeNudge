@@ -7,8 +7,9 @@ Releases are built and published automatically from `main` and numbered `MAJOR.M
 ## Sleep tracking, sleep sounds, habits and a weekly wake-up report
 
 Four features that sit next to the alarm, not inside it: each keeps its own database, service and receivers, only watches
-whether an alarm is ringing, and gets out of the way when one starts. None of them has been tried on a phone yet;
-[docs/TESTING.md](docs/TESTING.md) lists what is still to check.
+whether an alarm is ringing, and gets out of the way when one starts. They were checked on a Pixel 6 against a real
+alarm ring, in the debug and the minified release build; [docs/TESTING.md](docs/TESTING.md) lists what was checked and
+what still is not (real nights, battery, how the sounds sound).
 
 ### Added
 - **Sleep tracking**: put the phone on the mattress and tap Start on Track my sleep (Report, Sleep, or the sleep planner).
@@ -46,6 +47,10 @@ whether an alarm is ringing, and gets out of the way when one starts. None of th
   uses a marker no real version contains now; the backup itself was right
 - **The three Report sections share one week picker**: This week or Last week over the dates, arrows to earlier weeks,
   never past this week. Each had its own before, and they wrote the dates and years differently
+- **Habit weeks follow the "week starts on" setting**, on the Habits screen and in the Habits report. They always started
+  on Monday, so the Habits section showed a different week from Wake up and Sleep next to it
+- **Today is not "missed" while it is still today.** A due habit not ticked yet today showed, and was read out by
+  TalkBack, as missed; it now has a ring in the habit's colour and reads "today, not done yet" until the day is over
 
 ### Privacy and permissions
 - New: the microphone (`RECORD_AUDIO`), asked only when Record snoring is switched on, and the `health` and `microphone`
@@ -56,7 +61,6 @@ whether an alarm is ringing, and gets out of the way when one starts. None of th
   (the last mix). Sleep nights, snore clips and the sleep-sounds mix are never part of a backup
 
 ### Known and left as they are
-- Habit weeks always start on Monday; the Wake up and Sleep weeks follow the "week starts on" setting
 - A habit's schedule edit applies to its whole history, and days older than the last seven are read-only. There are no
   habit widgets or Quick Settings tile
 - Restoring a backup with habits is not atomic across the alarm and habit databases: each is rolled back on failure where

@@ -45,7 +45,7 @@
         Sleep tracking (feature: sleep tracking). Movement runs in a "health" foreground service; on Android 14+ that type
         needs the physical-activity permission (ACTIVITY_RECOGNITION, declared above), asked for when tracking starts.
         RECORD_AUDIO and the "microphone" type only while "Record snoring" is switched on, asked for then. Nothing leaves
-        the phone. See docs/features/sleep-tracking.md.
+        the phone. See docs/ARCHITECTURE.md and docs/PERMISSIONS.md.
     -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />

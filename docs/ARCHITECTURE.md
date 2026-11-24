@@ -518,7 +518,7 @@ check-in is one row per habit and local day; a due day can be changed from its c
 the six days before, by the screen and the notification's Done alike. A streak counts consecutive completed due days;
 non-due days are skipped, and an unfinished today breaks it only once it is past. **Schedule edits apply to the whole
 history** (no schedule revisions are stored): check-ins on days no longer due are kept but do not count. Week completion is
-completed due days over due days from Monday to today (or Sunday for an earlier week), rounded down. Reminders use
+completed due days over due days from the week's first day to today (or its last day for an earlier week), rounded down. Reminders use
 `AlarmManager.setWindow(RTC_WAKEUP, …, 10 minutes)`, so they can come late; only the next due one is armed, and its
 delivery arms the following one. A habit already done that day is not notified. Boot, locked boot, an app update, a manual
 clock change and a time-zone change re-arm them all. `HabitNotificationActivity`, opened by Open, is not Direct Boot aware.
@@ -536,8 +536,8 @@ breaks the streak in `WakeStats`, which is unchanged. The average wake-up time i
 00:10 give 00:00; opposite times give none). The chart's axis fits the week's times (30 minutes or 15 % padding, at least
 two hours, wrapping past midnight when it must). Days are assigned in the zone in force when the report is built, except
 where the calculator's per-ring zone resolver is used; durations are always epoch differences. Weeks go back as far as the
-120 days observed. The three Report sections share `ReportWeekPicker`; Wake up and Sleep weeks follow the "week starts on"
-setting, Habits weeks start on Monday.
+120 days observed. The three Report sections share `ReportWeekPicker`, and all three, with the Habits screen, start their
+weeks on the "week starts on" setting (`AppSettings.firstDayOfWeek`, the locale's first day by default).
 
 **Backups.** The backup file (format version still 1) gains an optional top-level `habits` object holding `habits`
 (`id`, `name`, `icon`, `colorIndex`, `daysMask`, `reminderMinutes`, `createdEpochDay`, `sortOrder`) and `checkIns`
