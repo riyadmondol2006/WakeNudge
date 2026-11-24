@@ -6,7 +6,11 @@
     <string name="report_tab_wake">Wake up</string>
     <string name="report_tab_sleep">Sleep</string>
     <string name="report_tab_habits">Habits</string>
-    <string name="report_sleep_placeholder">Track a night to see how you slept.</string>
+    <string name="report_week_this">This week</string>
+    <string name="report_week_last">Last week</string>
+    <string name="report_week_previous">Previous week</string>
+    <string name="report_week_next">Next week</string>
+    <string name="report_week_range">%1$s – %2$s</string>
     <string name="report_habits_placeholder">Add a habit to see how your week goes.</string>
     <string name="feature_coming">Coming soon.</string>
     <string name="sleep_track_title">Track my sleep</string>

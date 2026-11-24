@@ -73,31 +73,14 @@ fun WakeUpReportSection(modifier: Modifier = Modifier, viewModel: WakeUpReportVi
         item {
             Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = viewModel::previousWeek) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.wakereport_previous_week))
-                        }
-                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                            val range = stringResource(
-                                R.string.wakereport_week_range,
-                                Formatters.dateShort(week.start, locale),
-                                Formatters.dateShort(week.end, locale),
-                            )
-                            Text(
-                                if (state.isThisWeek) stringResource(R.string.wakereport_week_label, stringResource(R.string.wakereport_week_this), range) else range,
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.semantics { heading() },
-                            )
-                            Text(
-                                pluralStringResource(R.plurals.wakereport_mornings_count, week.wakeUpCount, week.wakeUpCount),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        IconButton(onClick = viewModel::nextWeek, enabled = state.canGoNext) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowForward, stringResource(R.string.wakereport_next_week))
-                        }
-                    }
+                    ReportWeekPicker(
+                        start = week.start,
+                        weeksBack = (java.time.LocalDate.now().toEpochDay() - week.start.toEpochDay()).coerceAtLeast(0) / 7,
+                        canGoForward = state.canGoNext,
+                        onPrevious = viewModel::previousWeek,
+                        onNext = viewModel::nextWeek,
+                        detail = pluralStringResource(R.plurals.wakereport_mornings_count, week.wakeUpCount, week.wakeUpCount),
+                    )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Headline(
                             label = stringResource(R.string.wakereport_avg_wake_time),

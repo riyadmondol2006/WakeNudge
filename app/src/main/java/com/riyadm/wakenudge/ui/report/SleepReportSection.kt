@@ -99,7 +99,10 @@ fun SleepReportSection(nav: ReportNav, modifier: Modifier = Modifier, viewModel:
             item { HowNote() }
             return@LazyColumn
         }
-        item { WeekPicker(state.weekStart, state.today, state.canGoForward, viewModel::previousWeek, viewModel::nextWeek) }
+        item {
+            // [weekStart] begins a week and today lies in this week, so whole weeks between them is how far back this is.
+            ReportWeekPicker(state.weekStart, (state.today.toEpochDay() - state.weekStart.toEpochDay()) / 7, state.canGoForward, viewModel::previousWeek, viewModel::nextWeek)
+        }
         item {
             val none = stringResource(R.string.sleeptrack_none_value)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -161,25 +164,3 @@ private fun HowNote() {
     )
 }
 
-/** "This week" with the dates, arrows to earlier weeks; never past this week. */
-@Composable
-private fun WeekPicker(start: LocalDate, today: LocalDate, canGoForward: Boolean, onPrevious: () -> Unit, onNext: () -> Unit) {
-    val locale = currentLocale()
-    val format = DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, "MMMd"), locale)
-    val range = stringResource(R.string.sleeptrack_night_range, format.format(start), format.format(start.plusDays(6)))
-    // [start] begins a week and today lies in this week, so whole weeks between them is how far back this is.
-    val weeksBack = (today.toEpochDay() - start.toEpochDay()) / 7
-    val title = when (weeksBack) {
-        0L -> stringResource(R.string.sleeptrack_week_this)
-        1L -> stringResource(R.string.sleeptrack_week_last)
-        else -> null
-    }
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onPrevious) { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, stringResource(R.string.sleeptrack_week_previous)) }
-        Column(Modifier.weight(1f).semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }, horizontalAlignment = Alignment.CenterHorizontally) {
-            if (title != null) Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-            Text(range, style = if (title == null) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-        }
-        IconButton(onClick = onNext, enabled = canGoForward) { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, stringResource(R.string.sleeptrack_week_next)) }
-    }
-}

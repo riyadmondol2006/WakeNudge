@@ -84,10 +84,6 @@
     <string name="sleeptrack_waveform_desc">Waveform of the clip</string>
 
     <!-- Report: Sleep -->
-    <string name="sleeptrack_week_this">This week</string>
-    <string name="sleeptrack_week_last">Last week</string>
-    <string name="sleeptrack_week_previous">Previous week</string>
-    <string name="sleeptrack_week_next">Next week</string>
     <string name="sleeptrack_avg_asleep">Avg. time asleep</string>
     <string name="sleeptrack_avg_latency">Avg. time to fall asleep</string>
     <string name="sleeptrack_week_chart">Nights this week</string>

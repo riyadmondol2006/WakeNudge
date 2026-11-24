@@ -31,10 +31,6 @@
     <string name="habits_day_not_due">%1$s, not due</string>
     <string name="habits_day_future">%1$s, future</string>
     <string name="habits_report_title">My habit record</string>
-    <string name="habits_report_previous_week">Previous week</string>
-    <string name="habits_report_next_week">Next week</string>
-    <string name="habits_report_this_week">This week, %1$s</string>
-    <string name="habits_report_week">Week of %1$s</string>
     <string name="habits_report_empty">No habits yet. Add one to start your weekly record.</string>
     <string name="habits_report_add">Add a habit</string>
     <string name="habits_report_completion">%1$d%% complete this week</string>

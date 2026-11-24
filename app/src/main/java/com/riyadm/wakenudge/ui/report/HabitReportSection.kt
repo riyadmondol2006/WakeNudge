@@ -53,8 +53,6 @@ fun HabitReportSection(nav: ReportNav, modifier: Modifier = Modifier, viewModel:
     val state by viewModel.state.collectAsStateWithLifecycle()
     val current = state ?: return
     val locale = currentLocale()
-    val weekEnd = current.weekStart.plusDays(6)
-    val range = "${current.weekStart.format(DateTimeFormatter.ofPattern("MMM d", locale))} – ${weekEnd.format(DateTimeFormatter.ofPattern("MMM d, yyyy", locale))}"
     LazyColumn(
         modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -68,19 +66,13 @@ fun HabitReportSection(nav: ReportNav, modifier: Modifier = Modifier, viewModel:
             )
         }
         item {
-            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = viewModel::earlier) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, stringResource(R.string.habits_report_previous_week)) }
-                    Text(
-                        stringResource(if (current.earlierWeeks == 0) R.string.habits_report_this_week else R.string.habits_report_week, range),
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.weight(1f),
-                    )
-                    IconButton(onClick = viewModel::later, enabled = current.earlierWeeks > 0) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, stringResource(R.string.habits_report_next_week))
-                    }
-                }
-            }
+            ReportWeekPicker(
+                start = current.weekStart,
+                weeksBack = current.earlierWeeks.toLong(),
+                canGoForward = current.earlierWeeks > 0,
+                onPrevious = viewModel::earlier,
+                onNext = viewModel::later,
+            )
         }
         if (current.data.habits.isEmpty()) {
             item {
