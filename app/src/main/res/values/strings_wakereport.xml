@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wake-up report: week view and daily report in the Report tab. -->
+<resources>
+    <string name="wakereport_week_this">This week</string>
+    <string name="wakereport_week_range">%1$s – %2$s</string>
+    <string name="wakereport_week_label">%1$s, %2$s</string>
+    <string name="wakereport_previous_week">Previous week</string>
+    <string name="wakereport_next_week">Next week</string>
+    <string name="wakereport_avg_wake_time">Avg. wake-up time</string>
+    <string name="wakereport_avg_time_to_wake">Avg. time to wake up</string>
+    <string name="wakereport_no_mornings">No wake-ups this week yet.</string>
+    <string name="wakereport_no_mornings_week">No wake-ups recorded this week.</string>
+    <plurals name="wakereport_mornings_count">
+        <item quantity="one">%1$d morning</item>
+        <item quantity="other">%1$d mornings</item>
+    </plurals>
+    <string name="wakereport_view_daily">View daily report</string>
+    <string name="wakereport_average_line">Average</string>
+    <string name="wakereport_chart_title">Wake-up times</string>
+    <string name="wakereport_chart_day_wake">%1$s: up at %2$s, %3$s to wake up</string>
+    <string name="wakereport_chart_day_no_wake">%1$s: no wake-up</string>
+    <string name="wakereport_chart_day_empty">%1$s: no alarm</string>
+    <string name="wakereport_chart_day_ringing">%1$s: still ringing</string>
+    <string name="wakereport_daily_title">%1$s</string>
+    <string name="wakereport_daily_no_rings">No alarm rang this day.</string>
+    <string name="wakereport_daily_wake_summary">Up at %1$s · %2$s from the first ring</string>
+    <string name="wakereport_daily_no_wake_summary">No wake-up this day.</string>
+    <string name="wakereport_ring_first">First ring %1$s</string>
+    <string name="wakereport_ring_took">Took %1$s</string>
+    <string name="wakereport_ring_still">Still ringing</string>
+    <string name="wakereport_ring_missions">Missions %1$d of %2$d done</string>
+    <string name="wakereport_ring_missions_none">No missions</string>
+    <string name="wakereport_ring_backup_mission">A backup mission stood in</string>
+    <string name="wakereport_ring_backup_fired">Backup alarm rang</string>
+    <string name="wakereport_way_out">Way out used</string>
+    <string name="wakereport_check_passed">Still-awake check passed</string>
+    <string name="wakereport_check_failed">Still-awake check failed</string>
+    <string name="wakereport_check_pending">Still-awake check pending</string>
+    <string name="wakereport_check_cancelled">Still-awake check cancelled</string>
+    <string name="wakereport_check_none">No still-awake check</string>
+    <string name="wakereport_close">Close</string>
+    <string name="wakereport_today">Today</string>
+    <string name="wakereport_clear_history">Clear history</string>
+</resources>
