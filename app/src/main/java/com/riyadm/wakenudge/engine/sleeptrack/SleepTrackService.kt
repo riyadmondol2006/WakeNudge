@@ -47,6 +47,7 @@ class SleepTrackService : Service(), TrackHost {
 
     private var withMic = false
     private var stopping = false
+    private var startedAt = 0L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -68,6 +69,7 @@ class SleepTrackService : Service(), TrackHost {
         val wantMic = intent.getBooleanExtra(EXTRA_MIC, false) &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         ensureChannel(this)
+        startedAt = System.currentTimeMillis()
         withMic = wantMic && promote(mic = true)
         val promoted = withMic || promote(mic = false)
         if (!promoted) {
@@ -81,7 +83,7 @@ class SleepTrackService : Service(), TrackHost {
     }
 
     private fun promote(mic: Boolean): Boolean {
-        val notification = notification(micOn = mic, micStoppedForAlarm = false, startedAt = System.currentTimeMillis())
+        val notification = notification(micOn = mic, micStoppedForAlarm = false, startedAt = startedAt)
         return runCatching { ServiceCompat.startForeground(this, SleepTrackIds.NOTIFICATION, notification, types(mic)) }
             .onFailure { Log.w(TAG, "startForeground refused (mic=$mic)", it) }
             .isSuccess
@@ -92,11 +94,12 @@ class SleepTrackService : Service(), TrackHost {
         withMic = false
         // Keep running as a health service only: the microphone type ends with the microphone.
         runCatching {
-            ServiceCompat.startForeground(this, SleepTrackIds.NOTIFICATION, notification(false, true, System.currentTimeMillis()), types(mic = false))
+            ServiceCompat.startForeground(this, SleepTrackIds.NOTIFICATION, notification(micOn = false, micStoppedForAlarm = false, startedAt = startedAt), types(mic = false))
         }.onFailure { Log.w(TAG, "could not drop the microphone type", it) }
     }
 
     override fun showStatus(status: TrackStatus.Running) {
+        startedAt = status.startedAt
         val n = notification(status.micOn, status.micStoppedForAlarm, status.startedAt)
         runCatching { getSystemService(NotificationManager::class.java)?.notify(SleepTrackIds.NOTIFICATION, n) }
     }

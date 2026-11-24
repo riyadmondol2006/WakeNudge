@@ -290,15 +290,11 @@
             android:exported="false" />
 
         <provider
-            android:name="androidx.core.content.FileProvider"
+            android:name=".engine.sleeptrack.SleepClipProvider"
             android:authorities="${applicationId}.sleepclips"
             android:directBootAware="false"
             android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/sleep_clip_paths" />
-        </provider>
+            android:grantUriPermissions="true" />
 
         <!-- Quick Settings tile: vacation-mode switch showing the next alarm. Only reads device-protected storage. -->
         <service
