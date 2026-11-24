@@ -117,7 +117,8 @@ class ReleaseReadinessTest {
             "com.google.android.gms.permission.AD_ID", "android.permission.QUERY_ALL_PACKAGES",
             "android.permission.REQUEST_INSTALL_PACKAGES", "android.permission.ACCESS_FINE_LOCATION",
             "android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_BACKGROUND_LOCATION",
-            "android.permission.READ_CONTACTS", "android.permission.RECORD_AUDIO", "android.permission.READ_EXTERNAL_STORAGE",
+            // RECORD_AUDIO is allowed for sleep tracking's opt-in "Record snoring" only; the next test pins where it may be used.
+            "android.permission.READ_CONTACTS", "android.permission.READ_EXTERNAL_STORAGE",
             "android.permission.MANAGE_EXTERNAL_STORAGE", "android.permission.READ_PHONE_STATE",
             // SYSTEM_ALERT_WINDOW is allowed on purpose: Android lets a background service start an activity only with
             // it, which is how the ring screen comes back after the user leaves it while the alarm rings. Nothing is drawn
@@ -137,11 +138,33 @@ class ReleaseReadinessTest {
         assertTrue(permissions.containsKey("android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED"))
     }
 
+    @Test fun `the microphone is used by the sleep tracking service alone, and only as an opt-in`() {
+        // Sleep tracking's "Record snoring" (off by default) is the one user of RECORD_AUDIO. The only service that may hold
+        // the microphone type is its own, which is not exported, never runs before the first unlock, and also needs the
+        // health type for movement. On Android 14+ that type requires ACTIVITY_RECOGNITION. See docs/features/sleep-tracking.md.
+        val permissions = manifest.children("uses-permission").map { it.getAttribute("android:name") }.toSet()
+        assertTrue(permissions.contains("android.permission.RECORD_AUDIO"))
+        assertTrue(permissions.contains("android.permission.FOREGROUND_SERVICE_MICROPHONE"))
+        assertTrue(permissions.contains("android.permission.FOREGROUND_SERVICE_HEALTH"))
+        assertTrue(permissions.contains("android.permission.ACTIVITY_RECOGNITION"))
+        val services = application.children("service")
+        val withMic = services.filter { "microphone" in it.getAttribute("android:foregroundServiceType").split('|') }
+        assertEquals(listOf(".engine.sleeptrack.SleepTrackService"), withMic.map { it.getAttribute("android:name") })
+        val sleep = withMic.single()
+        assertEquals("health|microphone", sleep.getAttribute("android:foregroundServiceType"))
+        assertEquals("false", sleep.getAttribute("android:exported"))
+        assertEquals("false", sleep.getAttribute("android:directBootAware"))
+        val withHealth = services.filter { "health" in it.getAttribute("android:foregroundServiceType").split('|') }
+        assertEquals(listOf(sleep), withHealth)
+    }
+
     @Test fun `optional hardware is never required so the app installs on every device`() {
         val features = manifest.children("uses-feature").associate { it.getAttribute("android:name") to it.getAttribute("android:required") }
         for (name in listOf(
             "android.hardware.camera", "android.hardware.camera.autofocus", "android.hardware.nfc",
             "android.hardware.sensor.accelerometer", "android.hardware.sensor.stepcounter", "android.hardware.touchscreen",
+            // Implied by RECORD_AUDIO (sleep tracking's snoring), so it must be stated as optional.
+            "android.hardware.microphone",
         )) {
             assertEquals("$name must be declared required=false", "false", features[name])
         }

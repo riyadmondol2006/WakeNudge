@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sleep tracking: the Track my sleep screen, the night detail, the Sleep part of the Report and the tracking notification. -->
+<resources>
+    <!-- Track my sleep screen -->
+    <string name="sleeptrack_ready_title">Ready for bed</string>
+    <string name="sleeptrack_ready_body">Put your phone on the mattress near your pillow, then tap Start. Tap I\'m up in the morning, or dismiss your alarm: tracking stops by itself.</string>
+    <string name="sleeptrack_start">Start</string>
+    <string name="sleeptrack_im_up">I\'m up</string>
+    <string name="sleeptrack_no_sensor">This phone has no motion sensor that sleep tracking can use.</string>
+    <string name="sleeptrack_battery_hint">Your phone isn\'t charging. A whole night of tracking uses some battery, so plug it in if you can.</string>
+    <string name="sleeptrack_snoring">Record snoring</string>
+    <string name="sleeptrack_snoring_note">Listens on this phone only, keeps at most 3 short clips a night for 7 days, and stops when an alarm rings.</string>
+    <string name="sleeptrack_delete_all_clips">Delete all snore clips</string>
+    <plurals name="sleeptrack_clip_count">
+        <item quantity="one">%d clip kept</item>
+        <item quantity="other">%d clips kept</item>
+    </plurals>
+    <string name="sleeptrack_delete_all_clips_title">Delete all snore clips?</string>
+    <string name="sleeptrack_delete_all_clips_body">Every recorded clip is removed from this phone. Your nights stay.</string>
+    <string name="sleeptrack_delete">Delete</string>
+    <string name="sleeptrack_last_night">Last night</string>
+    <string name="sleeptrack_view_night">View night</string>
+    <string name="sleeptrack_how_title">How this works</string>
+    <string name="sleeptrack_how_body">Stages are estimated from how much you move (and from sound, if Record snoring is on). They are a rough guide, not a measurement like a sleep lab makes, and not medical advice. Results are best with the phone on the mattress, not on a nightstand.</string>
+    <string name="sleeptrack_how_short">Estimated from movement and sound, not measured like a sleep lab. Best with the phone on the mattress.</string>
+
+    <!-- While tracking -->
+    <string name="sleeptrack_tracking_for">Tracking for %1$s</string>
+    <string name="sleeptrack_mic_on">Microphone on, listening for snoring</string>
+    <string name="sleeptrack_mic_off">Movement only, microphone off</string>
+    <string name="sleeptrack_mic_stopped">Microphone off: an alarm rang</string>
+    <string name="sleeptrack_leave_hint">You can turn the screen off or leave this screen. Tracking keeps going.</string>
+
+    <!-- Permissions and problems -->
+    <string name="sleeptrack_need_activity_title">Allow physical activity</string>
+    <string name="sleeptrack_need_activity_body">On this version of Android, tracking movement while the screen is off needs the physical activity permission. It is only used to feel how you move in bed, on this phone.</string>
+    <string name="sleeptrack_open_settings">Open settings</string>
+    <string name="sleeptrack_cancel">Cancel</string>
+    <string name="sleeptrack_mic_denied">Record snoring stays off: the microphone isn\'t allowed.</string>
+    <string name="sleeptrack_refused">Android didn\'t let sleep tracking start. Open the app and tap Start again; if it keeps happening, check that WakeNudge may run in the background.</string>
+    <string name="sleeptrack_mic_unavailable">The microphone couldn\'t be used, so tonight is tracked by movement only.</string>
+    <string name="sleeptrack_time_limit">Tracking stopped after 16 hours.</string>
+
+    <!-- Night summary and detail -->
+    <string name="sleeptrack_asleep">Time asleep</string>
+    <string name="sleeptrack_in_bed">Time tracked</string>
+    <string name="sleeptrack_latency">Time to fall asleep</string>
+    <string name="sleeptrack_awake_after">Awake after falling asleep</string>
+    <string name="sleeptrack_none_value">–</string>
+    <string name="sleeptrack_short">Short, under an hour</string>
+    <string name="sleeptrack_too_little_data">Too little movement data to estimate this night. The phone may have been moved, or Android paused the sensor.</string>
+    <string name="sleeptrack_no_movement">Almost no movement all night, so the phone probably wasn\'t on the bed. Nothing is estimated.</string>
+    <string name="sleeptrack_no_sleep_found">No sustained stillness found, so no sleep is estimated for this session.</string>
+    <string name="sleeptrack_night_range">%1$s – %2$s</string>
+    <string name="sleeptrack_stage_deep">Deep</string>
+    <string name="sleeptrack_stage_light">Light</string>
+    <string name="sleeptrack_stage_rem">REM</string>
+    <string name="sleeptrack_stage_awake">Awake</string>
+    <string name="sleeptrack_stage_value">%1$s %2$s</string>
+    <string name="sleeptrack_timeline">Stages through the night</string>
+    <string name="sleeptrack_timeline_desc">Estimated stages from %1$s to %2$s. %3$s</string>
+    <string name="sleeptrack_sound_title">Sound level</string>
+    <plurals name="sleeptrack_sound_desc">
+        <item quantity="one">Sound level through the night, with %d snore-like moment marked.</item>
+        <item quantity="other">Sound level through the night, with %d snore-like moments marked.</item>
+    </plurals>
+    <string name="sleeptrack_mic_stopped_at">The microphone stopped at %1$s, when an alarm rang.</string>
+    <string name="sleeptrack_clips_title">Snore clips</string>
+    <string name="sleeptrack_clips_none">No clips kept for this night.</string>
+    <string name="sleeptrack_clip_line">%1$s · %2$s</string>
+    <string name="sleeptrack_listen">Listen</string>
+    <string name="sleeptrack_stop_listening">Stop</string>
+    <string name="sleeptrack_share">Share</string>
+    <string name="sleeptrack_share_title">Share snore clip</string>
+    <string name="sleeptrack_cant_play">This clip can\'t be played right now.</string>
+    <string name="sleeptrack_delete_clip">Delete clip</string>
+    <string name="sleeptrack_delete_night">Delete night</string>
+    <string name="sleeptrack_delete_night_title">Delete this night?</string>
+    <string name="sleeptrack_delete_night_body">Its movement summary, sound levels and clips are removed from this phone.</string>
+    <string name="sleeptrack_close">Close</string>
+    <string name="sleeptrack_loudness_soft">Soft</string>
+    <string name="sleeptrack_loudness_loud">Loud</string>
+    <string name="sleeptrack_loudness_very_loud">Very loud</string>
+    <string name="sleeptrack_waveform_desc">Waveform of the clip</string>
+
+    <!-- Report: Sleep -->
+    <string name="sleeptrack_week_this">This week</string>
+    <string name="sleeptrack_week_last">Last week</string>
+    <string name="sleeptrack_week_previous">Previous week</string>
+    <string name="sleeptrack_week_next">Next week</string>
+    <string name="sleeptrack_avg_asleep">Avg. time asleep</string>
+    <string name="sleeptrack_avg_latency">Avg. time to fall asleep</string>
+    <string name="sleeptrack_week_chart">Nights this week</string>
+    <string name="sleeptrack_chart_hours">%1$d h</string>
+    <string name="sleeptrack_chart_day">%1$s: %2$s</string>
+    <string name="sleeptrack_chart_no_night">no night tracked</string>
+    <string name="sleeptrack_chart_no_estimate">tracked, too little data to estimate</string>
+    <string name="sleeptrack_week_empty">No nights tracked this week.</string>
+    <string name="sleeptrack_empty_title">No nights tracked yet</string>
+    <string name="sleeptrack_empty_body">Put your phone on your bed at night and start tracking to see how long you sleep and how you move.</string>
+    <string name="sleeptrack_snore_highlight">Loudest snoring this week</string>
+    <string name="sleeptrack_nights_title">Nights</string>
+    <string name="sleeptrack_night_row">%1$s · %2$s asleep</string>
+
+    <!-- Notification -->
+    <string name="sleeptrack_channel">Sleep tracking</string>
+    <string name="sleeptrack_channel_desc">Shown while a night is being tracked</string>
+    <string name="sleeptrack_notif_title">Tracking your sleep</string>
+    <string name="sleeptrack_notif_mic_on">Microphone on: listening for snoring on this phone. Movement is tracked too.</string>
+    <string name="sleeptrack_notif_movement">Tracking movement. Microphone off.</string>
+    <string name="sleeptrack_notif_mic_stopped">An alarm rang, so the microphone is off. Movement is still tracked until you dismiss it.</string>
+</resources>

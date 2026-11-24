@@ -41,6 +41,17 @@
     <uses-permission android:name="android.permission.NFC" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
 
+    <!--
+        Sleep tracking (feature: sleep tracking). Movement runs in a "health" foreground service; on Android 14+ that type
+        needs the physical-activity permission (ACTIVITY_RECOGNITION, declared above), asked for when tracking starts.
+        RECORD_AUDIO and the "microphone" type only while "Record snoring" is switched on, asked for then. Nothing leaves
+        the phone. See docs/features/sleep-tracking.md.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
@@ -261,6 +272,29 @@
                 <action android:name="android.intent.action.LOCALE_CHANGED" />
             </intent-filter>
         </receiver>
+
+        <!--
+            Sleep tracking (feature: sleep tracking). Its data is in credential-encrypted storage, so none of these runs
+            before the first unlock. The service is started only from the user's tap; the receiver only by its own alarm
+            that deletes expired snore clips; the provider shares one clip the user chose, from a cache folder.
+        -->
+        <service
+            android:name=".engine.sleeptrack.SleepTrackService"
+            android:directBootAware="false"
+            android:exported="false"
+            android:foregroundServiceType="health|microphone" />
+
+        <receiver
+            android:name=".engine.sleeptrack.SleepCleanupReceiver"
+            android:directBootAware="false"
+            android:exported="false" />
+
+        <provider
+            android:name=".engine.sleeptrack.SleepClipProvider"
+            android:authorities="${applicationId}.sleepclips"
+            android:directBootAware="false"
+            android:exported="false"
+            android:grantUriPermissions="true" />
 
         <!-- Quick Settings tile: vacation-mode switch showing the next alarm. Only reads device-protected storage. -->
         <service
