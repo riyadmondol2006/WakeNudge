@@ -11,6 +11,7 @@ import com.riyadm.wakenudge.domain.scheduling.AlarmScheduler
 import com.riyadm.wakenudge.domain.scheduling.SurfaceRefresher
 import com.riyadm.wakenudge.engine.DurableRingStore
 import com.riyadm.wakenudge.engine.RuntimeState
+import com.riyadm.wakenudge.engine.habits.HabitReminderScheduler
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -42,6 +43,7 @@ class BackupManager @Inject constructor(
     private val diagnostics: DiagnosticsLog,
     private val runtime: RuntimeState,
     private val global: com.riyadm.wakenudge.domain.usecase.GlobalChanges,
+    private val habitReminders: HabitReminderScheduler,
 ) {
 
     /** The whole configuration as pretty-printed JSON; [includeHistory] adds every logged alarm event. */
@@ -101,6 +103,14 @@ class BackupManager @Inject constructor(
             throw cancelled
         } catch (t: Throwable) {
             diagnostics.error("Backup", "re-arming after restore failed", t)
+            warnings += ImportWarning(R.string.backup_warn_reschedule_failed)
+        }
+        try {
+            habitReminders.rescheduleAll()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (t: Throwable) {
+            diagnostics.error("Backup", "re-arming habit reminders after restore failed", t)
             warnings += ImportWarning(R.string.backup_warn_reschedule_failed)
         }
         surfaces.refreshAll()
